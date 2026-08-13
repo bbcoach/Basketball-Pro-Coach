@@ -112,7 +112,7 @@ function BoxTab() {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <div style={{ minWidth: 520, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <div style={{ minWidth: 150 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
             <div style={{ width: 150, flex: 'none' }}>Player</div>
             {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
