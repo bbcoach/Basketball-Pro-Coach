@@ -120,17 +120,20 @@ function BoxTab() {
           {roster.map((p) => {
             const t = tallyFor(log, p.id)
             const cells = [
-              [String(t.pts), true], [t.fgm + '/' + t.fga, false], [t.fg3m + '/' + (t.fg3m + t.fg3a), false],
-              [t.ftm + '/' + (t.ftm + t.fta), false], [String(t.reb), false], [String(t.ast), false],
-              [String(t.stl), false], [String(t.blk), false], [String(t.tov), false], [String(t.pf), false],
+              String(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
+              t.ftm + '/' + (t.ftm + t.fta), String(t.reb), String(t.ast),
+              String(t.stl), String(t.blk), String(t.tov), String(t.pf),
             ]
+            const cellStyle = (i) => (i === 0
+              ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
+              : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
             return (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
                 <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
                   <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                 </div>
-                {cells.map((c, i) => <div key={i} style={{ width: 46, flex: 'none', textAlign: 'center', color: c[1] ? ACCENT : 'rgba(255,255,255,.85)', fontWeight: c[1] ? 700 : 500 }}>{c[0]}</div>)}
+                {cells.map((c, i) => <div key={i} style={cellStyle(i)}>{c}</div>)}
               </div>
             )
           })}
