@@ -32,9 +32,9 @@ function RotateLock() {
       }}
     >
       <div style={{ fontSize: 40, transform: 'rotate(90deg)' }}>📱</div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Bitte drehe dein Gerät zurück</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Please rotate your device</div>
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', maxWidth: 280, lineHeight: 1.5 }}>
-        Basketball Pro Coach ist für Hochformat optimiert und funktioniert im Querformat nicht zuverlässig.
+        Basketball Pro Coach is designed for portrait mode — that's where all features are available.
       </div>
     </div>
   )
