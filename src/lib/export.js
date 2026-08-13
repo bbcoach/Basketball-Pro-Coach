@@ -68,10 +68,21 @@ export async function exportStill(svgRef, stateRef, set) {
   }
 }
 
+function isStandalonePwa() {
+  return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+}
+
 export async function exportClip(svgRef, stateRef, set) {
   if (!window.MediaRecorder) { set({ shareStatus: 'Video recording is not supported here' }); return }
   if (typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
     set({ shareStatus: 'Video recording is not supported here' })
+    return
+  }
+  // iOS blocks MediaRecorder on a canvas stream when the app is installed to
+  // the Home Screen (standalone display mode) — it works fine in a regular
+  // Safari tab, so don't waste an attempt on a failure we can predict.
+  if (isStandalonePwa()) {
+    set({ shareStatus: 'Video export needs Safari — open this app in a browser tab to record a video, or use Still image here' })
     return
   }
 
