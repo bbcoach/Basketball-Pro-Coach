@@ -70,17 +70,32 @@ export async function exportStill(svgRef, stateRef, set) {
 
 export async function exportClip(svgRef, stateRef, set) {
   if (!window.MediaRecorder) { set({ shareStatus: 'Video recording is not supported here' }); return }
-  try {
-    const s0 = stateRef.current
-    const [w, h] = canvasSize(s0.view)
-    const cv = document.createElement('canvas')
-    cv.width = w; cv.height = h
-    const ctx = cv.getContext('2d')
-    const stream = cv.captureStream(20)
-    const cands = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=h264', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
-    const type = cands.find((c) => MediaRecorder.isTypeSupported(c)) || ''
+  if (typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
+    set({ shareStatus: 'Video recording is not supported here' })
+    return
+  }
 
-    const rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 })
+  const s0 = stateRef.current
+  const [w, h] = canvasSize(s0.view)
+  const cv = document.createElement('canvas')
+  cv.width = w; cv.height = h
+  const ctx = cv.getContext('2d')
+
+  let stream
+  let type
+  let rec
+  try {
+    stream = cv.captureStream(20)
+    if (!stream.getVideoTracks().length) throw new Error('no video track from captureStream')
+    const cands = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=h264', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
+    type = cands.find((c) => MediaRecorder.isTypeSupported(c)) || ''
+    rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 })
+  } catch (err) {
+    set({ shareStatus: 'Video recording is not supported here' + (err && err.message ? ' (' + err.message + ')' : '') })
+    return
+  }
+
+  try {
     const parts = []
     rec.ondataavailable = (e) => { if (e.data.size) parts.push(e.data) }
     const done = new Promise((r) => { rec.onstop = r })
@@ -100,11 +115,12 @@ export async function exportClip(svgRef, stateRef, set) {
     rec.stop()
     await done
     set({ t: t0, playing: wasPlaying, exporting: false })
+    if (!parts.length) throw new Error('recording produced no data')
     const mime = (rec.mimeType || type || 'video/mp4').split(';')[0]
     const blob = new Blob(parts, { type: mime })
     const file = fileBase(s0) + (mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm')
     await shareOrDownload(blob, file, s0.playName, set, 'Video saved')
-  } catch {
-    set({ exporting: false, shareStatus: 'Could not record the animation' })
+  } catch (err) {
+    set({ exporting: false, shareStatus: 'Could not record the animation' + (err && err.message ? ' (' + err.message + ')' : '') })
   }
 }
