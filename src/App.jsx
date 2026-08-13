@@ -22,6 +22,24 @@ function Screen() {
   )
 }
 
+function RotateLock() {
+  return (
+    <div
+      className="rotate-lock"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999, background: '#0a0a0b',
+        flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 40, transform: 'rotate(90deg)' }}>📱</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Bitte drehe dein Gerät zurück</div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', maxWidth: 280, lineHeight: 1.5 }}>
+        Basketball Pro Coach ist für Hochformat optimiert und funktioniert im Querformat nicht zuverlässig.
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AppProvider>
@@ -41,6 +59,7 @@ export default function App() {
           <Screen />
         </div>
       </div>
+      <RotateLock />
     </AppProvider>
   )
 }
