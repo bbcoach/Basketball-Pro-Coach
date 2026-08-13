@@ -1,0 +1,582 @@
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  actsOf, baseAt, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
+} from '../lib/board-geometry'
+import { HINTS } from '../lib/content'
+import { exportClip, exportStill } from '../lib/export'
+
+const LS = {
+  plays: 'tb.plays.v1',
+  roster: 'tb.roster.v1',
+  game: 'tb.game.v1',
+  drills: 'tb.drills.v1',
+  plans: 'tb.plans.v1',
+  sessions: 'tb.sessions.v1',
+}
+
+function loadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+function saveJson(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* ignore quota errors */ }
+}
+
+function initialState() {
+  const s0 = startState()
+  return {
+    screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice'
+    boardMenu: false, loadOpen: false, infoPage: null,
+
+    // board
+    view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
+    players: s0.players, ball: s0.ball, sel: null, seq: 6,
+    hint: 'Step 1 — drag players, pick a tool, draw the path',
+    autoDef: true, timeout: false,
+    currentId: null, playName: 'Untitled play',
+    sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '',
+    formOpen: false, shareOpen: false, exporting: false,
+    shareStatus: 'Sends the current play to your team',
+    plays: [],
+
+    // stat tracker (roster is shared with attendance)
+    statsTab: 'live', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
+    log: [], opponent: '', onCourt: [], resetAsk: false,
+
+    // training attendance
+    attendTab: 'sessions', sessions: [], openSession: null,
+
+    // practice
+    practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
+    dName: '', dMin: '', dEdit: null,
+    runPlanId: null, runIdx: 0, runLeft: 0, runPaused: false,
+  }
+}
+
+const AppContext = createContext(null)
+
+export function AppProvider({ children }) {
+  const [state, setState] = useState(initialState)
+  const stateRef = useRef(state)
+  stateRef.current = state
+
+  const set = (patch) => setState((s) => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }))
+
+  const history = useRef([])
+  const drag = useRef(null)
+  const svgRef = useRef(null)
+  const rafRef = useRef(0)
+  const lastRef = useRef(0)
+  const runTimerRef = useRef(0)
+
+  // ── load persisted data once ──────────────────────────────
+  useEffect(() => {
+    const plays = loadJson(LS.plays, [])
+    const roster = loadJson(LS.roster, [])
+    const game = loadJson(LS.game, { log: [], opponent: '', onCourt: [] })
+    const drills = loadJson(LS.drills, [])
+    const plans = loadJson(LS.plans, [])
+    const sessions = loadJson(LS.sessions, [])
+    set({ plays, roster, log: game.log || [], opponent: game.opponent || '', onCourt: game.onCourt || [], drills, plans, sessions })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── persisted collection setters ──────────────────────────
+  const persistRoster = (fn) => setState((s) => {
+    const roster = typeof fn === 'function' ? fn(s.roster) : fn
+    saveJson(LS.roster, roster)
+    return { ...s, roster }
+  })
+  const persistDrills = (fn) => setState((s) => {
+    const drills = typeof fn === 'function' ? fn(s.drills) : fn
+    saveJson(LS.drills, drills)
+    return { ...s, drills }
+  })
+  const persistPlans = (fn) => setState((s) => {
+    const plans = typeof fn === 'function' ? fn(s.plans) : fn
+    saveJson(LS.plans, plans)
+    return { ...s, plans }
+  })
+  const persistSessions = (fn) => setState((s) => {
+    const sessions = typeof fn === 'function' ? fn(s.sessions) : fn
+    saveJson(LS.sessions, sessions)
+    return { ...s, sessions }
+  })
+  const persistLog = (fn) => setState((s) => {
+    const log = typeof fn === 'function' ? fn(s.log) : fn
+    saveJson(LS.game, { log, opponent: s.opponent, onCourt: s.onCourt })
+    return { ...s, log }
+  })
+  const persistPlays = (fn) => setState((s) => {
+    const plays = typeof fn === 'function' ? fn(s.plays) : fn
+    saveJson(LS.plays, plays)
+    return { ...s, plays }
+  })
+
+  // ── board helpers ──────────────────────────────────────────
+  const nSteps = () => makeBoard(stateRef.current).nSteps()
+
+  const snapshot = () => {
+    const s = stateRef.current
+    history.current.push(JSON.stringify({ players: s.players, ball: s.ball, steps: s.steps, step: s.step }))
+    if (history.current.length > 40) history.current.shift()
+  }
+
+  const pt = (e) => {
+    const svg = svgRef.current
+    if (!svg) return { x: 0, y: 0 }
+    const p = svg.createSVGPoint()
+    p.x = e.clientX; p.y = e.clientY
+    const m = svg.getScreenCTM()
+    if (!m) return { x: 0, y: 0 }
+    const q = p.matrixTransform(m.inverse())
+    return { x: q.x, y: q.y }
+  }
+
+  const onDown = (e) => {
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
+    const p = pt(e)
+    const s = stateRef.current
+    const tool = s.tool
+    if (tool === 'addOff' || tool === 'addDef') {
+      snapshot()
+      const off = tool === 'addOff'
+      const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
+      set((st) => ({
+        players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
+        seq: st.seq + 1, tool: 'move', playing: false,
+      }))
+      return
+    }
+    const board = makeBoard(s)
+    const id = board.hit(p, s.t)
+    if (tool === 'erase') {
+      if (!id) return
+      snapshot()
+      const k = s.step
+      const strip = (e2) => {
+        const e3 = normEnt(e2)
+        const cur = e3.acts.filter((a) => a.step === k)
+        return { ...e3, acts: cur.length ? e3.acts.filter((a) => a.step !== k) : e3.acts.slice(0, -1) }
+      }
+      if (id === 'ball') { set((st) => ({ ball: strip(st.ball) })); return }
+      const ent = board.entity(id)
+      if (ent && actsOf(ent).length) set((st) => ({ players: st.players.map((x) => (x.id === id ? strip(x) : x)) }))
+      else set((st) => ({ players: st.players.filter((x) => x.id !== id) }))
+      return
+    }
+    if (!id) { set({ sel: null }); return }
+    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
+    const k = s.step
+    const t0 = (k - 1) / nSteps()
+    if (tool === 'pass' || tool === 'shot') {
+      snapshot()
+      drag.current = { id: 'ball', draw: tool, step: k }
+      set((st) => ({ ball: setAct(st.ball, k, tool, p), sel: 'ball', playing: false, t: t0 }))
+      return
+    }
+    if (id === 'ball') return
+    snapshot()
+    drag.current = { id, draw: tool, step: k }
+    set((st) => ({ players: st.players.map((x) => (x.id === id ? setAct(x, k, tool, p) : x)), sel: id, playing: false, t: t0 }))
+  }
+
+  const onMove = (e) => {
+    if (!drag.current) return
+    const p = pt(e)
+    const d = drag.current
+    if (!d.draw) {
+      if (d.id === 'ball') set((s) => ({ ball: { ...s.ball, x: p.x, y: p.y } }))
+      else set((s) => ({ players: s.players.map((x) => (x.id === d.id ? { ...x, x: p.x, y: p.y } : x)) }))
+      return
+    }
+    const push = (ent) => {
+      const acts = actsOf(ent)
+      const i = acts.findIndex((a) => a.step === d.step)
+      if (i < 0) return ent
+      const a = acts[i]
+      if (Math.hypot(a.pts[a.pts.length - 1].x - p.x, a.pts[a.pts.length - 1].y - p.y) < 26) return ent
+      const na = acts.slice()
+      na[i] = { ...a, pts: a.pts.concat([p]) }
+      return { ...ent, acts: na }
+    }
+    if (d.id === 'ball') set((s) => ({ ball: push(s.ball) }))
+    else set((s) => ({ players: s.players.map((x) => (x.id === d.id ? push(x) : x)) }))
+  }
+
+  const onUp = () => {
+    const d = drag.current
+    drag.current = null
+    if (!d) return
+    if (d.draw) {
+      const s = stateRef.current
+      const board = makeBoard(s)
+      const ent = board.entity(d.id)
+      const a = ent && actsOf(ent).find((z) => z.step === d.step)
+      if (a) {
+        const startPos = d.id === 'ball' ? board.ballStart(a.step) : baseAt(ent, a.step)
+        const last = a.pts[a.pts.length - 1]
+        const tiny = Math.hypot(startPos.x - last.x, startPos.y - last.y) < 45
+        if (tiny) {
+          const strip = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).filter((z) => z.step !== d.step) })
+          if (d.id === 'ball') set((st) => ({ ball: strip(st.ball) }))
+          else set((st) => ({ players: st.players.map((x) => (x.id === d.id ? strip(x) : x)) }))
+        } else {
+          set((st) => ({ steps: Math.max(st.steps, d.step) }))
+        }
+      }
+    }
+  }
+
+  // ── playback ────────────────────────────────────────────────
+  const tick = (now) => {
+    if (!stateRef.current.playing) return
+    const dt = (now - (lastRef.current || now)) / 1000
+    lastRef.current = now
+    const n = nSteps()
+    set((s) => {
+      let t = s.t + dt * (0.42 / n) * s.speed
+      if (t >= 1) t -= 1
+      return { t }
+    })
+    rafRef.current = requestAnimationFrame(tick)
+  }
+  const togglePlay = () => {
+    const playing = !stateRef.current.playing
+    if (!playing) set({ step: stepAtTime(stateRef.current.t, nSteps()), playing })
+    else set({ playing })
+    cancelAnimationFrame(rafRef.current)
+    lastRef.current = 0
+    if (playing) rafRef.current = requestAnimationFrame(tick)
+  }
+  useEffect(() => () => { cancelAnimationFrame(rafRef.current); clearInterval(runTimerRef.current) }, [])
+
+  const setView = (view) => { set({ view, playing: false, t: 0 }); cancelAnimationFrame(rafRef.current) }
+
+  const addStep = () => {
+    const n2 = nSteps() + 1
+    set({ steps: n2, step: n2, t: (n2 - 1) / n2, playing: false, hint: 'Step ' + n2 + ' starts where step ' + (n2 - 1) + ' ended' })
+  }
+  const delStep = () => {
+    const n = nSteps()
+    if (n < 2) return
+    snapshot()
+    const drop = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).filter((a) => a.step !== n) })
+    const n2 = n - 1
+    set((s) => ({ players: s.players.map(drop), ball: drop(s.ball), steps: n2, step: Math.min(s.step, n2), t: (Math.min(s.step, n2) - 1) / n2, playing: false }))
+  }
+  const gotoStep = (nn) => set({ step: nn, t: (nn - 1) / nSteps(), playing: false, hint: 'Step ' + nn + ' — draw the actions of this step' })
+
+  const undo = () => {
+    const prev = history.current.pop()
+    if (!prev) return
+    const o = JSON.parse(prev)
+    set({ players: o.players, ball: o.ball, steps: o.steps || 1, step: o.step || 1, t: 0, playing: false })
+  }
+  const clearRoutes = () => {
+    snapshot()
+    set((s) => ({ players: s.players.map((p) => ({ ...normEnt(p), acts: [] })), ball: { ...normEnt(s.ball), acts: [] }, t: 0, steps: 1, step: 1, playing: false }))
+  }
+  const resetAll = () => {
+    snapshot()
+    const s0 = startState()
+    set({ players: s0.players, ball: s0.ball, t: 0, steps: 1, step: 1, playing: false, sel: null, currentId: null, playName: 'Untitled play' })
+  }
+
+  const setTool = (id) => set({ tool: id, hint: HINTS[id] })
+
+  const toggleAutoDef = () => set((s) => ({ autoDef: !s.autoDef, hint: s.autoDef ? 'Defenders stay put unless you draw their path' : 'Defenders now shadow their nearest attacker' }))
+
+  const applyFormation = (fm) => {
+    snapshot()
+    set((s) => {
+      const keep = s.players.filter((p) => (fm.side === 'off' ? p.team === 'def' : p.team === 'off'))
+      const made = fm.pos.map((c, i) => ({
+        id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'X' + (i + 1),
+        x: c[0], y: c[1] + (s.view === 'full' ? 1400 : 0), acts: [],
+      }))
+      const ballTo = fm.side === 'off' ? made[0] : null
+      return {
+        players: fm.side === 'off' ? made.concat(keep) : keep.concat(made),
+        ball: ballTo ? { x: ballTo.x + 56, y: ballTo.y + 44, acts: [] } : { ...normEnt(s.ball), acts: [] },
+        formOpen: false, t: 0, step: 1, steps: 1, playing: false, sel: null, tool: 'move',
+        hint: fm.name + ' set — drag anyone to fine-tune',
+      }
+    })
+  }
+
+  // ── plays (save / load) ────────────────────────────────────
+  const fileBase = () => (stateRef.current.playName || 'play').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+
+  const openSave = () => set((s) => ({ saveOpen: true, renameId: null, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName }))
+  const closeSave = () => set({ saveOpen: false, renameId: null })
+  const openSheet = () => set((s) => ({ sheetOpen: true, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName }))
+  const closeSheet = () => set({ sheetOpen: false })
+  const renamePlay = (p) => set({ saveOpen: true, sheetOpen: false, renameId: p.id, nameDraft: p.name })
+
+  const savePlay = () => {
+    const s = stateRef.current
+    const name = (s.nameDraft || '').trim() || ('Play ' + (s.plays.length + 1))
+    if (s.renameId) {
+      persistPlays((ps) => ps.map((x) => (x.id === s.renameId ? { ...x, name } : x)))
+      set((st) => ({ saveOpen: false, renameId: null, playName: st.currentId === s.renameId ? name : st.playName }))
+      return
+    }
+    const n = nSteps()
+    const snap = { view: s.view, steps: n, players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))) }
+    const existing = s.plays.find((p) => p.name.toLowerCase() === name.toLowerCase())
+    const id = existing ? existing.id : 'pl' + Date.now()
+    const entry = { id, name, ts: Date.now(), ...snap }
+    persistPlays((ps) => (ps.some((x) => x.id === id) ? ps.map((x) => (x.id === id ? entry : x)) : [entry].concat(ps)))
+    set({ currentId: id, playName: name, sheetOpen: false, saveOpen: false, renameId: null, hint: 'Saved as “' + name + '”' })
+  }
+  // "open" — from the home screen's Load list: fresh board, undo history cleared.
+  const openPlayFromHome = (p) => {
+    history.current = []
+    const d = JSON.parse(JSON.stringify(p))
+    set({
+      screen: 'board', boardMenu: false, loadOpen: false,
+      view: d.view, players: d.players.map(normEnt), ball: normEnt(d.ball),
+      steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
+      t: 0, playing: false, sel: null, tool: 'move',
+    })
+  }
+  // "load" — from the in-board "My plays" sheet: swaps the board, keeps undo history.
+  const loadPlayFromSheet = (p) => {
+    snapshot()
+    const d = JSON.parse(JSON.stringify(p))
+    set({
+      view: d.view, players: d.players.map(normEnt), ball: normEnt(d.ball),
+      steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
+      sheetOpen: false, t: 0, playing: false, sel: null,
+    })
+  }
+  const removePlay = (p) => {
+    persistPlays((ps) => ps.filter((x) => x.id !== p.id))
+    if (stateRef.current.currentId === p.id) set({ currentId: null })
+  }
+  const startNewPlay = () => {
+    const s0 = startState()
+    history.current = []
+    set({
+      screen: 'board', boardMenu: false, loadOpen: false, view: 'half', players: s0.players, ball: s0.ball,
+      t: 0, steps: 1, step: 1, playing: false, sel: null, tool: 'move', currentId: null, playName: 'Untitled play',
+    })
+  }
+  const goHome = () => set({ screen: 'home', boardMenu: true, loadOpen: false, playing: false })
+  const toggleBoardMenu = () => set((s) => ({ boardMenu: !s.boardMenu }))
+  const toggleLoad = () => set((s) => ({ loadOpen: !s.loadOpen }))
+
+  // ── formations / share modals ──────────────────────────────
+  const openFormations = () => set({ formOpen: true, playing: false })
+  const closeFormations = () => set({ formOpen: false })
+  const openShare = () => set((s) => ({ shareOpen: true, playing: false, shareStatus: 'Step ' + s.step + ' of ' + nSteps() + ' · ' + (s.view === 'half' ? 'Halfcourt' : 'Fullcourt') }))
+  const closeShareModal = () => set({ shareOpen: false })
+  const doExportPng = () => exportStill(svgRef, stateRef, set)
+  const doExportVideo = () => exportClip(svgRef, stateRef, set)
+
+  const enterTimeout = () => set({ timeout: true, playing: false })
+  const exitTimeout = () => set({ timeout: false })
+
+  // ── navigation ──────────────────────────────────────────────
+  const openStats = () => set({ screen: 'stats', playing: false })
+  const closeStats = () => set({ screen: 'home' })
+  const openAttend = () => set({ screen: 'attend' })
+  const closeAttend = () => set({ screen: 'home', openSession: null })
+  const openPractice = () => set({ screen: 'practice' })
+  const closePractice = () => set({ screen: 'home', openPlan: null })
+  const openInfo = (page) => set({ infoPage: page })
+  const closeInfo = () => set({ infoPage: null })
+
+  // ── stat tracker ────────────────────────────────────────────
+  const addPlayer = () => {
+    const s = stateRef.current
+    const name = (s.nameIn || '').trim()
+    if (!name) return
+    const num = (s.numIn || '').trim() || String(s.roster.length + 1)
+    if (s.editId) persistRoster((r) => r.map((x) => (x.id === s.editId ? { ...x, name, num } : x)))
+    else persistRoster((r) => r.concat([{ id: 'rp' + Date.now(), name, num }]))
+    set({ nameIn: '', numIn: '', editId: null })
+  }
+  const editPlayer = (p) => set({ editId: p.id, nameIn: p.name, numIn: p.num })
+  const cancelEditPlayer = () => set({ editId: null, nameIn: '', numIn: '' })
+  const removePlayer = (p) => {
+    persistRoster((r) => r.filter((x) => x.id !== p.id))
+    if (stateRef.current.editId === p.id) set({ editId: null, nameIn: '', numIn: '' })
+  }
+  const selectStatPlayer = (p) => set((s) => ({ selPlayer: s.selPlayer === p.id ? null : p.id }))
+  const logStat = (key) => {
+    const s = stateRef.current
+    if (!s.selPlayer) { set({ statsTab: s.roster.length ? 'live' : 'roster' }); return }
+    if (s.onCourt.indexOf(s.selPlayer) < 0) return
+    persistLog((l) => l.concat([{ p: s.selPlayer, k: key, ts: Date.now() }]))
+  }
+  const undoStat = () => persistLog((l) => l.slice(0, -1))
+  const toggleCourt = (p) => set((s) => {
+    const onCourt = s.onCourt.indexOf(p.id) >= 0 ? s.onCourt.filter((x) => x !== p.id) : s.onCourt.concat([p.id])
+    saveJson(LS.game, { log: s.log, opponent: s.opponent, onCourt })
+    return { onCourt }
+  })
+  const askReset = () => set({ resetAsk: true })
+  const closeReset = () => set({ resetAsk: false })
+  const resetGame = () => { persistLog(() => []); set({ resetAsk: false, selPlayer: null, statsTab: 'live' }) }
+  const resetRoster = () => {
+    persistLog(() => [])
+    persistRoster(() => [])
+    set({ resetAsk: false, selPlayer: null, editId: null, nameIn: '', numIn: '', statsTab: 'roster' })
+  }
+
+  // ── attendance ──────────────────────────────────────────────
+  const newSession = () => {
+    const id = 'ses' + Date.now()
+    const d = new Date()
+    const entry = { id, date: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {} }
+    persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    set({ openSession: id })
+  }
+  const removeSession = (s) => persistSessions((ss) => ss.filter((x) => x.id !== s.id))
+  const openSession = (id) => set({ openSession: id })
+  const backToSessions = () => set({ openSession: null })
+  const setSessionDate = (v) => {
+    if (!v) return
+    const s = stateRef.current
+    const d = new Date(v + 'T12:00:00')
+    persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, date: v, label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) } : x))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+  }
+  const setSessionPlan = (planId) => {
+    const s = stateRef.current
+    persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, planId } : x)))
+  }
+  const markAttendance = (playerId, val) => {
+    const s = stateRef.current
+    persistSessions((ss) => ss.map((x) => {
+      if (x.id !== s.openSession) return x
+      const m = { ...x.marks }
+      if (m[playerId] === val) delete m[playerId]
+      else m[playerId] = val
+      return { ...x, marks: m }
+    }))
+  }
+
+  // ── practice ────────────────────────────────────────────────
+  const planDrills = (plan) => {
+    if (!plan) return []
+    const s = stateRef.current
+    return (plan.items || []).map((id) => s.drills.find((d) => d.id === id)).filter(Boolean)
+  }
+  const newPlan = () => {
+    const id = 'pn' + Date.now()
+    const d = new Date()
+    persistPlans((ps) => [{ id, name: 'Session ' + d.toLocaleDateString(), items: [] }].concat(ps))
+    set({ openPlan: id, activePlan: id })
+  }
+  const setActivePlan = (id) => set({ activePlan: id, practiceTab: 'drills' })
+  const openPlan = (id) => set({ openPlan: id, activePlan: id })
+  const backToPlans = () => set({ openPlan: null })
+  const removePlan = (id) => persistPlans((ps) => ps.filter((x) => x.id !== id))
+  const setPlanName = (v) => {
+    const s = stateRef.current
+    persistPlans((ps) => ps.map((x) => (x.id === s.openPlan ? { ...x, name: v } : x)))
+  }
+  const movePlanItem = (planId, i, to) => persistPlans((ps) => ps.map((x) => {
+    if (x.id !== planId) return x
+    const items = (x.items || []).slice()
+    if (to < 0 || to >= items.length) return x
+    const tmp = items[i]; items[i] = items[to]; items[to] = tmp
+    return { ...x, items }
+  }))
+  const removePlanItem = (planId, i) => persistPlans((ps) => ps.map((x) => (x.id === planId ? { ...x, items: (x.items || []).filter((_, j) => j !== i) } : x)))
+  const addDrillToPlan = (planId, drillId) => {
+    if (!planId) {
+      const id = 'pn' + Date.now()
+      persistPlans((ps) => [{ id, name: 'Session ' + new Date().toLocaleDateString(), items: [drillId] }].concat(ps))
+      set({ activePlan: id })
+      return
+    }
+    persistPlans((ps) => ps.map((x) => (x.id === planId ? { ...x, items: (x.items || []).concat([drillId]) } : x)))
+  }
+  const addDrill = () => {
+    const s = stateRef.current
+    const name = (s.dName || '').trim()
+    if (!name) return
+    const min = parseInt(s.dMin, 10) || 10
+    if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min } : x)))
+    else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min }]))
+    set({ dName: '', dMin: '', dEdit: null })
+  }
+  const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || '') })
+  const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '' })
+  const removeDrill = (d) => {
+    persistDrills((ds) => ds.filter((x) => x.id !== d.id))
+    persistPlans((ps) => ps.map((x) => ({ ...x, items: (x.items || []).filter((id) => id !== d.id) })))
+  }
+  const addExampleDrills = () => persistDrills((ds) => ds.concat([
+    { id: 'dr' + Date.now(), name: 'Warm-up & mobility', min: 10 },
+    { id: 'dr' + (Date.now() + 1), name: 'Two-ball handling', min: 10 },
+    { id: 'dr' + (Date.now() + 2), name: 'Spot shooting', min: 15 },
+    { id: 'dr' + (Date.now() + 3), name: '3 on 2 transition', min: 15 },
+  ]))
+
+  const startRun = (planId) => {
+    const plan = stateRef.current.plans.find((p) => p.id === planId)
+    const list = planDrills(plan)
+    if (!list.length) return
+    clearInterval(runTimerRef.current)
+    set({ runPlanId: planId, runIdx: 0, runLeft: (list[0].min || 5) * 60, runPaused: false })
+    runTimerRef.current = setInterval(() => {
+      if (stateRef.current.runPaused) return
+      set((s) => ({ runLeft: Math.max(0, s.runLeft - 1) }))
+    }, 1000)
+  }
+  const stopRun = () => { clearInterval(runTimerRef.current); set({ runPlanId: null, runIdx: 0, runLeft: 0, runPaused: false }) }
+  const gotoDrill = (i) => {
+    const s = stateRef.current
+    const plan = s.plans.find((p) => p.id === s.runPlanId)
+    const list = planDrills(plan)
+    if (i >= list.length) { stopRun(); return }
+    set({ runIdx: i, runLeft: (list[i].min || 5) * 60, runPaused: false })
+  }
+  const toggleRunPause = () => set((s) => ({ runPaused: !s.runPaused }))
+  const runPlanCmd = (id) => {
+    const s = stateRef.current
+    const p = s.plans.find((x) => x.id === id)
+    if (!p || !(p.items || []).length) { set({ practiceTab: 'drills', activePlan: id }); return }
+    startRun(id)
+  }
+
+  const api = useMemo(() => ({
+    set, svgRef,
+    nSteps,
+    onDown, onMove, onUp,
+    togglePlay, setView, addStep, delStep, gotoStep,
+    undo, clearRoutes, resetAll, setTool, toggleAutoDef, applyFormation,
+    openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
+    openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
+    openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
+    enterTimeout, exitTimeout,
+    openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openInfo, closeInfo,
+    persistRoster, persistDrills, persistPlans, persistSessions, persistLog, persistPlays,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
+    askReset, closeReset, resetGame, resetRoster,
+    newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance,
+    planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
+    movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills,
+    startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,
+    fileBase,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [])
+
+  const value = useMemo(() => ({ state, ...api }), [state, api])
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext)
+  if (!ctx) throw new Error('useApp must be used within AppProvider')
+  return ctx
+}

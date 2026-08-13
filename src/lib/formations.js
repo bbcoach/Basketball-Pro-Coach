@@ -1,0 +1,16 @@
+export const FORMATIONS = [
+  { id: '4out', tag: '4-1', name: '4-out / 1-in', desc: 'Point, wings, corners + post', side: 'off',
+    pos: [[750, 1200], [150, 880], [1350, 880], [330, 380], [640, 560]] },
+  { id: '5out', tag: '5-0', name: '5-out', desc: 'Open post, drive & kick', side: 'off',
+    pos: [[750, 1220], [130, 900], [1370, 900], [300, 350], [1200, 350]] },
+  { id: 'horns', tag: 'HRN', name: 'Horns', desc: 'Two bigs at the elbows', side: 'off',
+    pos: [[750, 1180], [110, 760], [1390, 760], [520, 560], [980, 560]] },
+  { id: 'stack', tag: 'BOX', name: 'Box set (BLOB)', desc: 'Baseline out of bounds', side: 'off',
+    pos: [[750, 60], [520, 560], [980, 560], [520, 260], [980, 260]] },
+  { id: 'z23', tag: '2-3', name: 'Zone 2-3', desc: 'Defensive shell', side: 'def',
+    pos: [[600, 760], [900, 760], [270, 380], [750, 230], [1230, 380]] },
+  { id: 'z13', tag: '1-3-1', name: 'Zone 1-3-1', desc: 'Trapping shell', side: 'def',
+    pos: [[750, 880], [250, 520], [750, 520], [1250, 520], [750, 200]] },
+  { id: 'box1', tag: 'B&1', name: 'Box-and-1', desc: 'Box zone + one chaser', side: 'def',
+    pos: [[560, 540], [940, 540], [560, 250], [940, 250], [750, 950]] },
+]
