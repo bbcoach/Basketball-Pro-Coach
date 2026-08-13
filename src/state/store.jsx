@@ -295,9 +295,12 @@ export function AppProvider({ children }) {
     snapshot()
     set((s) => {
       const keep = s.players.filter((p) => (fm.side === 'off' ? p.team === 'def' : p.team === 'off'))
+      // Formation coords are authored for halfcourt (basket near y=0, halfcourt
+      // line at y=1400). In fullcourt the same basket sits near y=2800, so the
+      // layout has to be mirrored, not just shifted down.
       const made = fm.pos.map((c, i) => ({
         id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'X' + (i + 1),
-        x: c[0], y: c[1] + (s.view === 'full' ? 1400 : 0), acts: [],
+        x: c[0], y: s.view === 'full' ? 2800 - c[1] : c[1], acts: [],
       }))
       const ballTo = fm.side === 'off' ? made[0] : null
       return {

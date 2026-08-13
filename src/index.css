@@ -44,6 +44,15 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .scrollx::-webkit-scrollbar { display: none; }
 
+/* The app is a single fixed-width portrait column — on a rotated phone
+   (short viewport height) content gets clipped instead of reflowing, so
+   show a rotate prompt rather than a half-broken layout. Tablets in
+   landscape (much taller viewport) are left alone. */
+.rotate-lock { display: none; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .rotate-lock { display: flex; }
+}
+
 input, button, textarea {
   font-family: inherit;
 }
