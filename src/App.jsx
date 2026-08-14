@@ -45,25 +45,40 @@ function RotateLock() {
         flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center',
       }}
     >
-      <svg width="100" height="130" viewBox="0 0 100 130">
-        <rect x="30" y="4" width="40" height="24" rx="2" fill="rgba(255,255,255,.9)" stroke="rgba(0,0,0,.25)" strokeWidth="1.5" />
-        <g transform="translate(50,30)">
-          <g className={dunking ? 'rl-rim-shake' : undefined}>
-            <g className={dunking ? 'rl-net-flex' : undefined}>
-              <path d="M-16 1 L-11.4 20 M-10.7 1.4 L-7.8 20.4 M-5.3 1.7 L-4.3 20.6 M0 1.8 L0 20.6 M5.3 1.7 L4.3 20.6 M10.7 1.4 L7.8 20.4 M16 1 L11.4 20" stroke="rgba(255,255,255,.55)" strokeWidth="1.2" fill="none" />
+      {/* Fixed 72×72 footprint — identical to the plain idle ball, so the
+          rest state stays perfectly centered. The hoop only exists while
+          dunking and is drawn above the box; overflow:visible lets it (and
+          the rising ball) show without changing the box's layout size. */}
+      <svg width="72" height="72" viewBox="0 0 72 72" style={{ overflow: 'visible' }}>
+        {dunking && (
+          <>
+            <text x="36" y="-40" textAnchor="middle" className="rl-dunk-text" fontSize="9.5" fontWeight="800" letterSpacing=".5" fill="#e8b13c" style={{ fontFamily: "'Barlow Condensed',sans-serif" }}>SLAM DUNK!</text>
+            <g transform="translate(36,-6)">
+              <rect x="-24" y="-30" width="48" height="26" rx="1.5" fill="rgba(235,235,240,.92)" stroke="rgba(0,0,0,.3)" strokeWidth="1.3" />
+              <rect x="-11" y="-16" width="22" height="13" fill="none" stroke="rgba(0,0,0,.3)" strokeWidth="1" />
+              <g className="rl-rim-shake">
+                <path d="M-9 -4 L-15 0 M9 -4 L15 0" stroke="rgba(0,0,0,.3)" strokeWidth="1.3" fill="none" />
+                <g className="rl-net-flex">
+                  <path
+                    d="M-15 1 L-3 22 M-10 1.3 L-2 22.3 M-5 1.6 L-1 22.6 M0 1.8 L0 22.8 M5 1.6 L1 22.6 M10 1.3 L2 22.3 M15 1 L3 22
+                       M-12 8 L-7 10 L-2 8 L2 10 L7 8 L12 10 M-7 15 L-3 17 L0 15 L3 17 L7 15"
+                    stroke="rgba(255,255,255,.5)" strokeWidth="1.1" fill="none"
+                  />
+                </g>
+                <ellipse cx="0" cy="0" rx="15" ry="3.6" fill="none" stroke="#b9481f" strokeWidth="3.4" />
+                <path d="M-15 0 A15 3.6 0 0 0 15 0" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1" />
+              </g>
             </g>
-            <ellipse cx="0" cy="0" rx="16" ry="4" fill="none" stroke="#e2762b" strokeWidth="4" />
-          </g>
-        </g>
-        {dunking && <text x="50" y="16" textAnchor="middle" className="rl-dunk-text" fontSize="9.5" fontWeight="800" letterSpacing=".5" fill="#e8b13c" style={{ fontFamily: "'Barlow Condensed',sans-serif" }}>SLAM DUNK!</text>}
-        <g transform="translate(50,100)" onClick={onBallTap} style={{ cursor: 'pointer' }}>
-          <circle r="30" fill="transparent" />
+          </>
+        )}
+        <g transform="translate(36,36)" onClick={onBallTap} style={{ cursor: 'pointer' }}>
+          <circle r="34" fill="transparent" />
           <g
             className={dunking ? 'rl-dunk' : 'rl-spin'}
             onAnimationEnd={() => { if (dunking) setDunking(false) }}
           >
-            <circle cx="0" cy="0" r="22" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
-            <path d="M-22 0 H22 M0 -22 V22 M-15.5 -15.5 Q0 0 -15.5 15.5 M15.5 -15.5 Q0 0 15.5 15.5" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
+            <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
+            <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
           </g>
         </g>
       </svg>
