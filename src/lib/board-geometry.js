@@ -236,7 +236,12 @@ export function makeBoard(state) {
     let bd = 110
     const mk = marks()
     state.players.forEach((pl) => { const d = dist(entPos(pl, t, n, mk), p); if (d < bd) { bd = d; best = pl.id } })
-    if (dist(ballPos(t), p) < 70) return 'ball'
+    // The ball only wins a tap that's ambiguous between it and a player when
+    // it's the closer of the two — otherwise a player standing near the ball
+    // (the starting ball carrier, most commonly) can never be tapped on the
+    // half of their token nearest the ball.
+    const ballD = dist(ballPos(t), p)
+    if (ballD < 70 && ballD < bd) return 'ball'
     return best
   }
 
