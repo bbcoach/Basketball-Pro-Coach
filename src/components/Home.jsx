@@ -16,7 +16,7 @@ export default function Home() {
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
+    <div data-home-root style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '54px 24px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 26 }}>
           <Logo size={52} iconSize={38} />
