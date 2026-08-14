@@ -93,12 +93,14 @@ function SessionOpen() {
 function SummaryTab() {
   const { state } = useApp()
   const { roster, sessions } = state
+  const today = new Date().toISOString().slice(0, 10)
+  const pastSessions = sessions.filter((s) => s.date <= today)
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px' }}>
       {roster.map((p) => {
-        const total = sessions.length
-        const inn = sessions.filter((s) => (s.marks || {})[p.id] === 'in').length
-        const injured = sessions.filter((s) => (s.marks || {})[p.id] === 'inj').length
+        const total = pastSessions.length
+        const inn = pastSessions.filter((s) => (s.marks || {})[p.id] === 'in').length
+        const injured = pastSessions.filter((s) => (s.marks || {})[p.id] === 'inj').length
         const pct = total ? Math.round((inn / total) * 100) : 0
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
