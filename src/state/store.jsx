@@ -302,12 +302,14 @@ export function AppProvider({ children }) {
     snapshot()
     set((s) => {
       const keep = s.players.filter((p) => (fm.side === 'off' ? p.team === 'def' : p.team === 'off'))
-      // Formation coords are authored for halfcourt (basket near y=0, halfcourt
-      // line at y=1400). In fullcourt the same basket sits near y=2800, so the
-      // layout has to be mirrored, not just shifted down.
+      // Fullcourt isn't a separately scaled coordinate space — Court.jsx always
+      // draws the full 2800-tall court and just crops to the top half for
+      // 'half' view, so the near basket sits at the same small-y region (and
+      // startState()'s players use the same convention) in both views. No
+      // view-dependent transform needed: formation coords apply as authored.
       const made = fm.pos.map((c, i) => ({
         id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'X' + (i + 1),
-        x: c[0], y: s.view === 'full' ? 2800 - c[1] : c[1], acts: [],
+        x: c[0], y: c[1], acts: [],
       }))
       const ballTo = fm.side === 'off' ? made[0] : null
       return {
