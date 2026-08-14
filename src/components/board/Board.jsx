@@ -129,10 +129,10 @@ function ToolsRow() {
         return (
           <div
             key={id} onClick={() => setTool(id)}
-            style={{ flex: 'none', width: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '7px 10px', borderRadius: 11, cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
+            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 11, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
           >
-            <div style={{ fontSize: 15, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
+            <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
