@@ -24,3 +24,12 @@ export function tallyFor(log, id, q) {
   t.fgm = t.fg2m + t.fg3m
   return t
 }
+
+export function teamTally(log) {
+  const t = { fg2m: 0, fg2a: 0, fg3m: 0, fg3a: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0 }
+  log.forEach((e) => { if (t[e.k] !== undefined) t[e.k]++ })
+  t.pts = t.fg2m * 2 + t.fg3m * 3 + t.ftm
+  t.fga = t.fg2m + t.fg2a + t.fg3m + t.fg3a
+  t.fgm = t.fg2m + t.fg3m
+  return t
+}

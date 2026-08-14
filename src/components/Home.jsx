@@ -11,7 +11,7 @@ function playMeta(p) {
 
 export default function Home() {
   const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openInfo } = useApp()
-  const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, log } = state
+  const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games } = state
 
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
@@ -74,7 +74,7 @@ export default function Home() {
           <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▥</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Track stats</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? roster.length + ' players · ' + log.length + ' logged actions' : 'Set up your roster, then tap to log'}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') + ' tracked' : 'Set up your roster, then track a game'}</div>
           </div>
         </div>
 
