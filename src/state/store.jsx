@@ -13,6 +13,8 @@ const LS = {
   drills: 'tb.drills.v1',
   plans: 'tb.plans.v1',
   sessions: 'tb.sessions.v1',
+  teams: 'tb.teams.v1',
+  activeTeam: 'tb.activeTeam.v1',
 }
 
 function loadJson(key, fallback) {
@@ -30,7 +32,7 @@ function saveJson(key, val) {
 function initialState() {
   const s0 = startState()
   return {
-    screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice'
+    screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams'
     boardMenu: false, loadOpen: false, infoPage: null,
 
     // board
@@ -44,7 +46,10 @@ function initialState() {
     shareStatus: 'Sends the current play to your team',
     plays: [],
 
-    // stat tracker (roster is shared with attendance)
+    // teams (each team owns its own roster, games and attendance sessions)
+    teams: [], activeTeamId: null, teamsDetail: false, teamRemoveAsk: null,
+
+    // stat tracker (roster is shared with attendance, scoped to the active team)
     statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
     games: [], activeGameId: null, resetAsk: false,
 
@@ -78,32 +83,54 @@ export function AppProvider({ children }) {
   // ── load persisted data once ──────────────────────────────
   useEffect(() => {
     const plays = loadJson(LS.plays, [])
-    const roster = loadJson(LS.roster, [])
-    let games = loadJson(LS.games, [])
-    if (!games.length) {
-      // migrate the old single-game record (pre-dates per-game history) into a game entry
-      const legacy = loadJson(LS.game, null)
-      if (legacy && legacy.log && legacy.log.length) {
-        games = [{
-          id: 'gm' + Date.now(), date: new Date().toISOString().slice(0, 10), type: 'game',
-          opponent: legacy.opponent || '', log: legacy.log, onCourt: legacy.onCourt || [],
-        }]
-        saveJson(LS.games, games)
-      }
-    }
     const drills = loadJson(LS.drills, [])
     const plans = loadJson(LS.plans, [])
-    const sessions = loadJson(LS.sessions, [])
-    set({ plays, roster, games, drills, plans, sessions })
+
+    let teams = loadJson(LS.teams, [])
+    if (!teams.length) {
+      // migrate the pre-teams flat roster/games/sessions into a single default team
+      const roster = loadJson(LS.roster, [])
+      let games = loadJson(LS.games, [])
+      if (!games.length) {
+        // migrate the even older single-game record (pre-dates per-game history) too
+        const legacy = loadJson(LS.game, null)
+        if (legacy && legacy.log && legacy.log.length) {
+          games = [{
+            id: 'gm' + Date.now(), date: new Date().toISOString().slice(0, 10), type: 'game',
+            opponent: legacy.opponent || '', log: legacy.log, onCourt: legacy.onCourt || [],
+          }]
+        }
+      }
+      const sessions = loadJson(LS.sessions, [])
+      teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, games, sessions }]
+      saveJson(LS.teams, teams)
+    }
+    let activeTeamId = loadJson(LS.activeTeam, null)
+    if (!activeTeamId || !teams.some((t) => t.id === activeTeamId)) {
+      activeTeamId = teams[0].id
+      saveJson(LS.activeTeam, activeTeamId)
+    }
+    const active = teams.find((t) => t.id === activeTeamId)
+    set({
+      plays, drills, plans, teams, activeTeamId,
+      roster: active.roster, games: active.games, sessions: active.sessions,
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── persisted collection setters ──────────────────────────
-  const persistRoster = (fn) => setState((s) => {
-    const roster = typeof fn === 'function' ? fn(s.roster) : fn
-    saveJson(LS.roster, roster)
-    return { ...s, roster }
+  // roster/games/sessions live inside the active team's record; the flat
+  // state.roster/games/sessions are a mirror of whichever team is active, so
+  // every existing screen keeps reading/writing them without knowing teams exist.
+  const persistTeamField = (field, fn) => setState((s) => {
+    const value = typeof fn === 'function' ? fn(s[field]) : fn
+    const teams = s.teams.map((t) => (t.id === s.activeTeamId ? { ...t, [field]: value } : t))
+    saveJson(LS.teams, teams)
+    return { ...s, teams, [field]: value }
   })
+  const persistRoster = (fn) => persistTeamField('roster', fn)
+  const persistGames = (fn) => persistTeamField('games', fn)
+  const persistSessions = (fn) => persistTeamField('sessions', fn)
   const persistDrills = (fn) => setState((s) => {
     const drills = typeof fn === 'function' ? fn(s.drills) : fn
     saveJson(LS.drills, drills)
@@ -113,16 +140,6 @@ export function AppProvider({ children }) {
     const plans = typeof fn === 'function' ? fn(s.plans) : fn
     saveJson(LS.plans, plans)
     return { ...s, plans }
-  })
-  const persistSessions = (fn) => setState((s) => {
-    const sessions = typeof fn === 'function' ? fn(s.sessions) : fn
-    saveJson(LS.sessions, sessions)
-    return { ...s, sessions }
-  })
-  const persistGames = (fn) => setState((s) => {
-    const games = typeof fn === 'function' ? fn(s.games) : fn
-    saveJson(LS.games, games)
-    return { ...s, games }
   })
   const persistPlays = (fn) => setState((s) => {
     const plays = typeof fn === 'function' ? fn(s.plays) : fn
@@ -413,8 +430,64 @@ export function AppProvider({ children }) {
   const closeAttend = () => set({ screen: 'home', openSession: null })
   const openPractice = () => set({ screen: 'practice' })
   const closePractice = () => set({ screen: 'home', openPlan: null })
+  const openTeams = () => set({ screen: 'teams', teamsDetail: false })
+  const closeTeams = () => set({ screen: 'home', teamsDetail: false })
   const openInfo = (page) => set({ infoPage: page })
   const closeInfo = () => set({ infoPage: null })
+
+  // ── teams ───────────────────────────────────────────────────
+  // Switching teams re-points the flat roster/games/sessions mirror at the
+  // newly active team and drops any in-progress game/session view, since
+  // those ids belonged to the previous team's data.
+  const switchTeam = (id) => {
+    const s = stateRef.current
+    const t = s.teams.find((x) => x.id === id)
+    if (!t) return
+    saveJson(LS.activeTeam, id)
+    set({
+      activeTeamId: id, roster: t.roster, games: t.games, sessions: t.sessions,
+      activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '',
+    })
+  }
+  const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
+  const backToTeamsList = () => set({ teamsDetail: false })
+  const newTeam = () => {
+    const s = stateRef.current
+    const id = 'tm' + Date.now()
+    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], games: [], sessions: [] }
+    const teams = s.teams.concat([entry])
+    saveJson(LS.teams, teams)
+    saveJson(LS.activeTeam, id)
+    set({
+      teams, activeTeamId: id, roster: [], games: [], sessions: [],
+      activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: true,
+    })
+  }
+  const renameTeam = (v) => {
+    const s = stateRef.current
+    const teams = s.teams.map((t) => (t.id === s.activeTeamId ? { ...t, name: v } : t))
+    saveJson(LS.teams, teams)
+    set({ teams })
+  }
+  const askRemoveTeam = (id) => set({ teamRemoveAsk: id })
+  const closeRemoveTeam = () => set({ teamRemoveAsk: null })
+  const confirmRemoveTeam = () => {
+    const s = stateRef.current
+    const id = s.teamRemoveAsk
+    if (!id || s.teams.length <= 1) { set({ teamRemoveAsk: null }); return }
+    const teams = s.teams.filter((t) => t.id !== id)
+    saveJson(LS.teams, teams)
+    if (s.activeTeamId === id) {
+      const next = teams[0]
+      saveJson(LS.activeTeam, next.id)
+      set({
+        teams, activeTeamId: next.id, roster: next.roster, games: next.games, sessions: next.sessions,
+        activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: false, teamRemoveAsk: null,
+      })
+    } else {
+      set({ teams, teamRemoveAsk: null })
+    }
+  }
 
   // ── stat tracker ────────────────────────────────────────────
   const addPlayer = () => {
@@ -620,7 +693,8 @@ export function AppProvider({ children }) {
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
     enterTimeout, exitTimeout,
-    openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openInfo, closeInfo,
+    openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
+    switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistDrills, persistPlans, persistSessions, persistGames, persistPlays,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
     askReset, closeReset, resetGame, resetRoster,
