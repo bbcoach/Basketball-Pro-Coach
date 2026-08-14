@@ -45,14 +45,14 @@ export default function App() {
     <AppProvider>
       <div
         style={{
-          minHeight: '100dvh',
+          minHeight: 'var(--app-height, 100dvh)',
           background: 'radial-gradient(120% 90% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)',
           display: 'flex', justifyContent: 'center',
         }}
       >
         <div
           style={{
-            width: '100%', maxWidth: 480, minHeight: '100dvh', position: 'relative',
+            width: '100%', maxWidth: 480, minHeight: 'var(--app-height, 100dvh)', position: 'relative',
             background: '#0a0a0b', boxShadow: '0 0 60px rgba(0,0,0,.5)', overflow: 'hidden',
           }}
         >
