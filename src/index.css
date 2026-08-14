@@ -60,8 +60,42 @@ input[type="range"]::-webkit-slider-thumb {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Hidden easter egg: tap the ball 10 times to see it slam-dunk through the
+   hoop, then settle back into its normal idle spin. */
+.rl-dunk { animation: rlDunk 1.05s cubic-bezier(.3,.1,.2,1) 1; transform-origin: 0 0; }
+@keyframes rlDunk {
+  0%   { transform: translate(0px, 0px) rotate(0deg) scale(1); }
+  8%   { transform: translate(-3px, 6px) rotate(-10deg) scale(.95); }
+  38%  { transform: translate(3px, -70px) rotate(320deg) scale(1.05); }
+  52%  { transform: translate(2px, -75px) rotate(380deg) scale(1.05); }
+  68%  { transform: translate(0px, -50px) rotate(410deg) scale(.9); }
+  78%  { transform: translate(0px, -46px) rotate(410deg) scale(1.05); }
+  100% { transform: translate(0px, 0px) rotate(720deg) scale(1); }
+}
+.rl-net-flex { animation: rlNetFlex 1.05s ease-out 1; transform-origin: 0px 1px; }
+@keyframes rlNetFlex {
+  0%, 64% { transform: scaleY(1) translateY(0); }
+  72%     { transform: scaleY(1.22) translateY(1px); }
+  84%     { transform: scaleY(.92) translateY(-1px); }
+  100%    { transform: scaleY(1) translateY(0); }
+}
+.rl-rim-shake { animation: rlRimShake 1.05s ease-out 1; transform-origin: 0 0; }
+@keyframes rlRimShake {
+  0%, 66% { transform: rotate(0deg); }
+  72%     { transform: rotate(-5deg); }
+  80%     { transform: rotate(4deg); }
+  90%     { transform: rotate(-1.5deg); }
+  100%    { transform: rotate(0deg); }
+}
+.rl-dunk-text { animation: rlDunkText 1.05s ease-out 1; }
+@keyframes rlDunkText {
+  0%, 58%  { opacity: 0; }
+  66%, 88% { opacity: 1; }
+  100%     { opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .rl-spin { animation: none; }
+  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .rl-dunk-text { animation: none; }
 }
 
 input, button, textarea {

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AppProvider, useApp } from './state/store'
 import { useLandscape } from './lib/useLandscape'
 import Home from './components/Home'
@@ -25,7 +26,17 @@ function Screen() {
   )
 }
 
+// Tap the ball 10 times for a hidden slam-dunk animation through the hoop.
 function RotateLock() {
+  const [taps, setTaps] = useState(0)
+  const [dunking, setDunking] = useState(false)
+
+  const onBallTap = () => {
+    if (dunking) return
+    const n = taps + 1
+    if (n >= 10) { setTaps(0); setDunking(true) } else setTaps(n)
+  }
+
   return (
     <div
       className="rotate-lock"
@@ -34,11 +45,25 @@ function RotateLock() {
         flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center',
       }}
     >
-      <svg width="72" height="72" viewBox="0 0 72 72">
-        <g transform="translate(36,36)">
-          <g className="rl-spin">
-            <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
-            <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
+      <svg width="100" height="130" viewBox="0 0 100 130">
+        <rect x="30" y="4" width="40" height="24" rx="2" fill="rgba(255,255,255,.9)" stroke="rgba(0,0,0,.25)" strokeWidth="1.5" />
+        <g transform="translate(50,30)">
+          <g className={dunking ? 'rl-rim-shake' : undefined}>
+            <g className={dunking ? 'rl-net-flex' : undefined}>
+              <path d="M-16 1 L-11.4 20 M-10.7 1.4 L-7.8 20.4 M-5.3 1.7 L-4.3 20.6 M0 1.8 L0 20.6 M5.3 1.7 L4.3 20.6 M10.7 1.4 L7.8 20.4 M16 1 L11.4 20" stroke="rgba(255,255,255,.55)" strokeWidth="1.2" fill="none" />
+            </g>
+            <ellipse cx="0" cy="0" rx="16" ry="4" fill="none" stroke="#e2762b" strokeWidth="4" />
+          </g>
+        </g>
+        {dunking && <text x="50" y="16" textAnchor="middle" className="rl-dunk-text" fontSize="9.5" fontWeight="800" letterSpacing=".5" fill="#e8b13c" style={{ fontFamily: "'Barlow Condensed',sans-serif" }}>SLAM DUNK!</text>}
+        <g transform="translate(50,100)" onClick={onBallTap} style={{ cursor: 'pointer' }}>
+          <circle r="30" fill="transparent" />
+          <g
+            className={dunking ? 'rl-dunk' : 'rl-spin'}
+            onAnimationEnd={() => { if (dunking) setDunking(false) }}
+          >
+            <circle cx="0" cy="0" r="22" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
+            <path d="M-22 0 H22 M0 -22 V22 M-15.5 -15.5 Q0 0 -15.5 15.5 M15.5 -15.5 Q0 0 15.5 15.5" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
           </g>
         </g>
       </svg>
