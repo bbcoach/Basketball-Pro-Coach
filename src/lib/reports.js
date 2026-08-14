@@ -1,17 +1,23 @@
 import { tallyFor } from './stats'
 import { download } from './download'
 
-export function exportBoxCsv(roster, log) {
+function gameSlug(game) {
+  if (!game) return 'boxscore'
+  const opp = game.type === 'practice' ? 'freeplay' : (game.opponent || 'game').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  return (game.date || 'boxscore') + '-' + opp
+}
+
+export function exportBoxCsv(roster, log, game) {
   const head = ['Number', 'Player', 'PTS', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
   const rows = roster.map((p) => {
     const t = tallyFor(log, p.id)
     return [p.num, p.name, t.pts, t.fgm, t.fga, t.fg3m, t.fg3m + t.fg3a, t.ftm, t.ftm + t.fta, t.reb, t.ast, t.stl, t.blk, t.tov, t.pf]
   })
   const csv = [head].concat(rows).map((r) => r.join(',')).join('\n')
-  download(new Blob([csv], { type: 'text/csv' }), 'boxscore.csv')
+  download(new Blob([csv], { type: 'text/csv' }), gameSlug(game) + '.csv')
 }
 
-export function exportBoxPdf(roster, log, teamName) {
+export function exportBoxPdf(roster, log, teamName, game) {
   const head = ['#', 'Player', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
   const tot = { pts: 0, fgm: 0, fga: 0, fg3m: 0, fg3a: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0 }
   const rows = roster.map((p) => {
@@ -22,7 +28,8 @@ export function exportBoxPdf(roster, log, teamName) {
   const totRow = ['', 'Team', tot.pts, tot.fgm + '/' + tot.fga, tot.fg3m + '/' + (tot.fg3m + tot.fg3a), tot.ftm + '/' + (tot.ftm + tot.fta), tot.reb, tot.ast, tot.stl, tot.blk, tot.tov, tot.pf]
   const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
   const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
-  const date = new Date().toLocaleDateString()
+  const date = game ? new Date(game.date + 'T12:00:00').toLocaleDateString() : new Date().toLocaleDateString()
+  const subtitle = game ? (game.type === 'practice' ? 'Free play' : (game.opponent ? 'vs ' + game.opponent : 'Game')) + ' · ' + date : date
   const html = "<!doctype html><html><head><meta charset='utf-8'><title>Box score</title><style>" +
     '@page{size:A4 landscape;margin:16mm}body{font-family:\'Helvetica Neue\',Arial,sans-serif;color:#111;margin:0}' +
     'h1{font-size:20px;margin:0 0 2px;letter-spacing:.4px}h2{font-size:12px;font-weight:500;color:#666;margin:0 0 18px}' +
@@ -30,7 +37,7 @@ export function exportBoxPdf(roster, log, teamName) {
     "th{font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:#777}th:nth-child(2),td:nth-child(2){text-align:left}" +
     'tr.total td{font-weight:700;border-top:2px solid #111;border-bottom:none}' +
     'footer{margin-top:22px;font-size:10px;color:#999}</style></head><body>' +
-    '<h1>' + esc(teamName || 'Team') + ' — Box score</h1><h2>' + esc(date) + ' · ' + log.length + ' logged actions</h2>' +
+    '<h1>' + esc(teamName || 'Team') + ' — Box score</h1><h2>' + esc(subtitle) + ' · ' + log.length + ' logged actions</h2>' +
     '<table><thead>' + tr(head, 'th') + '</thead><tbody>' + rows.map((r) => tr(r, 'td')).join('') +
     tr(totRow, 'td', 'total') + '</tbody></table><footer>Basketball Pro Coach</footer></body></html>'
   const w = window.open('', '_blank')

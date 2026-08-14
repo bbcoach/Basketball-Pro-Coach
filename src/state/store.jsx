@@ -9,6 +9,7 @@ const LS = {
   plays: 'tb.plays.v1',
   roster: 'tb.roster.v1',
   game: 'tb.game.v1',
+  games: 'tb.games.v1',
   drills: 'tb.drills.v1',
   plans: 'tb.plans.v1',
   sessions: 'tb.sessions.v1',
@@ -44,8 +45,8 @@ function initialState() {
     plays: [],
 
     // stat tracker (roster is shared with attendance)
-    statsTab: 'live', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
-    log: [], opponent: '', onCourt: [], resetAsk: false,
+    statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
+    games: [], activeGameId: null, resetAsk: false,
 
     // training attendance
     attendTab: 'sessions', sessions: [], openSession: null,
@@ -78,11 +79,22 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const plays = loadJson(LS.plays, [])
     const roster = loadJson(LS.roster, [])
-    const game = loadJson(LS.game, { log: [], opponent: '', onCourt: [] })
+    let games = loadJson(LS.games, [])
+    if (!games.length) {
+      // migrate the old single-game record (pre-dates per-game history) into a game entry
+      const legacy = loadJson(LS.game, null)
+      if (legacy && legacy.log && legacy.log.length) {
+        games = [{
+          id: 'gm' + Date.now(), date: new Date().toISOString().slice(0, 10), type: 'game',
+          opponent: legacy.opponent || '', log: legacy.log, onCourt: legacy.onCourt || [],
+        }]
+        saveJson(LS.games, games)
+      }
+    }
     const drills = loadJson(LS.drills, [])
     const plans = loadJson(LS.plans, [])
     const sessions = loadJson(LS.sessions, [])
-    set({ plays, roster, log: game.log || [], opponent: game.opponent || '', onCourt: game.onCourt || [], drills, plans, sessions })
+    set({ plays, roster, games, drills, plans, sessions })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -107,10 +119,10 @@ export function AppProvider({ children }) {
     saveJson(LS.sessions, sessions)
     return { ...s, sessions }
   })
-  const persistLog = (fn) => setState((s) => {
-    const log = typeof fn === 'function' ? fn(s.log) : fn
-    saveJson(LS.game, { log, opponent: s.opponent, onCourt: s.onCourt })
-    return { ...s, log }
+  const persistGames = (fn) => setState((s) => {
+    const games = typeof fn === 'function' ? fn(s.games) : fn
+    saveJson(LS.games, games)
+    return { ...s, games }
   })
   const persistPlays = (fn) => setState((s) => {
     const plays = typeof fn === 'function' ? fn(s.plays) : fn
@@ -396,7 +408,7 @@ export function AppProvider({ children }) {
 
   // ── navigation ──────────────────────────────────────────────
   const openStats = () => set({ screen: 'stats', playing: false })
-  const closeStats = () => set({ screen: 'home' })
+  const closeStats = () => set({ screen: 'home', activeGameId: null, statsTab: 'games' })
   const openAttend = () => set({ screen: 'attend' })
   const closeAttend = () => set({ screen: 'home', openSession: null })
   const openPractice = () => set({ screen: 'practice' })
@@ -423,23 +435,60 @@ export function AppProvider({ children }) {
   const selectStatPlayer = (p) => set((s) => ({ selPlayer: s.selPlayer === p.id ? null : p.id }))
   const logStat = (key) => {
     const s = stateRef.current
+    if (!s.activeGameId) return
     if (!s.selPlayer) { set({ statsTab: s.roster.length ? 'live' : 'roster' }); return }
-    if (s.onCourt.indexOf(s.selPlayer) < 0) return
-    persistLog((l) => l.concat([{ p: s.selPlayer, k: key, ts: Date.now() }]))
+    const game = s.games.find((g) => g.id === s.activeGameId)
+    if (!game || game.onCourt.indexOf(s.selPlayer) < 0) return
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: x.log.concat([{ p: s.selPlayer, k: key, ts: Date.now() }]) } : x)))
   }
-  const undoStat = () => persistLog((l) => l.slice(0, -1))
-  const toggleCourt = (p) => set((s) => {
-    const onCourt = s.onCourt.indexOf(p.id) >= 0 ? s.onCourt.filter((x) => x !== p.id) : s.onCourt.concat([p.id])
-    saveJson(LS.game, { log: s.log, opponent: s.opponent, onCourt })
-    return { onCourt }
-  })
+  const undoStat = () => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: x.log.slice(0, -1) } : x)))
+  }
+  const toggleCourt = (p) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => {
+      if (x.id !== s.activeGameId) return x
+      const onCourt = x.onCourt.indexOf(p.id) >= 0 ? x.onCourt.filter((y) => y !== p.id) : x.onCourt.concat([p.id])
+      return { ...x, onCourt }
+    }))
+  }
   const askReset = () => set({ resetAsk: true })
   const closeReset = () => set({ resetAsk: false })
-  const resetGame = () => { persistLog(() => []); set({ resetAsk: false, selPlayer: null, statsTab: 'live' }) }
+  const resetGame = () => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: [] } : x)))
+    set({ resetAsk: false, selPlayer: null, statsTab: 'live' })
+  }
   const resetRoster = () => {
-    persistLog(() => [])
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: [] } : x)))
     persistRoster(() => [])
     set({ resetAsk: false, selPlayer: null, editId: null, nameIn: '', numIn: '', statsTab: 'roster' })
+  }
+
+  // ── games ───────────────────────────────────────────────────
+  const newGame = (type) => {
+    const id = 'gm' + Date.now()
+    const entry = { id, date: new Date().toISOString().slice(0, 10), type, opponent: '', log: [], onCourt: [] }
+    persistGames((gs) => [entry].concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    set({ activeGameId: id, statsTab: 'live', selPlayer: null })
+  }
+  const removeGame = (g) => {
+    persistGames((gs) => gs.filter((x) => x.id !== g.id))
+    if (stateRef.current.activeGameId === g.id) set({ activeGameId: null })
+  }
+  const openGame = (id) => set({ activeGameId: id, statsTab: 'live', selPlayer: null })
+  const backToGames = () => set({ activeGameId: null, statsTab: 'games', selPlayer: null })
+  const setGameDate = (v) => {
+    if (!v) return
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, date: v } : x))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+  }
+  const setGameOpponent = (v) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, opponent: v } : x)))
   }
 
   // ── attendance ──────────────────────────────────────────────
@@ -572,9 +621,10 @@ export function AppProvider({ children }) {
     openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openInfo, closeInfo,
-    persistRoster, persistDrills, persistPlans, persistSessions, persistLog, persistPlays,
+    persistRoster, persistDrills, persistPlans, persistSessions, persistGames, persistPlays,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
     askReset, closeReset, resetGame, resetRoster,
+    newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance,
     planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills,

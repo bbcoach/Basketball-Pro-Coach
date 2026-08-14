@@ -3,7 +3,7 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
-import { STAT_DEFS, STAT_LABEL, tallyFor } from '../../lib/stats'
+import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 
@@ -21,9 +21,75 @@ function sortedRoster(roster, onCourt) {
   })
 }
 
-function LiveTab() {
+function fmtGameDate(v) {
+  try { return new Date(v + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) } catch { return v }
+}
+
+function gameTitle(g) {
+  if (g.type === 'practice') return 'Free play'
+  return g.opponent ? 'vs ' + g.opponent : 'New game'
+}
+
+function GamesTab() {
+  const { state, newGame, openGame, removeGame } = useApp()
+  const { games } = state
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        <div onClick={() => newGame('game')} style={{ flex: 1, padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>＋ New game</div>
+        <div onClick={() => newGame('practice')} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>＋ Free play</div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {games.map((g) => {
+          const t = teamTally(g.log)
+          return (
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+              <div onClick={() => openGame(g.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtGameDate(g.date)} · {t.pts} pts · {g.log.length} logged</div>
+              </div>
+              <div onClick={() => removeGame(g)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+            </div>
+          )
+        })}
+        {!games.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No games yet — start a new game or free play above. Past games stay here so you can pull them up again later.</div>}
+      </div>
+    </div>
+  )
+}
+
+function NoActiveGame() {
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 30px', textAlign: 'center' }}>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.45)', lineHeight: 1.6 }}>Select or start a game under “Games” first.</div>
+    </div>
+  )
+}
+
+function GameMetaEditor({ game }) {
+  const { setGameDate, setGameOpponent } = useApp()
+  return (
+    <div style={{ display: 'flex', gap: 6, padding: '0 18px 10px' }}>
+      <input
+        type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
+        style={{ flex: 'none', width: 138, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+      />
+      {game.type === 'game' ? (
+        <input
+          type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
+          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+        />
+      ) : (
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
+      )}
+    </div>
+  )
+}
+
+function LiveTab({ game }) {
   const { state, selectStatPlayer, toggleCourt, logStat, undoStat } = useApp()
-  const { roster, onCourt, selPlayer, log } = state
+  const { roster, selPlayer } = state
+  const { log, onCourt } = game
   const rows = sortedRoster(roster, onCourt)
   const promptOpen = !(selPlayer && onCourt.indexOf(selPlayer) >= 0)
 
@@ -40,6 +106,7 @@ function LiveTab() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <GameMetaEditor game={game} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
         {rows.map((p) => {
           const t = tallyFor(log, p.id)
@@ -106,9 +173,10 @@ function LiveTab() {
 
 const BOX_HEAD = ['PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
 
-function BoxTab() {
+function BoxTab({ game }) {
   const { state, askReset } = useApp()
-  const { roster, log } = state
+  const { roster } = state
+  const { log } = game
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -140,8 +208,8 @@ function BoxTab() {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => exportBoxPdf(roster, log, TEAM_NAME)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
-        <div onClick={() => exportBoxCsv(roster, log)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
+        <div onClick={() => exportBoxPdf(roster, log, TEAM_NAME, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => exportBoxCsv(roster, log, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
         <div onClick={askReset} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Reset</div>
       </div>
     </div>
@@ -151,11 +219,13 @@ function BoxTab() {
 function ResetModal() {
   const { state, closeReset, resetGame, resetRoster } = useApp()
   if (!state.resetAsk) return null
+  const game = state.games.find((g) => g.id === state.activeGameId)
+  const logLen = game ? game.log.length : 0
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
       <div style={{ width: '100%', maxWidth: 320, background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 18 }}>
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Reset game</div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 14px', lineHeight: 1.5 }}>{state.log.length} logged actions for {state.roster.length} players. This cannot be undone.</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 14px', lineHeight: 1.5 }}>{logLen} logged actions for {state.roster.length} players. This cannot be undone.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div onClick={resetGame} style={{ padding: 11, borderRadius: 11, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Clear all stats</div>
           <div onClick={resetRoster} style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Clear stats and roster</div>
@@ -168,16 +238,20 @@ function ResetModal() {
 
 export default function StatTracker() {
   const { state, set, closeStats } = useApp()
-  const { roster, log, statsTab } = state
-  const gameLine = (roster.length ? roster.length + ' players' : 'No roster yet') + ' · ' + log.length + ' actions logged'
+  const { roster, games, activeGameId, statsTab } = state
+  const game = games.find((g) => g.id === activeGameId)
+  const gameLine = game
+    ? gameTitle(game) + ' · ' + fmtGameDate(game.date)
+    : (roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') : 'Set up your roster, then track a game')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
       <ScreenHeader title="Stat tracker" line={gameLine} onClose={closeStats} />
-      <Tabs tabs={[['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
-      {statsTab === 'live' && <LiveTab />}
+      <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
+      {statsTab === 'games' && <GamesTab />}
+      {statsTab === 'live' && (game ? <LiveTab game={game} /> : <NoActiveGame />)}
       {statsTab === 'roster' && <RosterEditor emptyHint="Add every player once — the roster stays on this device for all games." />}
-      {statsTab === 'box' && <BoxTab />}
+      {statsTab === 'box' && (game ? <BoxTab game={game} /> : <NoActiveGame />)}
       <ResetModal />
     </div>
   )
