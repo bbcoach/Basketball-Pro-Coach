@@ -5,7 +5,7 @@ export const INFO = {
       ['', "I coach a youth team myself, and I was looking for something fast enough for everyday practice: draw a play, animate it, show it — and keep the box score during the game. Nothing I found really fit, so I built it."],
       ['A spare-time project', 'This app was built in my free time, next to practices, games and a day job. There is no company and no team behind it — it is a tool I made for myself and then made available to other coaches.'],
       ['For other coaches', 'If it helps you in the gym, that makes my day. Feedback, feature wishes and bug reports are always welcome — a lot of what is in here came from exactly that.'],
-      ['Support', 'The app is free and stays free. If you would like to support its development, use the donate button on the start screen (PayPal link coming soon).'],
+      ['Support', 'The app is free and stays free. If you would like to support its development, use the donate button on the start screen.'],
     ],
   },
   imprint: {
