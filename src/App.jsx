@@ -32,24 +32,10 @@ function RotateLock() {
         flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center',
       }}
     >
-      <svg width="160" height="120" viewBox="0 0 160 120" className="rl-scene">
-        <line x1="20" y1="100" x2="140" y2="100" stroke="rgba(255,255,255,.18)" strokeWidth="3" strokeLinecap="round" />
-        <g transform="translate(60,100)">
-          <g className="rl-player" stroke="#fff" strokeWidth="4" strokeLinecap="round" fill="none">
-            <line x1="0" y1="-24" x2="-7" y2="0" />
-            <line x1="0" y1="-24" x2="7" y2="0" />
-            <line x1="0" y1="-24" x2="0" y2="-50" />
-            <line x1="0" y1="-50" x2="-10" y2="-38" />
-            <line x1="0" y1="-50" x2="13" y2="-59" />
-            <circle cx="0" cy="-58" r="8" fill="#fff" stroke="none" />
-          </g>
-          <text className="rl-impact" x="-6" y="-64" fontSize="20" textAnchor="middle">💥</text>
-        </g>
-        <g transform="translate(73,42)">
-          <g className="rl-ball">
-            <circle cx="0" cy="0" r="9" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="1.5" />
-            <path d="M-9 0 H9 M0 -9 V9 M-6.5 -6.5 Q0 0 -6.5 6.5 M6.5 -6.5 Q0 0 6.5 6.5" stroke="rgba(0,0,0,.45)" strokeWidth="1.2" fill="none" />
-          </g>
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <g transform="translate(36,36)" className="rl-spin">
+          <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
+          <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
         </g>
       </svg>
       <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Please rotate your device</div>
