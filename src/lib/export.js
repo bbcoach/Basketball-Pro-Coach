@@ -68,8 +68,16 @@ export async function exportStill(svgRef, stateRef, set) {
   }
 }
 
-function isStandalonePwa() {
-  return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPadOS 13+ reports as Mac
+}
+
+function isStandaloneOnIOS() {
+  // display-mode:standalone alone isn't enough — Android/Chrome PWAs match it
+  // too, and MediaRecorder on a canvas stream works fine there. The capture
+  // restriction is specific to iOS Safari's standalone (Home Screen) mode.
+  return isIOSDevice() && (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches)
 }
 
 export async function exportClip(svgRef, stateRef, set) {
@@ -81,7 +89,7 @@ export async function exportClip(svgRef, stateRef, set) {
   // iOS blocks MediaRecorder on a canvas stream when the app is installed to
   // the Home Screen (standalone display mode) — it works fine in a regular
   // Safari tab, so don't waste an attempt on a failure we can predict.
-  if (isStandalonePwa()) {
+  if (isStandaloneOnIOS()) {
     set({ shareStatus: 'Video export needs Safari — open this app in a browser tab to record a video, or use Still image here' })
     return
   }
