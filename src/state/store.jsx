@@ -69,6 +69,7 @@ export function AppProvider({ children }) {
   const history = useRef([])
   const drag = useRef(null)
   const svgRef = useRef(null)
+  const contentRef = useRef(null)
   const rafRef = useRef(0)
   const lastRef = useRef(0)
   const runTimerRef = useRef(0)
@@ -128,10 +129,16 @@ export function AppProvider({ children }) {
 
   const pt = (e) => {
     const svg = svgRef.current
-    if (!svg) return { x: 0, y: 0 }
+    const content = contentRef.current
+    if (!svg || !content) return { x: 0, y: 0 }
     const p = svg.createSVGPoint()
     p.x = e.clientX; p.y = e.clientY
-    const m = svg.getScreenCTM()
+    // Read the CTM off the content group, not the outer <svg> — in the
+    // Tactics Board's landscape layout that group carries the on-screen
+    // rotation, so its CTM maps screen taps straight back to the same
+    // logical (portrait-authored) coordinates the rest of the app uses,
+    // with no orientation-specific math anywhere else.
+    const m = content.getScreenCTM()
     if (!m) return { x: 0, y: 0 }
     const q = p.matrixTransform(m.inverse())
     return { x: q.x, y: q.y }
@@ -379,8 +386,8 @@ export function AppProvider({ children }) {
   const closeFormations = () => set({ formOpen: false })
   const openShare = () => set((s) => ({ shareOpen: true, playing: false, shareStatus: 'Step ' + s.step + ' of ' + nSteps() + ' · ' + (s.view === 'half' ? 'Halfcourt' : 'Fullcourt') }))
   const closeShareModal = () => set({ shareOpen: false })
-  const doExportPng = () => exportStill(svgRef, stateRef, set)
-  const doExportVideo = () => exportClip(svgRef, stateRef, set)
+  const doExportPng = () => exportStill(svgRef, contentRef, stateRef, set)
+  const doExportVideo = () => exportClip(svgRef, contentRef, stateRef, set)
 
   const enterTimeout = () => set({ timeout: true, playing: false })
   const exitTimeout = () => set({ timeout: false })
@@ -553,7 +560,7 @@ export function AppProvider({ children }) {
   }
 
   const api = useMemo(() => ({
-    set, svgRef,
+    set, svgRef, contentRef,
     nSteps,
     onDown, onMove, onUp,
     togglePlay, setView, addStep, delStep, gotoStep,

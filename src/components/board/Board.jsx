@@ -1,6 +1,7 @@
 import { useApp } from '../../state/store'
 import { ACCENT, TEAM_NAME } from '../../state/config'
 import { COND } from '../../theme'
+import { useLandscape } from '../../lib/useLandscape'
 import Logo from '../Logo'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
@@ -140,20 +141,27 @@ function FooterButtons() {
 export default function Board() {
   const { state, exitTimeout } = useApp()
   const { timeout } = state
+  const landscape = useLandscape()
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: '#0b0b0d', padding: timeout ? 0 : '52px 0 30px 0', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: timeout ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
       {timeout && (
         <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
       )}
-      {!timeout && <Header />}
+      {!timeout && !landscape && <Header />}
 
-      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
+      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
         <Court />
       </div>
 
       {!timeout && (
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}>
+        <div
+          className={landscape ? 'scrollx' : undefined}
+          style={landscape
+            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 250px', marginLeft: 12, overflowY: 'auto' }
+            : { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}
+        >
+          {landscape && <Header />}
           <PlaybackBar />
           <StepBar />
           <ToolsRow />
