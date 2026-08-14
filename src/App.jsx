@@ -33,9 +33,11 @@ function RotateLock() {
       }}
     >
       <svg width="72" height="72" viewBox="0 0 72 72">
-        <g transform="translate(36,36)" className="rl-spin">
-          <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
-          <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
+        <g transform="translate(36,36)">
+          <g className="rl-spin">
+            <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
+            <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
+          </g>
         </g>
       </svg>
       <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Please rotate your device</div>
