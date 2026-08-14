@@ -21,17 +21,39 @@ const TOOLS = [
   ['erase', '⌫', 'Erase'],
 ]
 
-function Header() {
+function Header({ compact }) {
   const { state, setView } = useApp()
   const { view, playName } = state
   const seg = (active, label, onClick) => (
     <div
       onClick={onClick}
-      style={{ padding: '7px 11px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)' }}
+      style={{
+        flex: compact ? 1 : 'none', textAlign: compact ? 'center' : 'left',
+        padding: compact ? '6px 4px' : '7px 11px', borderRadius: 8, fontSize: compact ? 11 : 12, fontWeight: 600, cursor: 'pointer',
+        background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)',
+      }}
     >
       {label}
     </div>
   )
+
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '2px 0 8px', flex: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+          <Logo size={20} iconSize={15} />
+          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', color: ACCENT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+            Tactics Board
+          </div>
+        </div>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 9, padding: 3, gap: 2 }}>
+          {seg(view === 'half', 'Halfcourt', () => setView('half'))}
+          {seg(view === 'full', 'Fullcourt', () => setView('full'))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 16px 8px', flex: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
@@ -161,7 +183,7 @@ export default function Board() {
             ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 250px', marginLeft: 12, overflowY: 'auto' }
             : { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}
         >
-          {landscape && <Header />}
+          {landscape && <Header compact />}
           <PlaybackBar />
           <StepBar />
           <ToolsRow />

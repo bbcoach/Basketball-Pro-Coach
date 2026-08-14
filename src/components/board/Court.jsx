@@ -25,7 +25,7 @@ export default function Court() {
       const p = board.entPos(pl, t, nSteps, marks)
       const off = pl.team === 'off'
       tks.push({
-        key: pl.id, x: p.x, y: p.y, r: TR, rHalo: TR + 6, ty: p.y + TR * 0.35, fs: TR * 0.96,
+        key: pl.id, x: p.x, y: p.y, r: TR, rHalo: TR + 6, fs: TR * 0.96,
         fill: off ? ACCENT : '#121316',
         stroke: sel === pl.id ? '#ffffff' : off ? 'rgba(0,0,0,.35)' : '#ffffff',
         sw: sel === pl.id ? 8 : 6,
@@ -34,7 +34,7 @@ export default function Court() {
       })
     })
     const bp = board.ballPos(t)
-    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, ty: bp.y + 10, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.45)', sw: 5, tc: '#7a3a10', label: '' })
+    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.45)', sw: 5, tc: '#7a3a10', label: '' })
 
     const rts = []
     const cps = []
@@ -65,7 +65,7 @@ export default function Court() {
         }
         const bx = b.x + ((b.x - a.x) / len) * 52
         const by = b.y + ((b.y - a.y) / len) * 52
-        bdg.push({ key: ent.id + '-' + act.step, x: bx, y: by, ty: by + 12, n: String(act.step), op })
+        bdg.push({ key: ent.id + '-' + act.step, x: bx, y: by, n: String(act.step), op })
       })
     })
     return { tokens: tks, routes: rts, caps: cps, badges: bdg }
@@ -150,7 +150,7 @@ export default function Court() {
         ))}
         <g pointerEvents="none">
           {badges.map((b) => (
-            <text key={b.key} x={b.x} y={b.ty} transform={labelRotate(b.x, b.ty)} fill="#fff" fontSize={34} fontWeight={700} opacity={b.op} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{b.n}</text>
+            <text key={b.key} x={b.x} y={b.y} dominantBaseline="central" transform={labelRotate(b.x, b.y)} fill="#fff" fontSize={34} fontWeight={700} opacity={b.op} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{b.n}</text>
           ))}
         </g>
 
@@ -162,7 +162,7 @@ export default function Court() {
         ))}
         <g pointerEvents="none">
           {tokens.map((tk) => (tk.label ? (
-            <text key={tk.key} x={tk.x} y={tk.ty} transform={labelRotate(tk.x, tk.ty)} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
+            <text key={tk.key} x={tk.x} y={tk.y} dominantBaseline="central" transform={labelRotate(tk.x, tk.y)} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
           ) : null))}
         </g>
       </g>
