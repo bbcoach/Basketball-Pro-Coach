@@ -45,19 +45,6 @@ window.addEventListener('resize', setAppHeight)
 window.addEventListener('orientationchange', setAppHeight)
 if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
 
-// iOS misreports 100dvh in a standalone (Home Screen) PWA — it can settle on
-// a value noticeably shorter than the real visible viewport. Measure the
-// actual height with JS and expose it as a CSS var so layout can use that
-// instead, with 100dvh only as a fallback before this runs.
-function setAppHeight() {
-  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight
-  document.documentElement.style.setProperty('--app-height', h + 'px')
-}
-setAppHeight()
-window.addEventListener('resize', setAppHeight)
-window.addEventListener('orientationchange', setAppHeight)
-if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
-
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
