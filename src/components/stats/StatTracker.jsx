@@ -238,11 +238,12 @@ function ResetModal() {
 
 export default function StatTracker() {
   const { state, set, closeStats } = useApp()
-  const { roster, games, activeGameId, statsTab } = state
+  const { roster, games, activeGameId, statsTab, teams, activeTeamId } = state
   const game = games.find((g) => g.id === activeGameId)
-  const gameLine = game
+  const teamName = teams.find((t) => t.id === activeTeamId)?.name
+  const gameLine = (teamName ? teamName + ' · ' : '') + (game
     ? gameTitle(game) + ' · ' + fmtGameDate(game.date)
-    : (roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') : 'Set up your roster, then track a game')
+    : (roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') : 'Set up your roster, then track a game'))
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>

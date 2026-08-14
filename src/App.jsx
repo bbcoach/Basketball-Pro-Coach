@@ -5,6 +5,7 @@ import Board from './components/board/Board'
 import StatTracker from './components/stats/StatTracker'
 import Attendance from './components/attendance/Attendance'
 import Practice from './components/practice/Practice'
+import Teams from './components/teams/Teams'
 import InfoOverlay from './components/InfoOverlay'
 import RunScreen from './components/practice/RunScreen'
 
@@ -17,6 +18,7 @@ function Screen() {
       {state.screen === 'stats' && <StatTracker />}
       {state.screen === 'attend' && <Attendance />}
       {state.screen === 'practice' && <Practice />}
+      {state.screen === 'teams' && <Teams />}
       {state.infoPage && <InfoOverlay />}
       <RunScreen />
     </>
