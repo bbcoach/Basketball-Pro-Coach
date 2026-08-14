@@ -9,16 +9,21 @@ import PlaysSheet from './modals/PlaysSheet'
 import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
 
+// The ︎ (text variation selector) after each icon forces plain
+// glyph rendering instead of a platform color-emoji fallback — without it,
+// a symbol missing from the Barlow Condensed font (e.g. the Cut arrow) can
+// fall back to an emoji glyph whose painted shape doesn't sit centered in
+// its own box the way a text glyph does, even though the box itself is.
 const TOOLS = [
-  ['move', '✥', 'Move'],
-  ['cut', '↗', 'Cut'],
-  ['dribble', '∿', 'Dribble'],
-  ['screen', '⊤', 'Screen'],
-  ['pass', '⇢', 'Pass'],
-  ['shot', '◎', 'Shot'],
-  ['addOff', '＋', 'Offense'],
-  ['addDef', '✕', 'Defense'],
-  ['erase', '⌫', 'Erase'],
+  ['move', '✥︎', 'Move'],
+  ['cut', '↗︎', 'Cut'],
+  ['dribble', '∿︎', 'Dribble'],
+  ['screen', '⊤︎', 'Screen'],
+  ['pass', '⇢︎', 'Pass'],
+  ['shot', '◎︎', 'Shot'],
+  ['addOff', '＋︎', 'Offense'],
+  ['addDef', '✕︎', 'Defense'],
+  ['erase', '⌫︎', 'Erase'],
 ]
 
 function Header({ compact }) {
