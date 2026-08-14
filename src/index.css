@@ -53,6 +53,43 @@ input[type="range"]::-webkit-slider-thumb {
   .rotate-lock { display: flex; }
 }
 
+/* Rotate-lock mascot: a stick-figure baller balancing a ball, tipping
+   over, and the ball rolling away — then everything resets while
+   hidden behind the opacity dip so the loop reads as seamless. */
+.rl-scene { animation: rlSceneFade 4.5s ease-in-out infinite; }
+.rl-player { animation: rlFall 4.5s ease-in-out infinite; transform-origin: 0 0; }
+.rl-ball { animation: rlRoll 4.5s ease-in-out infinite; transform-origin: 0 0; }
+.rl-impact { animation: rlImpact 4.5s ease-in-out infinite; }
+
+@keyframes rlSceneFade {
+  0% { opacity: 0; }
+  4% { opacity: 1; }
+  90% { opacity: 1; }
+  96% { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes rlFall {
+  0%, 50% { transform: rotate(0deg); }
+  65% { transform: rotate(80deg); }
+  95% { transform: rotate(80deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes rlRoll {
+  0%, 50% { transform: translate(0, 0) rotate(0deg); }
+  65% { transform: translate(10px, 46px) rotate(90deg); }
+  85% { transform: translate(60px, 46px) rotate(420deg); }
+  95% { transform: translate(100px, 46px) rotate(650deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes rlImpact {
+  0%, 62% { opacity: 0; transform: scale(.6); }
+  67% { opacity: 1; transform: scale(1); }
+  76%, 100% { opacity: 0; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rl-scene, .rl-player, .rl-ball, .rl-impact { animation: none; }
+}
+
 input, button, textarea {
   font-family: inherit;
 }
