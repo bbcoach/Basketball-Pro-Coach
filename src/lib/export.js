@@ -16,15 +16,25 @@ function canvasSize(view) {
   return [w, Math.round((w * vb[3]) / vb[2])]
 }
 
-function svgBlobUrl(svgEl) {
-  const c = svgEl.cloneNode(true)
-  c.removeAttribute('style')
-  const s = new XMLSerializer().serializeToString(c)
+function svgBlobUrl(svgEl, contentEl, view) {
+  // Build a fresh, always-portrait SVG from the defs + content elements
+  // instead of cloning the live <svg> wholesale — in the Tactics Board's
+  // landscape layout the live one carries an on-screen rotation transform
+  // and a swapped viewBox, and exports should stay in the play's natural
+  // (portrait-authored) orientation regardless of how the device is held.
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', view === 'half' ? HALF : FULL)
+  const defs = svgEl.querySelector('defs')
+  if (defs) svg.appendChild(defs.cloneNode(true))
+  const content = contentEl.cloneNode(true)
+  content.removeAttribute('transform')
+  svg.appendChild(content)
+  const s = new XMLSerializer().serializeToString(svg)
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s)
 }
 
-async function drawFrame(svgRef, view, ctx, w, h) {
-  const url = svgBlobUrl(svgRef.current)
+async function drawFrame(svgRef, contentRef, view, ctx, w, h) {
+  const url = svgBlobUrl(svgRef.current, contentRef.current, view)
   await new Promise((res, rej) => {
     const img = new Image()
     img.onload = () => { ctx.fillStyle = '#0b0b0d'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h); res() }
@@ -50,7 +60,7 @@ async function shareOrDownload(blob, file, title, set, savedLabel) {
   set({ shareOpen: false, shareStatus: savedLabel, hint: savedLabel + ' as ' + file })
 }
 
-export async function exportStill(svgRef, stateRef, set) {
+export async function exportStill(svgRef, contentRef, stateRef, set) {
   try {
     set({ shareStatus: 'Rendering image…', exporting: true })
     await nextFrame()
@@ -58,7 +68,7 @@ export async function exportStill(svgRef, stateRef, set) {
     const [w, h] = canvasSize(s.view)
     const cv = document.createElement('canvas')
     cv.width = w; cv.height = h
-    await drawFrame(svgRef, s.view, cv.getContext('2d'), w, h)
+    await drawFrame(svgRef, contentRef, s.view, cv.getContext('2d'), w, h)
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'))
     set({ exporting: false })
     const file = fileBase(s) + '.png'
@@ -80,7 +90,7 @@ function isStandaloneOnIOS() {
   return isIOSDevice() && (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches)
 }
 
-export async function exportClip(svgRef, stateRef, set) {
+export async function exportClip(svgRef, contentRef, stateRef, set) {
   if (!window.MediaRecorder) { set({ shareStatus: 'Video recording is not supported here' }); return }
   if (typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
     set({ shareStatus: 'Video recording is not supported here' })
@@ -129,7 +139,7 @@ export async function exportClip(svgRef, stateRef, set) {
     for (let i = 0; i <= frames; i++) {
       set({ t: i / frames, shareStatus: 'Recording at ' + s0.speed + '× … ' + Math.round((i / frames) * 100) + '%' })
       await nextFrame()
-      await drawFrame(svgRef, s0.view, ctx, w, h)
+      await drawFrame(svgRef, contentRef, s0.view, ctx, w, h)
     }
     rec.stop()
     await done

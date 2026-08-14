@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AppProvider, useApp } from './state/store'
+import { useLandscape } from './lib/useLandscape'
 import Home from './components/Home'
 import Board from './components/board/Board'
 import StatTracker from './components/stats/StatTracker'
@@ -76,9 +77,15 @@ function DebugBadge() {
   )
 }
 
-export default function App() {
+function AppShell() {
+  const { state } = useApp()
+  const landscape = useLandscape()
+  // The Tactics Board gets a landscape layout (useful on tablets, held
+  // sideways, to walk players through a play) — every other screen keeps
+  // the fixed phone-width portrait column and the rotate-lock prompt.
+  const wide = state.screen === 'board' && landscape
   return (
-    <AppProvider>
+    <>
       <div
         style={{
           minHeight: 'var(--app-height, 100dvh)',
@@ -89,8 +96,8 @@ export default function App() {
         <div
           data-app-frame
           style={{
-            width: '100%', maxWidth: 480, minHeight: 'var(--app-height, 100dvh)', position: 'relative',
-            background: '#0a0a0b', boxShadow: '0 0 60px rgba(0,0,0,.5)', overflow: 'hidden',
+            width: '100%', maxWidth: wide ? 'none' : 480, minHeight: 'var(--app-height, 100dvh)', position: 'relative',
+            background: '#0a0a0b', boxShadow: wide ? 'none' : '0 0 60px rgba(0,0,0,.5)', overflow: 'hidden',
           }}
         >
           <Screen />
@@ -98,6 +105,14 @@ export default function App() {
       </div>
       <RotateLock />
       <DebugBadge />
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <AppShell />
     </AppProvider>
   )
 }

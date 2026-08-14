@@ -1,11 +1,15 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, baseAt, dist, FULL, HALF, makeBoard, poly, stepAtTime, wavy } from '../../lib/board-geometry'
+import { actsOf, baseAt, dist, makeBoard, poly, stepAtTime, wavy } from '../../lib/board-geometry'
+import { useLandscape } from '../../lib/useLandscape'
+
+const COURT_W = 1500
 
 export default function Court() {
-  const { state, svgRef, onDown, onMove, onUp } = useApp()
+  const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
   const { players, ball, t, step, playing, timeout, exporting, sel, view } = state
+  const landscape = useLandscape()
 
   const board = useMemo(() => makeBoard(state), [state])
   const nSteps = board.nSteps()
@@ -68,11 +72,20 @@ export default function Court() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, ball, t, step, playing, timeout, exporting, sel, nSteps])
 
-  const viewBox = view === 'half' ? HALF : FULL
+  const courtH = view === 'half' ? 1400 : 2800
+  // In landscape the <g> below carries a 90° rotation so the (portrait-authored)
+  // court fills a wide screen properly — the viewBox is swapped to match, but
+  // every coordinate everywhere else in the app (state, hit-testing, formations,
+  // exports) stays in the original portrait space untouched.
+  const displayViewBox = landscape ? '0 0 ' + courtH + ' ' + COURT_W : '0 0 ' + COURT_W + ' ' + courtH
+  const rotate = landscape ? 'matrix(0,-1,1,0,0,' + COURT_W + ')' : undefined
+  // Text glyphs need to be counter-rotated back upright — everything else
+  // (paths, arrows, tokens) should rotate with the field.
+  const labelRotate = (x, y) => (landscape ? 'rotate(90 ' + x + ' ' + y + ')' : undefined)
 
   return (
     <svg
-      viewBox={viewBox} preserveAspectRatio="xMidYMid meet" ref={svgRef}
+      viewBox={displayViewBox} preserveAspectRatio="xMidYMid meet" ref={svgRef}
       style={{ position: 'absolute', left: 9, top: 9, width: 'calc(100% - 18px)', height: 'calc(100% - 18px)', touchAction: 'none', cursor: 'crosshair' }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
     >
@@ -96,60 +109,62 @@ export default function Court() {
         </marker>
       </defs>
 
-      <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#wood)" />
-      <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#sheen)" />
-      <rect x="505" y="0" width="490" height="580" fill="rgba(255,255,255,.10)" />
-      <rect x="505" y="2220" width="490" height="580" fill="rgba(255,255,255,.10)" />
+      <g ref={contentRef} transform={rotate}>
+        <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#wood)" />
+        <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#sheen)" />
+        <rect x="505" y="0" width="490" height="580" fill="rgba(255,255,255,.10)" />
+        <rect x="505" y="2220" width="490" height="580" fill="rgba(255,255,255,.10)" />
 
-      <g fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" opacity="0.94">
-        <rect x="14" y="14" width="1472" height="2772" rx="8" />
-        <path d="M14 1400 H1486" />
-        <circle cx="750" cy="1400" r="180" />
+        <g fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" opacity="0.94">
+          <rect x="14" y="14" width="1472" height="2772" rx="8" />
+          <path d="M14 1400 H1486" />
+          <circle cx="750" cy="1400" r="180" />
 
-        <rect x="505" y="14" width="490" height="566" />
-        <circle cx="750" cy="580" r="180" />
-        <path d="M660 120 H840" strokeWidth="13" />
-        <circle cx="750" cy="157.5" r="22.5" />
-        <path d="M625 157.5 A125 125 0 0 0 875 157.5" />
-        <path d="M90 14 V299" />
-        <path d="M1410 14 V299" />
-        <path d="M90 299 A675 675 0 0 0 1410 299" />
+          <rect x="505" y="14" width="490" height="566" />
+          <circle cx="750" cy="580" r="180" />
+          <path d="M660 120 H840" strokeWidth="13" />
+          <circle cx="750" cy="157.5" r="22.5" />
+          <path d="M625 157.5 A125 125 0 0 0 875 157.5" />
+          <path d="M90 14 V299" />
+          <path d="M1410 14 V299" />
+          <path d="M90 299 A675 675 0 0 0 1410 299" />
 
-        <rect x="505" y="2220" width="490" height="566" />
-        <circle cx="750" cy="2220" r="180" />
-        <path d="M660 2680 H840" strokeWidth="13" />
-        <circle cx="750" cy="2642.5" r="22.5" />
-        <path d="M625 2642.5 A125 125 0 0 1 875 2642.5" />
-        <path d="M90 2786 V2501" />
-        <path d="M1410 2786 V2501" />
-        <path d="M90 2501 A675 675 0 0 1 1410 2501" />
-      </g>
-
-      {routes.map((r) => (
-        <path key={r.key} d={r.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} markerEnd={r.marker} opacity={r.op} />
-      ))}
-      {caps.map((c) => (
-        <path key={c.key} d={c.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" opacity={c.op} />
-      ))}
-      {badges.map((b) => (
-        <circle key={b.key} cx={b.x} cy={b.y} r="30" fill="rgba(10,10,12,.82)" stroke="#ffffff" strokeWidth="4" opacity={b.op} />
-      ))}
-      <g pointerEvents="none">
-        {badges.map((b) => (
-          <text key={b.key} x={b.x} y={b.ty} fill="#fff" fontSize={34} fontWeight={700} opacity={b.op} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{b.n}</text>
-        ))}
-      </g>
-
-      {tokens.map((tk) => (
-        <g key={tk.key}>
-          <circle cx={tk.x} cy={tk.y} r={tk.rHalo} fill="rgba(0,0,0,.28)" />
-          <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
+          <rect x="505" y="2220" width="490" height="566" />
+          <circle cx="750" cy="2220" r="180" />
+          <path d="M660 2680 H840" strokeWidth="13" />
+          <circle cx="750" cy="2642.5" r="22.5" />
+          <path d="M625 2642.5 A125 125 0 0 1 875 2642.5" />
+          <path d="M90 2786 V2501" />
+          <path d="M1410 2786 V2501" />
+          <path d="M90 2501 A675 675 0 0 1 1410 2501" />
         </g>
-      ))}
-      <g pointerEvents="none">
-        {tokens.map((tk) => (tk.label ? (
-          <text key={tk.key} x={tk.x} y={tk.ty} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
-        ) : null))}
+
+        {routes.map((r) => (
+          <path key={r.key} d={r.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} markerEnd={r.marker} opacity={r.op} />
+        ))}
+        {caps.map((c) => (
+          <path key={c.key} d={c.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" opacity={c.op} />
+        ))}
+        {badges.map((b) => (
+          <circle key={b.key} cx={b.x} cy={b.y} r="30" fill="rgba(10,10,12,.82)" stroke="#ffffff" strokeWidth="4" opacity={b.op} />
+        ))}
+        <g pointerEvents="none">
+          {badges.map((b) => (
+            <text key={b.key} x={b.x} y={b.ty} transform={labelRotate(b.x, b.ty)} fill="#fff" fontSize={34} fontWeight={700} opacity={b.op} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{b.n}</text>
+          ))}
+        </g>
+
+        {tokens.map((tk) => (
+          <g key={tk.key}>
+            <circle cx={tk.x} cy={tk.y} r={tk.rHalo} fill="rgba(0,0,0,.28)" />
+            <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
+          </g>
+        ))}
+        <g pointerEvents="none">
+          {tokens.map((tk) => (tk.label ? (
+            <text key={tk.key} x={tk.x} y={tk.ty} transform={labelRotate(tk.x, tk.ty)} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
+          ) : null))}
+        </g>
       </g>
     </svg>
   )
