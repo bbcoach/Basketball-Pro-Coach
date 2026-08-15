@@ -76,7 +76,7 @@ export default function Home() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My roster</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>
-              {activeTeam ? activeTeam.name + ' · ' + activeTeam.roster.length + (activeTeam.roster.length === 1 ? ' player' : ' players') + (teams.length > 1 ? ' · ' + teams.length + ' teams' : '') : 'Set up your team roster'}
+              {activeTeam ? activeTeam.name + ' · ' + activeTeam.roster.length + (activeTeam.roster.length === 1 ? ' player' : ' players') + ((activeTeam.coaches || []).length ? ' · ' + activeTeam.coaches.length + (activeTeam.coaches.length === 1 ? ' coach' : ' coaches') : '') + (teams.length > 1 ? ' · ' + teams.length + ' teams' : '') : 'Set up your team roster'}
             </div>
           </div>
         </div>
