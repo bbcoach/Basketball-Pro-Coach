@@ -53,6 +53,9 @@ function initialState() {
     statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
     games: [], activeGameId: null, resetAsk: false,
 
+    // coaches (scoped to the active team, tracked mainly for attendance/pay)
+    coaches: [], coachNameIn: '', coachEditId: null,
+
     // training attendance
     attendTab: 'sessions', sessions: [], openSession: null,
 
@@ -90,6 +93,7 @@ export function AppProvider({ children }) {
     if (!teams.length) {
       // migrate the pre-teams flat roster/games/sessions into a single default team
       const roster = loadJson(LS.roster, [])
+      const coaches = [] // coaches are new — no pre-teams data to migrate
       let games = loadJson(LS.games, [])
       if (!games.length) {
         // migrate the even older single-game record (pre-dates per-game history) too
@@ -102,7 +106,12 @@ export function AppProvider({ children }) {
         }
       }
       const sessions = loadJson(LS.sessions, [])
-      teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, games, sessions }]
+      teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, coaches, games, sessions }]
+      saveJson(LS.teams, teams)
+    }
+    // teams saved before coaches existed won't have the field yet
+    if (teams.some((t) => !t.coaches)) {
+      teams = teams.map((t) => (t.coaches ? t : { ...t, coaches: [] }))
       saveJson(LS.teams, teams)
     }
     let activeTeamId = loadJson(LS.activeTeam, null)
@@ -113,7 +122,7 @@ export function AppProvider({ children }) {
     const active = teams.find((t) => t.id === activeTeamId)
     set({
       plays, drills, plans, teams, activeTeamId,
-      roster: active.roster, games: active.games, sessions: active.sessions,
+      roster: active.roster, coaches: active.coaches, games: active.games, sessions: active.sessions,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -129,6 +138,7 @@ export function AppProvider({ children }) {
     return { ...s, teams, [field]: value }
   })
   const persistRoster = (fn) => persistTeamField('roster', fn)
+  const persistCoaches = (fn) => persistTeamField('coaches', fn)
   const persistGames = (fn) => persistTeamField('games', fn)
   const persistSessions = (fn) => persistTeamField('sessions', fn)
   const persistDrills = (fn) => setState((s) => {
@@ -445,8 +455,9 @@ export function AppProvider({ children }) {
     if (!t) return
     saveJson(LS.activeTeam, id)
     set({
-      activeTeamId: id, roster: t.roster, games: t.games, sessions: t.sessions,
+      activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions,
       activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '',
+      coachEditId: null, coachNameIn: '',
     })
   }
   const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
@@ -454,12 +465,12 @@ export function AppProvider({ children }) {
   const newTeam = () => {
     const s = stateRef.current
     const id = 'tm' + Date.now()
-    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], games: [], sessions: [] }
+    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], coaches: [], games: [], sessions: [] }
     const teams = s.teams.concat([entry])
     saveJson(LS.teams, teams)
     saveJson(LS.activeTeam, id)
     set({
-      teams, activeTeamId: id, roster: [], games: [], sessions: [],
+      teams, activeTeamId: id, roster: [], coaches: [], games: [], sessions: [],
       activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: true,
     })
   }
@@ -481,7 +492,7 @@ export function AppProvider({ children }) {
       const next = teams[0]
       saveJson(LS.activeTeam, next.id)
       set({
-        teams, activeTeamId: next.id, roster: next.roster, games: next.games, sessions: next.sessions,
+        teams, activeTeamId: next.id, roster: next.roster, coaches: next.coaches, games: next.games, sessions: next.sessions,
         activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: false, teamRemoveAsk: null,
       })
     } else {
@@ -505,6 +516,23 @@ export function AppProvider({ children }) {
     persistRoster((r) => r.filter((x) => x.id !== p.id))
     if (stateRef.current.editId === p.id) set({ editId: null, nameIn: '', numIn: '' })
   }
+
+  // ── coaches ─────────────────────────────────────────────────
+  const addCoach = () => {
+    const s = stateRef.current
+    const name = (s.coachNameIn || '').trim()
+    if (!name) return
+    if (s.coachEditId) persistCoaches((c) => c.map((x) => (x.id === s.coachEditId ? { ...x, name } : x)))
+    else persistCoaches((c) => c.concat([{ id: 'co' + Date.now(), name }]))
+    set({ coachNameIn: '', coachEditId: null })
+  }
+  const editCoach = (c) => set({ coachEditId: c.id, coachNameIn: c.name })
+  const cancelEditCoach = () => set({ coachEditId: null, coachNameIn: '' })
+  const removeCoach = (c) => {
+    persistCoaches((cs) => cs.filter((x) => x.id !== c.id))
+    if (stateRef.current.coachEditId === c.id) set({ coachEditId: null, coachNameIn: '' })
+  }
+
   const selectStatPlayer = (p) => set((s) => ({ selPlayer: s.selPlayer === p.id ? null : p.id }))
   const logStat = (key) => {
     const s = stateRef.current
@@ -568,7 +596,7 @@ export function AppProvider({ children }) {
   const newSession = () => {
     const id = 'ses' + Date.now()
     const d = new Date()
-    const entry = { id, date: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {} }
+    const entry = { id, date: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
     persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
     set({ openSession: id })
   }
@@ -594,6 +622,16 @@ export function AppProvider({ children }) {
       if (m[playerId] === val) delete m[playerId]
       else m[playerId] = val
       return { ...x, marks: m }
+    }))
+  }
+  const markCoachAttendance = (coachId, val) => {
+    const s = stateRef.current
+    persistSessions((ss) => ss.map((x) => {
+      if (x.id !== s.openSession) return x
+      const m = { ...(x.coachMarks || {}) }
+      if (m[coachId] === val) delete m[coachId]
+      else m[coachId] = val
+      return { ...x, coachMarks: m }
     }))
   }
 
@@ -697,11 +735,12 @@ export function AppProvider({ children }) {
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    persistRoster, persistDrills, persistPlans, persistSessions, persistGames, persistPlays,
+    persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
+    addCoach, editCoach, cancelEditCoach, removeCoach,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent,
-    newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance,
+    newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance, markCoachAttendance,
     planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills,
     startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,

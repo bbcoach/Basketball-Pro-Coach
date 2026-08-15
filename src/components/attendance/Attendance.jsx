@@ -3,6 +3,7 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
+import CoachesEditor from '../CoachesEditor'
 
 function SessionsTab() {
   const { state, newSession, openSession, removeSession } = useApp()
@@ -34,8 +35,8 @@ function SessionsTab() {
 }
 
 function SessionOpen() {
-  const { state, backToSessions, setSessionDate, setSessionPlan, markAttendance } = useApp()
-  const { sessions, openSession: openId, roster, plans } = state
+  const { state, backToSessions, setSessionDate, setSessionPlan, markAttendance, markCoachAttendance } = useApp()
+  const { sessions, openSession: openId, roster, coaches, plans } = state
   const session = sessions.find((x) => x.id === openId)
   if (!session) return null
 
@@ -64,7 +65,8 @@ function SessionOpen() {
           )
         })}
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {roster.map((p) => {
           const cur = (session.marks || {})[p.id] || null
           const opt = (val, label, color) => (
@@ -86,19 +88,46 @@ function SessionOpen() {
           )
         })}
       </div>
+      {!!coaches.length && (
+        <div style={{ flex: 'none', paddingTop: 8 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', paddingBottom: 6 }}>Coaches</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {coaches.map((c) => {
+              const cur = (session.coachMarks || {})[c.id] || null
+              const opt = (val, label, color) => (
+                <div
+                  key={val} onClick={() => markCoachAttendance(c.id, val)}
+                  style={{ padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 'none', background: cur === val ? color : 'rgba(255,255,255,.05)', color: cur === val ? '#101012' : 'rgba(255,255,255,.62)', border: '1px solid ' + (cur === val ? color : 'rgba(255,255,255,.09)') }}
+                >
+                  {label}
+                </div>
+              )
+              return (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+                  <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                  {opt('in', 'IN', '#5bbf72')}
+                  {opt('out', 'OUT', '#c8d1d8')}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      </div>
     </div>
   )
 }
 
 function SummaryTab() {
   const { state } = useApp()
-  const { roster, sessions } = state
+  const { roster, coaches, sessions } = state
   const today = new Date().toISOString().slice(0, 10)
   const pastSessions = sessions.filter((s) => s.date <= today)
+  const total = pastSessions.length
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px' }}>
       {roster.map((p) => {
-        const total = pastSessions.length
         const inn = pastSessions.filter((s) => (s.marks || {})[p.id] === 'in').length
         const injured = pastSessions.filter((s) => (s.marks || {})[p.id] === 'inj').length
         const pct = total ? Math.round((inn / total) * 100) : 0
@@ -114,6 +143,24 @@ function SummaryTab() {
           </div>
         )
       })}
+      {!!coaches.length && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', paddingTop: 10 }}>Coaches</div>
+          {coaches.map((c) => {
+            const inn = pastSessions.filter((s) => (s.coachMarks || {})[c.id] === 'in').length
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+                <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>of {total} sessions</div>
+                </div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: ACCENT, flex: 'none' }}>{inn}</div>
+              </div>
+            )
+          })}
+        </>
+      )}
     </div>
   )
 }
@@ -129,7 +176,12 @@ export default function Attendance() {
       <ScreenHeader title="Attendance" line={line} onClose={closeAttend} />
       <Tabs tabs={[['sessions', 'Sessions'], ['roster', 'Roster'], ['summary', 'Summary']]} active={attendTab} onChange={(k) => set({ attendTab: k, openSession: null })} />
       {attendTab === 'sessions' && (openSession ? <SessionOpen /> : <SessionsTab />)}
-      {attendTab === 'roster' && <RosterEditor emptyHint="The roster is shared with the stat tracker — add each player once." />}
+      {attendTab === 'roster' && (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <RosterEditor grow={false} emptyHint="The roster is shared with the stat tracker — add each player once." />
+          <CoachesEditor emptyHint="Add your coaches to track their training attendance." />
+        </div>
+      )}
       {attendTab === 'summary' && <SummaryTab />}
     </div>
   )
