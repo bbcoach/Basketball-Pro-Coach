@@ -41,6 +41,14 @@ function setAppHeight() {
   document.documentElement.style.setProperty('--app-height', h + 'px')
 }
 setAppHeight()
+// On a genuine cold launch (home screen icon tap), the visual viewport
+// hasn't finished settling yet at the point the script first runs — the
+// very first measurement can come in short, and since nothing the user
+// does fires a resize/orientationchange event on a cold start, that stale
+// value sticks until the next rotation. Re-measure a couple of times just
+// after launch to pick up the settled value without waiting on user input.
+requestAnimationFrame(() => requestAnimationFrame(setAppHeight))
+setTimeout(setAppHeight, 300)
 window.addEventListener('resize', setAppHeight)
 window.addEventListener('orientationchange', setAppHeight)
 if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
