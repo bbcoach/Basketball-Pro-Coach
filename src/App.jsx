@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppProvider, useApp } from './state/store'
 import { useLandscape } from './lib/useLandscape'
+import { ACCENT, TEAM_NAME } from './state/config'
+import { COND } from './theme'
+import Logo from './components/Logo'
 import Home from './components/Home'
 import Board from './components/board/Board'
 import StatTracker from './components/stats/StatTracker'
@@ -90,6 +93,55 @@ function RotateLock() {
   )
 }
 
+const WELCOME_KEY = 'tb.welcomeShown'
+
+// Computed once when the module first loads — NOT inside the component, so
+// it's unaffected by React StrictMode's dev-only double-invoke of effects
+// (which would otherwise see the flag already set on the second pass and
+// skip arming the timers, after the first pass's timers were torn down by
+// the interim cleanup, leaving the splash stuck on screen forever).
+const showWelcomeOnce = (() => {
+  try {
+    if (!sessionStorage.getItem(WELCOME_KEY)) {
+      sessionStorage.setItem(WELCOME_KEY, '1')
+      return true
+    }
+  } catch { /* private-browsing storage restrictions — just skip the splash */ }
+  return false
+})()
+
+// Shown once per real app launch — gated on sessionStorage rather than a
+// mount flag because iOS keeps installed PWAs suspended (not reloaded) in
+// the background, so a normal foreground/background switch never re-runs
+// this module. A cleared sessionStorage (new tab, or the OS having fully
+// evicted and relaunched the app) is what actually counts as "opened".
+function WelcomeScreen() {
+  const [mounted, setMounted] = useState(showWelcomeOnce)
+  const [visible, setVisible] = useState(showWelcomeOnce)
+
+  useEffect(() => {
+    if (!showWelcomeOnce) return
+    const hide = setTimeout(() => setVisible(false), 1000)
+    const unmount = setTimeout(() => setMounted(false), 1300)
+    return () => { clearTimeout(hide); clearTimeout(unmount) }
+  }, [])
+
+  if (!mounted) return null
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000, background: '#0a0a0b',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+        opacity: visible ? 1 : 0, transition: 'opacity .3s ease',
+      }}
+    >
+      <Logo size={72} iconSize={52} />
+      <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 28, lineHeight: 1.05, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', textAlign: 'center' }}>{TEAM_NAME}</div>
+      <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 18, lineHeight: 1.05, letterSpacing: '.6px', color: ACCENT, textTransform: 'uppercase' }}>Welcome</div>
+    </div>
+  )
+}
+
 function AppShell() {
   const { state } = useApp()
   const landscape = useLandscape()
@@ -127,6 +179,7 @@ export default function App() {
   return (
     <AppProvider>
       <AppShell />
+      <WelcomeScreen />
     </AppProvider>
   )
 }
