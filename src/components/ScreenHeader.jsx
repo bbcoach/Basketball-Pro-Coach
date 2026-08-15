@@ -6,7 +6,9 @@ export default function ScreenHeader({ title, line, onClose, closeLabel = 'Menu'
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '0 18px 10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-        <Logo size={30} iconSize={22} />
+        <div onClick={onClose} style={{ cursor: 'pointer' }}>
+          <Logo size={30} iconSize={22} />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 15, lineHeight: 1.04, color: ACCENT, textTransform: 'uppercase', letterSpacing: '.5px' }}>{TEAM_NAME}</div>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.04, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px', marginTop: 1 }}>{title}</div>
