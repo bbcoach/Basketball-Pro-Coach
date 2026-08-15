@@ -58,7 +58,7 @@ function initialState() {
 
     // practice
     practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
-    dName: '', dMin: '', dEdit: null,
+    dName: '', dMin: '', dDesc: '', dPlayId: null, dEdit: null,
     runPlanId: null, runIdx: 0, runLeft: 0, runPaused: false,
   }
 }
@@ -639,12 +639,14 @@ export function AppProvider({ children }) {
     const name = (s.dName || '').trim()
     if (!name) return
     const min = parseInt(s.dMin, 10) || 10
-    if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min } : x)))
-    else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min }]))
-    set({ dName: '', dMin: '', dEdit: null })
+    const desc = (s.dDesc || '').trim()
+    const playId = s.dPlayId || null
+    if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min, desc, playId } : x)))
+    else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min, desc, playId }]))
+    set({ dName: '', dMin: '', dDesc: '', dPlayId: null, dEdit: null })
   }
-  const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || '') })
-  const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '' })
+  const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || ''), dDesc: d.desc || '', dPlayId: d.playId || null })
+  const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '', dDesc: '', dPlayId: null })
   const removeDrill = (d) => {
     persistDrills((ds) => ds.filter((x) => x.id !== d.id))
     persistPlans((ps) => ps.map((x) => ({ ...x, items: (x.items || []).filter((id) => id !== d.id) })))

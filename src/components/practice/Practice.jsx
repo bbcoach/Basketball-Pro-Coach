@@ -2,6 +2,7 @@ import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
+import PlayPreview from './PlayPreview'
 
 function planMeta(app, p, active) {
   const list = app.planDrills(p)
@@ -65,8 +66,8 @@ function PlanOpen() {
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div style={{ width: 22, flex: 'none', fontWeight: 700, color: 'rgba(255,255,255,.45)', fontSize: 14 }}>{i + 1}</div>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{d.min || 0} min</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}{d.playId ? ' 🔗' : ''}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{d.desc ? ' · ' + d.desc : ''}</div>
               </div>
               <div onClick={() => movePlanItem(plan.id, i, i - 1)} style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11, cursor: 'pointer', flex: 'none' }}>↑</div>
               <div onClick={() => movePlanItem(plan.id, i, i + 1)} style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11, cursor: 'pointer', flex: 'none' }}>↓</div>
@@ -89,10 +90,45 @@ function PlanOpen() {
   )
 }
 
+function DrillPlayPicker() {
+  const { state, set } = useApp()
+  const { plays, dPlayId } = state
+  const linked = plays.find((p) => p.id === dPlayId)
+
+  if (linked) {
+    return (
+      <div style={{ display: 'flex', gap: 8, paddingBottom: 8, padding: '8px', borderRadius: 10, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)' }}>
+        <div style={{ width: 44, height: 82, flex: 'none', borderRadius: 8, overflow: 'hidden', background: '#8a5e34' }}>
+          <PlayPreview play={linked} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: ACCENT }}>Linked play</div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{linked.name}</div>
+        </div>
+        <div onClick={() => set({ dPlayId: null })} style={{ alignSelf: 'center', padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', paddingBottom: 6 }}>Link a play from the Tactics Board (optional)</div>
+      {plays.length ? (
+        <div className="scrollx" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+          {plays.map((p) => (
+            <div key={p.id} onClick={() => set({ dPlayId: p.id })} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{p.name}</div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No saved plays yet — save one from the Tactics Board first.</div>
+      )}
+    </div>
+  )
+}
+
 function DrillsTab() {
   const app = useApp()
   const { state, set, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills, openPlan } = app
-  const { drills, plans, activePlan, openPlan: openId, dName, dMin, dEdit } = state
+  const { drills, plans, plays, activePlan, openPlan: openId, dName, dMin, dDesc, dEdit } = state
   const target = plans.find((x) => x.id === activePlan) || plans.find((x) => x.id === openId) || plans[0]
 
   return (
@@ -109,6 +145,11 @@ function DrillsTab() {
         <input type="text" value={dName} onChange={(e) => set({ dName: e.target.value })} placeholder="Drill name" style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }} />
         <input type="text" value={dMin} onChange={(e) => set({ dMin: e.target.value })} placeholder="min" style={{ width: 58, flex: 'none', padding: '10px 8px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, textAlign: 'center', outline: 'none' }} />
       </div>
+      <textarea
+        value={dDesc} onChange={(e) => set({ dDesc: e.target.value })} placeholder="Description — how it runs, what to watch for (optional)" rows={3}
+        style={{ width: '100%', padding: '10px 11px', marginBottom: 8, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+      />
+      <DrillPlayPicker />
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
         <div onClick={addDrill} style={{ flex: 1, textAlign: 'center', padding: 10, borderRadius: 10, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{dEdit ? 'Save drill' : 'Add drill'}</div>
         {dEdit && <div onClick={cancelDrill} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
@@ -116,11 +157,17 @@ function DrillsTab() {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {drills.map((d) => {
           const inPlan = target ? (target.items || []).filter((id) => id === d.id).length : 0
+          const linkedPlay = d.playId && plays.find((p) => p.id === d.playId)
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', borderRadius: 11, background: dEdit === d.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (dEdit === d.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
+              {linkedPlay && (
+                <div style={{ width: 22, height: 41, flex: 'none', borderRadius: 5, overflow: 'hidden', background: '#8a5e34' }}>
+                  <PlayPreview play={linkedPlay} />
+                </div>
+              )}
               <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{d.min || 0} min{inPlan ? ' · in this session ×' + inPlan : ''}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{inPlan ? ' · in this session ×' + inPlan : ''}{d.desc ? ' · ' + d.desc : ''}</div>
               </div>
               <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ padding: '7px 11px', borderRadius: 9, background: inPlan ? 'rgba(255,255,255,.10)' : ACCENT, color: inPlan ? '#fff' : '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{inPlan ? '＋ again' : '＋ Add'}</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
