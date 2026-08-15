@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 // where the app frame comes up ~60px short until the device is rotated.
 // Remove this component (and its use in Home) once that's pinned down.
 
-const BUILD = 'dbg1'
+const BUILD = 'dbg2'
 
 // env() values are only readable through a real element's computed style.
 let probe
