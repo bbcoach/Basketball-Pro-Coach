@@ -32,14 +32,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div onClick={openSchedule} style={{ ...cardStyle, marginBottom: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▦</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My schedule</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{upcoming ? upcoming + (upcoming === 1 ? ' upcoming item' : ' upcoming items') : 'Trainings, games and team events'}</div>
-          </div>
-        </div>
-
         <div
           onClick={toggleBoardMenu}
           style={{ ...cardStyle, background: boardMenu ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.06)', border: boardMenu ? '1px solid rgba(255,255,255,.2)' : '1px solid rgba(255,255,255,.1)', marginBottom: 10 }}
@@ -91,6 +83,14 @@ export default function Home() {
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>
               {activeTeam ? activeTeam.name + ' · ' + activeTeam.roster.length + (activeTeam.roster.length === 1 ? ' player' : ' players') + ((activeTeam.coaches || []).length ? ' · ' + activeTeam.coaches.length + (activeTeam.coaches.length === 1 ? ' coach' : ' coaches') : '') + (teams.length > 1 ? ' · ' + teams.length + ' teams' : '') : 'Set up your team roster'}
             </div>
+          </div>
+        </div>
+
+        <div onClick={openSchedule} style={{ ...cardStyle, marginTop: 10 }}>
+          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▦</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My schedule</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{upcoming ? upcoming + (upcoming === 1 ? ' upcoming item' : ' upcoming items') : 'Trainings, games and team events'}</div>
           </div>
         </div>
 
