@@ -15,12 +15,14 @@ const KIND_META = {
   event: { icon: '▦', color: '#7fb2e0', label: 'Event' },
 }
 
+const KINDS = ['training', 'game', 'event']
+
 export default function Schedule() {
   const {
     state, set, closeSchedule, goToSession, goToGame,
-    addEvent, editEvent, cancelEditEvent, removeEvent,
+    addScheduleItem, editEvent, cancelEditEvent, removeEvent,
   } = useApp()
-  const { sessions, games, events, evTitleIn, evDateIn, evTimeIn, evEditId } = state
+  const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evEditId } = state
   const today = todayStr()
 
   const items = []
@@ -43,21 +45,40 @@ export default function Schedule() {
       <ScreenHeader title="My schedule" line={items.length ? items.length + ' upcoming' : undefined} onClose={closeSchedule} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>{evEditId ? 'Edit event' : 'Add team event'}</div>
-          <input
-            type="text" value={evTitleIn} onChange={(e) => set({ evTitleIn: e.target.value })} placeholder="e.g. Season tournament"
-            style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
-          />
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+            {evEditId ? 'Edit event' : 'Schedule ' + (evKind === 'event' ? 'an event' : 'a ' + KIND_META[evKind].label.toLowerCase())}
+          </div>
+          {!evEditId && (
+            <div style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+              {KINDS.map((k) => (
+                <div
+                  key={k} onClick={() => set({ evKind: k })}
+                  style={{ flex: 1, textAlign: 'center', padding: '7px 6px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? ACCENT : 'rgba(255,255,255,.06)', color: evKind === k ? '#101012' : 'rgba(255,255,255,.6)' }}
+                >
+                  {KIND_META[k].label}
+                </div>
+              ))}
+            </div>
+          )}
+          {evKind !== 'training' && (
+            <input
+              type="text" value={evTitleIn} onChange={(e) => set({ evTitleIn: e.target.value })}
+              placeholder={evKind === 'game' ? 'Opponent (optional)' : 'e.g. Season tournament'}
+              style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+            />
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               type="date" value={evDateIn} onChange={(e) => set({ evDateIn: e.target.value })}
               style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
             />
-            <input
-              type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
-              style={{ flex: 'none', width: 104, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
-            />
-            <div onClick={addEvent} style={{ padding: '10px 14px', borderRadius: 10, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
+            {evKind === 'event' && (
+              <input
+                type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
+                style={{ flex: 'none', width: 104, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+              />
+            )}
+            <div onClick={addScheduleItem} style={{ padding: '10px 14px', borderRadius: 10, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
             {evEditId && <div onClick={cancelEditEvent} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
           </div>
         </div>
