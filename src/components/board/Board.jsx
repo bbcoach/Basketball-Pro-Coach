@@ -27,7 +27,7 @@ const TOOLS = [
 ]
 
 function Header({ compact }) {
-  const { state, setView } = useApp()
+  const { state, setView, goHome } = useApp()
   const { view, playName } = state
   const seg = (active, label, onClick) => (
     <div
@@ -46,7 +46,9 @@ function Header({ compact }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '2px 0 8px', flex: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <Logo size={20} iconSize={15} />
+          <div onClick={goHome} style={{ cursor: 'pointer' }}>
+            <Logo size={20} iconSize={15} />
+          </div>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', color: ACCENT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
             Tactics Board
           </div>
@@ -62,7 +64,9 @@ function Header({ compact }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 16px 8px', flex: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-        <Logo size={26} iconSize={19} />
+        <div onClick={goHome} style={{ cursor: 'pointer' }}>
+          <Logo size={26} iconSize={19} />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TEAM_NAME}</div>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>Tactics Board</div>
