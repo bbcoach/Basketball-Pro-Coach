@@ -87,8 +87,8 @@ setTimeout(setAppHeight, 300)
 window.addEventListener('resize', setAppHeight)
 window.addEventListener('orientationchange', setAppHeight)
 if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
-// A ResizeObserver catches late viewport changes that never fire a window
-// resize event — which is exactly the cold-launch case above.
+// A ResizeObserver catches viewport changes that never fire a window resize
+// event.
 if (window.ResizeObserver) new ResizeObserver(setAppHeight).observe(document.documentElement)
 
 createRoot(document.getElementById('root')).render(
