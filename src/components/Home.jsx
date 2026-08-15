@@ -10,9 +10,14 @@ function playMeta(p) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openInfo } = useApp()
-  const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, teams, activeTeamId } = state
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo } = useApp()
+  const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
+
+  const today = new Date().toISOString().slice(0, 10)
+  const upcoming = sessions.filter((s) => s.date >= today).length
+    + games.filter((g) => g.type === 'game' && g.date >= today).length
+    + events.filter((e) => e.date >= today).length
 
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
@@ -24,6 +29,14 @@ export default function Home() {
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase' }}>{TEAM_NAME}</div>
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>OVERVIEW</div>
+          </div>
+        </div>
+
+        <div onClick={openSchedule} style={{ ...cardStyle, marginBottom: 10 }}>
+          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▦</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My schedule</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{upcoming ? upcoming + (upcoming === 1 ? ' upcoming item' : ' upcoming items') : 'Trainings, games and team events'}</div>
           </div>
         </div>
 

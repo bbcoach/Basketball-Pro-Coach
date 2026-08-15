@@ -32,7 +32,7 @@ function saveJson(key, val) {
 function initialState() {
   const s0 = startState()
   return {
-    screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams'
+    screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams' | 'schedule'
     boardMenu: false, loadOpen: false, infoPage: null,
 
     // board
@@ -58,6 +58,10 @@ function initialState() {
 
     // training attendance
     attendTab: 'sessions', sessions: [], openSession: null,
+
+    // schedule (team events scoped to the active team; trainings and games
+    // are pulled in read-only from the sections above)
+    events: [], evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null,
 
     // practice
     practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
@@ -94,6 +98,7 @@ export function AppProvider({ children }) {
       // migrate the pre-teams flat roster/games/sessions into a single default team
       const roster = loadJson(LS.roster, [])
       const coaches = [] // coaches are new — no pre-teams data to migrate
+      const events = [] // events are new — no pre-teams data to migrate
       let games = loadJson(LS.games, [])
       if (!games.length) {
         // migrate the even older single-game record (pre-dates per-game history) too
@@ -106,12 +111,12 @@ export function AppProvider({ children }) {
         }
       }
       const sessions = loadJson(LS.sessions, [])
-      teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, coaches, games, sessions }]
+      teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, coaches, games, sessions, events }]
       saveJson(LS.teams, teams)
     }
-    // teams saved before coaches existed won't have the field yet
-    if (teams.some((t) => !t.coaches)) {
-      teams = teams.map((t) => (t.coaches ? t : { ...t, coaches: [] }))
+    // teams saved before coaches/events existed won't have those fields yet
+    if (teams.some((t) => !t.coaches || !t.events)) {
+      teams = teams.map((t) => ({ ...t, coaches: t.coaches || [], events: t.events || [] }))
       saveJson(LS.teams, teams)
     }
     let activeTeamId = loadJson(LS.activeTeam, null)
@@ -122,7 +127,7 @@ export function AppProvider({ children }) {
     const active = teams.find((t) => t.id === activeTeamId)
     set({
       plays, drills, plans, teams, activeTeamId,
-      roster: active.roster, coaches: active.coaches, games: active.games, sessions: active.sessions,
+      roster: active.roster, coaches: active.coaches, games: active.games, sessions: active.sessions, events: active.events,
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -141,6 +146,7 @@ export function AppProvider({ children }) {
   const persistCoaches = (fn) => persistTeamField('coaches', fn)
   const persistGames = (fn) => persistTeamField('games', fn)
   const persistSessions = (fn) => persistTeamField('sessions', fn)
+  const persistEvents = (fn) => persistTeamField('events', fn)
   const persistDrills = (fn) => setState((s) => {
     const drills = typeof fn === 'function' ? fn(s.drills) : fn
     saveJson(LS.drills, drills)
@@ -442,6 +448,10 @@ export function AppProvider({ children }) {
   const closePractice = () => set({ screen: 'home', openPlan: null })
   const openTeams = () => set({ screen: 'teams', teamsDetail: false })
   const closeTeams = () => set({ screen: 'home', teamsDetail: false })
+  const openSchedule = () => set({ screen: 'schedule' })
+  const closeSchedule = () => set({ screen: 'home' })
+  const goToSession = (id) => set({ screen: 'attend', openSession: id })
+  const goToGame = (id) => set({ screen: 'stats', activeGameId: id, statsTab: 'live', selPlayer: null })
   const openInfo = (page) => set({ infoPage: page })
   const closeInfo = () => set({ infoPage: null })
 
@@ -455,9 +465,9 @@ export function AppProvider({ children }) {
     if (!t) return
     saveJson(LS.activeTeam, id)
     set({
-      activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions,
+      activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
       activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '',
-      coachEditId: null, coachNameIn: '',
+      coachEditId: null, coachNameIn: '', evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '',
     })
   }
   const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
@@ -465,12 +475,12 @@ export function AppProvider({ children }) {
   const newTeam = () => {
     const s = stateRef.current
     const id = 'tm' + Date.now()
-    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], coaches: [], games: [], sessions: [] }
+    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], coaches: [], games: [], sessions: [], events: [] }
     const teams = s.teams.concat([entry])
     saveJson(LS.teams, teams)
     saveJson(LS.activeTeam, id)
     set({
-      teams, activeTeamId: id, roster: [], coaches: [], games: [], sessions: [],
+      teams, activeTeamId: id, roster: [], coaches: [], games: [], sessions: [], events: [],
       activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: true,
     })
   }
@@ -492,7 +502,7 @@ export function AppProvider({ children }) {
       const next = teams[0]
       saveJson(LS.activeTeam, next.id)
       set({
-        teams, activeTeamId: next.id, roster: next.roster, coaches: next.coaches, games: next.games, sessions: next.sessions,
+        teams, activeTeamId: next.id, roster: next.roster, coaches: next.coaches, games: next.games, sessions: next.sessions, events: next.events,
         activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: false, teamRemoveAsk: null,
       })
     } else {
@@ -635,6 +645,25 @@ export function AppProvider({ children }) {
     }))
   }
 
+  // ── schedule (team events) ─────────────────────────────────────
+  const sortEvents = (es) => es.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  const addEvent = () => {
+    const s = stateRef.current
+    const title = (s.evTitleIn || '').trim()
+    const date = s.evDateIn || ''
+    if (!title || !date) return
+    const time = s.evTimeIn || ''
+    if (s.evEditId) persistEvents((es) => sortEvents(es.map((x) => (x.id === s.evEditId ? { ...x, title, date, time } : x))))
+    else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time }])))
+    set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null })
+  }
+  const editEvent = (e) => set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '' })
+  const cancelEditEvent = () => set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '' })
+  const removeEvent = (e) => {
+    persistEvents((es) => es.filter((x) => x.id !== e.id))
+    if (stateRef.current.evEditId === e.id) set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '' })
+  }
+
   // ── practice ────────────────────────────────────────────────
   const planDrills = (plan) => {
     if (!plan) return []
@@ -734,10 +763,12 @@ export function AppProvider({ children }) {
     openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
+    openSchedule, closeSchedule, goToSession, goToGame,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays,
+    persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach,
+    addEvent, editEvent, cancelEditEvent, removeEvent,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance, markCoachAttendance,
