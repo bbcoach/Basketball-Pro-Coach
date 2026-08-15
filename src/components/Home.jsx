@@ -2,6 +2,7 @@ import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
 import { COND } from '../theme'
 import Logo from './Logo'
+import ViewportDebug from './ViewportDebug'
 import { maxStepOf } from '../lib/board-geometry'
 
 function playMeta(p) {
@@ -116,6 +117,7 @@ export default function Home() {
           <div onClick={() => openInfo('imprint')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Legal notice</div>
           <div onClick={() => openInfo('privacy')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Privacy</div>
         </div>
+        <ViewportDebug />
       </div>
     </div>
   )
