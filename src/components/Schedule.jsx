@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import ScreenHeader from './ScreenHeader'
@@ -23,28 +24,30 @@ export default function Schedule() {
     addScheduleItem, editEvent, cancelEditEvent, removeEvent,
   } = useApp()
   const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
+  const [showPast, setShowPast] = useState(false)
   const today = todayStr()
 
-  const items = []
+  const upcoming = []
+  const past = []
+  const push = (isPast, item) => (isPast ? past : upcoming).push(item)
   sessions.forEach((s) => {
-    if (s.date < today) return
-    items.push({ id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, onOpen: () => goToSession(s.id) })
+    push(s.date < today, { id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, onOpen: () => goToSession(s.id) })
   })
   games.forEach((g) => {
-    if (g.type !== 'game' || g.date < today) return
+    if (g.type !== 'game') return
     const homeAway = g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : ''
     const sub = [homeAway, g.location].filter(Boolean).join(' · ')
-    items.push({ id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, onOpen: () => goToGame(g.id) })
+    push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, onOpen: () => goToGame(g.id) })
   })
   events.forEach((e) => {
-    if (e.date < today) return
-    items.push({ id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, raw: e })
+    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, raw: e })
   })
-  items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  past.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
-      <ScreenHeader title="My schedule" line={items.length ? items.length + ' upcoming' : undefined} onClose={closeSchedule} />
+      <ScreenHeader title="My schedule" line={upcoming.length ? upcoming.length + ' upcoming' : undefined} onClose={closeSchedule} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
@@ -103,28 +106,46 @@ export default function Schedule() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 16 }}>
-          {items.map((it) => {
-            const meta = KIND_META[it.kind]
-            return (
-              <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                <div style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: meta.color, fontSize: 15, fontWeight: 700 }}>{meta.icon}</div>
-                <div onClick={it.onOpen} style={{ flex: 1, minWidth: 0, cursor: it.onOpen ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}{it.sub ? ' · ' + it.sub : ''}</div>
-                </div>
-                {it.kind === 'event' && (
-                  <>
-                    <div onClick={() => editEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-                    <div onClick={() => removeEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
-                  </>
-                )}
-              </div>
-            )
-          })}
-          {!items.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>Nothing coming up — schedule a training, add a game, or note a team event above.</div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 8 }}>
+          {upcoming.map((it) => (
+            <ScheduleRow key={it.id} it={it} editEvent={editEvent} removeEvent={removeEvent} />
+          ))}
+          {!upcoming.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>Nothing coming up — schedule a training, add a game, or note a team event above.</div>}
         </div>
+
+        <div onClick={() => setShowPast((v) => !v)} style={{ padding: '6px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', cursor: 'pointer', textAlign: 'center' }}>
+          {showPast ? 'Hide past events' : 'Show past events'}
+        </div>
+
+        {showPast && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, paddingBottom: 16, opacity: 0.7 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Past</div>
+            {past.map((it) => (
+              <ScheduleRow key={it.id} it={it} editEvent={editEvent} removeEvent={removeEvent} />
+            ))}
+            {!past.length && <div style={{ padding: '2px 2px 4px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No past trainings, games or events yet.</div>}
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+function ScheduleRow({ it, editEvent, removeEvent }) {
+  const meta = KIND_META[it.kind]
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+      <div style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: meta.color, fontSize: 15, fontWeight: 700 }}>{meta.icon}</div>
+      <div onClick={it.onOpen} style={{ flex: 1, minWidth: 0, cursor: it.onOpen ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}{it.sub ? ' · ' + it.sub : ''}</div>
+      </div>
+      {it.kind === 'event' && (
+        <>
+          <div onClick={() => editEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
+          <div onClick={() => removeEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+        </>
+      )}
     </div>
   )
 }
