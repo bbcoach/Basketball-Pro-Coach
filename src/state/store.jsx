@@ -33,7 +33,7 @@ function initialState() {
   const s0 = startState()
   return {
     screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams' | 'schedule'
-    boardMenu: false, loadOpen: false, infoPage: null,
+    boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false,
 
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
@@ -455,6 +455,8 @@ export function AppProvider({ children }) {
   const goToGame = (id) => set({ screen: 'stats', activeGameId: id, statsTab: 'live', selPlayer: null })
   const openInfo = (page) => set({ infoPage: page })
   const closeInfo = () => set({ infoPage: null })
+  const openBackup = () => set({ backupOpen: true })
+  const closeBackup = () => set({ backupOpen: false })
 
   // ── teams ───────────────────────────────────────────────────
   // Switching teams re-points the flat roster/games/sessions mirror at the
@@ -782,7 +784,7 @@ export function AppProvider({ children }) {
     openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
-    openSchedule, closeSchedule, goToSession, goToGame,
+    openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,

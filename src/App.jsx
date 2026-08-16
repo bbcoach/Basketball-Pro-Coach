@@ -9,6 +9,7 @@ import Practice from './components/practice/Practice'
 import Teams from './components/teams/Teams'
 import Schedule from './components/Schedule'
 import InfoOverlay from './components/InfoOverlay'
+import BackupModal from './components/BackupModal'
 import RunScreen from './components/practice/RunScreen'
 
 function Screen() {
@@ -23,6 +24,7 @@ function Screen() {
       {state.screen === 'teams' && <Teams />}
       {state.screen === 'schedule' && <Schedule />}
       {state.infoPage && <InfoOverlay />}
+      <BackupModal />
       <RunScreen />
     </>
   )

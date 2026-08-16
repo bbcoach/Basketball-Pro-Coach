@@ -10,7 +10,7 @@ function playMeta(p) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo } = useApp()
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup } = useApp()
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -128,6 +128,7 @@ export default function Home() {
           <div onClick={() => openInfo('about')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>About</div>
           <div onClick={() => openInfo('imprint')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Legal notice</div>
           <div onClick={() => openInfo('privacy')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Privacy</div>
+          <div onClick={openBackup} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Backup</div>
         </div>
       </div>
     </div>
