@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import ScreenHeader from './ScreenHeader'
+import { downloadIcs, parseIcs } from '../lib/ics'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -21,34 +22,66 @@ const KINDS = ['training', 'game', 'event']
 export default function Schedule() {
   const {
     state, set, closeSchedule, goToSession, goToGame,
-    addScheduleItem, editEvent, cancelEditEvent, removeEvent,
+    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
   } = useApp()
   const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
   const [showPast, setShowPast] = useState(false)
+  const [icsPreview, setIcsPreview] = useState(null)
+  const [icsStatus, setIcsStatus] = useState(null)
+  const icsFileRef = useRef(null)
   const today = todayStr()
 
   const upcoming = []
   const past = []
   const push = (isPast, item) => (isPast ? past : upcoming).push(item)
   sessions.forEach((s) => {
-    push(s.date < today, { id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, onOpen: () => goToSession(s.id) })
+    push(s.date < today, { id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, location: '', description: 'Training', onOpen: () => goToSession(s.id) })
   })
   games.forEach((g) => {
     if (g.type !== 'game') return
     const homeAway = g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : ''
     const sub = [homeAway, g.location].filter(Boolean).join(' · ')
-    push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, onOpen: () => goToGame(g.id) })
+    const description = [homeAway ? homeAway + ' game' : 'Game', g.opponent ? 'vs ' + g.opponent : ''].filter(Boolean).join(' — ')
+    push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, location: g.location || '', description, onOpen: () => goToGame(g.id) })
   })
   events.forEach((e) => {
-    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, raw: e })
+    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, location: '', description: '', raw: e })
   })
   upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   past.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
+
+  const exportIcs = () => downloadIcs(upcoming, 'my-schedule-' + today + '.ics')
+  const pickIcsFile = () => { setIcsStatus(null); icsFileRef.current?.click() }
+  const onIcsFile = async (e) => {
+    const file = e.target.files && e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const text = await file.text()
+      const found = parseIcs(text)
+      if (!found.length) setIcsStatus('No events found in that file.')
+      else setIcsPreview(found)
+    } catch {
+      setIcsStatus('Could not read that file.')
+    }
+  }
+  const confirmIcsImport = () => {
+    importIcsEvents(icsPreview)
+    setIcsStatus(icsPreview.length + (icsPreview.length === 1 ? ' event imported.' : ' events imported.'))
+    setIcsPreview(null)
+  }
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
       <ScreenHeader title="My schedule" line={upcoming.length ? upcoming.length + ' upcoming' : undefined} onClose={closeSchedule} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
+        <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
+          <div onClick={exportIcs} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Export .ics</div>
+          <div onClick={pickIcsFile} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Import .ics</div>
+          <input ref={icsFileRef} type="file" accept=".ics,text/calendar" onChange={onIcsFile} style={{ display: 'none' }} />
+        </div>
+        {icsStatus && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', textAlign: 'center', paddingBottom: 10 }}>{icsStatus}</div>}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
             {evEditId ? 'Edit event' : 'Schedule ' + (evKind === 'event' ? 'an event' : 'a ' + KIND_META[evKind].label.toLowerCase())}
@@ -127,6 +160,21 @@ export default function Schedule() {
           </div>
         )}
       </div>
+
+      {icsPreview && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
+          <div style={{ width: '100%', maxWidth: 340, background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 18 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Import .ics</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
+              Found {icsPreview.length} {icsPreview.length === 1 ? 'event' : 'events'} in this file. They'll be added to My Schedule as events.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div onClick={confirmIcsImport} style={{ padding: 11, borderRadius: 11, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Import {icsPreview.length}</div>
+              <div onClick={() => setIcsPreview(null)} style={{ padding: 10, borderRadius: 11, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

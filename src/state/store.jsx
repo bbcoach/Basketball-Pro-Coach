@@ -698,6 +698,13 @@ export function AppProvider({ children }) {
     else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time }])))
     set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null })
   }
+  // Imported .ics entries always become events — they carry no attendance
+  // marks or stat log, so a real training/game is never the right shape.
+  const importIcsEvents = (parsedItems) => {
+    const stamp = Date.now()
+    const entries = parsedItems.map((it, i) => ({ id: 'ev' + stamp + '_' + i, title: it.title, date: it.date, time: it.time || '' }))
+    persistEvents((es) => sortEvents(es.concat(entries)))
+  }
   const editEvent = (e) => set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '', evKind: 'event' })
   const cancelEditEvent = () => set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '' })
   const removeEvent = (e) => {
@@ -809,7 +816,7 @@ export function AppProvider({ children }) {
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach,
-    addScheduleItem, editEvent, cancelEditEvent, removeEvent,
+    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
