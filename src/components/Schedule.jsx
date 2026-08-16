@@ -22,17 +22,19 @@ export default function Schedule() {
     state, set, closeSchedule, goToSession, goToGame,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent,
   } = useApp()
-  const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evEditId } = state
+  const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
   const today = todayStr()
 
   const items = []
   sessions.forEach((s) => {
     if (s.date < today) return
-    items.push({ id: 'training-' + s.id, kind: 'training', date: s.date, time: '', title: s.label || s.date, onOpen: () => goToSession(s.id) })
+    items.push({ id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, onOpen: () => goToSession(s.id) })
   })
   games.forEach((g) => {
     if (g.type !== 'game' || g.date < today) return
-    items.push({ id: 'game-' + g.id, kind: 'game', date: g.date, time: '', title: g.opponent ? 'vs ' + g.opponent : 'Game', onOpen: () => goToGame(g.id) })
+    const homeAway = g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : ''
+    const sub = [homeAway, g.location].filter(Boolean).join(' · ')
+    items.push({ id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, onOpen: () => goToGame(g.id) })
   })
   events.forEach((e) => {
     if (e.date < today) return
@@ -67,17 +69,35 @@ export default function Schedule() {
               style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
             />
           )}
+          {evKind === 'game' && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <div
+                onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
+                style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+              >
+                Home
+              </div>
+              <div
+                onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
+                style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+              >
+                Away
+              </div>
+              <input
+                type="text" value={evLocationIn} onChange={(e) => set({ evLocationIn: e.target.value })} placeholder="Location (optional)"
+                style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+              />
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               type="date" value={evDateIn} onChange={(e) => set({ evDateIn: e.target.value })}
               style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
             />
-            {evKind === 'event' && (
-              <input
-                type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
-                style={{ flex: 'none', width: 104, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
-              />
-            )}
+            <input
+              type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
+              style={{ flex: 'none', width: 104, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+            />
             <div onClick={addScheduleItem} style={{ padding: '10px 14px', borderRadius: 10, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
             {evEditId && <div onClick={cancelEditEvent} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
           </div>
@@ -91,7 +111,7 @@ export default function Schedule() {
                 <div style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: meta.color, fontSize: 15, fontWeight: 700 }}>{meta.icon}</div>
                 <div onClick={it.onOpen} style={{ flex: 1, minWidth: 0, cursor: it.onOpen ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}{it.sub ? ' · ' + it.sub : ''}</div>
                 </div>
                 {it.kind === 'event' && (
                   <>

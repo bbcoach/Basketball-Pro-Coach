@@ -46,7 +46,7 @@ function GamesTab() {
             <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div onClick={() => openGame(g.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtGameDate(g.date)} · {t.pts} pts · {g.log.length} logged</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtGameDate(g.date)}{g.time ? ' · ' + g.time : ''} · {t.pts} pts · {g.log.length} logged</div>
               </div>
               <div onClick={() => removeGame(g)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
@@ -67,20 +67,47 @@ function NoActiveGame() {
 }
 
 function GameMetaEditor({ game }) {
-  const { setGameDate, setGameOpponent } = useApp()
+  const { setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation } = useApp()
+  const isGame = game.type === 'game'
   return (
-    <div style={{ display: 'flex', gap: 6, padding: '0 18px 10px' }}>
-      <input
-        type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
-        style={{ flex: 'none', width: 138, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
-      />
-      {game.type === 'game' ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px 10px' }}>
+      <div style={{ display: 'flex', gap: 6 }}>
         <input
-          type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
+          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
-      ) : (
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
+        <input
+          type="time" value={game.time || ''} onChange={(e) => setGameTime(e.target.value)}
+          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+        />
+        {isGame ? (
+          <input
+            type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          />
+        ) : (
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
+        )}
+      </div>
+      {isGame && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <div
+            onClick={() => setGameHome(game.home === 'home' ? '' : 'home')}
+            style={{ flex: 'none', padding: '8px 11px', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+          >
+            Home
+          </div>
+          <div
+            onClick={() => setGameHome(game.home === 'away' ? '' : 'away')}
+            style={{ flex: 'none', padding: '8px 11px', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+          >
+            Away
+          </div>
+          <input
+            type="text" value={game.location || ''} onChange={(e) => setGameLocation(e.target.value)} placeholder="Location (optional)"
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          />
+        </div>
       )}
     </div>
   )

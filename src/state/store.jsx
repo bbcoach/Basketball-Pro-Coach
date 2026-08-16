@@ -62,7 +62,7 @@ function initialState() {
     // schedule — lets a coach plan ahead: schedule a future training or
     // game (written into the sections above), or note a team event (its
     // own scoped entity, since nothing else in the app models those)
-    events: [], evKind: 'training', evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null,
+    events: [], evKind: 'training', evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '', evEditId: null,
 
     // practice
     practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
@@ -470,7 +470,7 @@ export function AppProvider({ children }) {
     set({
       activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
       activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '',
-      coachEditId: null, coachNameIn: '', evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '',
+      coachEditId: null, coachNameIn: '', evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '',
     })
   }
   const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
@@ -584,7 +584,7 @@ export function AppProvider({ children }) {
   // ── games ───────────────────────────────────────────────────
   const newGame = (type) => {
     const id = 'gm' + Date.now()
-    const entry = { id, date: new Date().toISOString().slice(0, 10), type, opponent: '', log: [], onCourt: [] }
+    const entry = { id, date: new Date().toISOString().slice(0, 10), type, opponent: '', time: '', home: '', location: '', log: [], onCourt: [] }
     persistGames((gs) => [entry].concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
     set({ activeGameId: id, statsTab: 'live', selPlayer: null })
   }
@@ -604,12 +604,24 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, opponent: v } : x)))
   }
+  const setGameTime = (v) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, time: v } : x)))
+  }
+  const setGameHome = (v) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, home: v } : x)))
+  }
+  const setGameLocation = (v) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, location: v } : x)))
+  }
 
   // ── attendance ──────────────────────────────────────────────
   const newSession = () => {
     const id = 'ses' + Date.now()
     const d = new Date()
-    const entry = { id, date: d.toISOString().slice(0, 10), label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
+    const entry = { id, date: d.toISOString().slice(0, 10), time: '', label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
     persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
     set({ openSession: id })
   }
@@ -622,6 +634,10 @@ export function AppProvider({ children }) {
     const d = new Date(v + 'T12:00:00')
     persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, date: v, label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) } : x))
       .sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+  }
+  const setSessionTime = (v) => {
+    const s = stateRef.current
+    persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, time: v } : x)))
   }
   const setSessionPlan = (planId) => {
     const s = stateRef.current
@@ -650,15 +666,15 @@ export function AppProvider({ children }) {
 
   // ── schedule ────────────────────────────────────────────────
   const sortEvents = (es) => es.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
-  const scheduleSession = (date) => {
+  const scheduleSession = (date, time) => {
     const id = 'ses' + Date.now()
     const d = new Date(date + 'T12:00:00')
-    const entry = { id, date, label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
+    const entry = { id, date, time: time || '', label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
     persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
   }
-  const scheduleGame = (date, opponent) => {
+  const scheduleGame = (date, opponent, time, home, location) => {
     const id = 'gm' + Date.now()
-    const entry = { id, date, type: 'game', opponent: opponent || '', log: [], onCourt: [] }
+    const entry = { id, date, type: 'game', opponent: opponent || '', time: time || '', home: home || '', location: location || '', log: [], onCourt: [] }
     persistGames((gs) => [entry].concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
   }
   // The add form doubles as training/game/event creation — which one it
@@ -669,11 +685,15 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     const date = s.evDateIn || ''
     if (!date) return
-    if (!s.evEditId && s.evKind === 'training') { scheduleSession(date); set({ evDateIn: '' }); return }
-    if (!s.evEditId && s.evKind === 'game') { scheduleGame(date, (s.evTitleIn || '').trim()); set({ evTitleIn: '', evDateIn: '' }); return }
+    const time = s.evTimeIn || ''
+    if (!s.evEditId && s.evKind === 'training') { scheduleSession(date, time); set({ evDateIn: '', evTimeIn: '' }); return }
+    if (!s.evEditId && s.evKind === 'game') {
+      scheduleGame(date, (s.evTitleIn || '').trim(), time, s.evHome, (s.evLocationIn || '').trim())
+      set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '' })
+      return
+    }
     const title = (s.evTitleIn || '').trim()
     if (!title) return
-    const time = s.evTimeIn || ''
     if (s.evEditId) persistEvents((es) => sortEvents(es.map((x) => (x.id === s.evEditId ? { ...x, title, date, time } : x))))
     else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time }])))
     set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null })
@@ -791,8 +811,8 @@ export function AppProvider({ children }) {
     addCoach, editCoach, cancelEditCoach, removeCoach,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent,
     askReset, closeReset, resetGame, resetRoster,
-    newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent,
-    newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionPlan, markAttendance, markCoachAttendance,
+    newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
+    newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
     planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills,
     startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,
