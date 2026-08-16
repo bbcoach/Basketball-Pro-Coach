@@ -21,7 +21,7 @@ function SessionsTab() {
           return (
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: state.openSession === s.id ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (state.openSession === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)') }}>
               <div onClick={() => openSession(s.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{s.label || s.date}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{s.label || s.date}{s.time ? ' · ' + s.time : ''}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} present · {out} out{injured ? ' · ' + injured + ' injured' : ''}{plan ? ' · ' + plan.name : ''}</div>
               </div>
               <div onClick={() => removeSession(s)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
@@ -35,7 +35,7 @@ function SessionsTab() {
 }
 
 function SessionOpen() {
-  const { state, backToSessions, setSessionDate, setSessionPlan, markAttendance, markCoachAttendance } = useApp()
+  const { state, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance } = useApp()
   const { sessions, openSession: openId, roster, coaches, plans } = state
   const session = sessions.find((x) => x.id === openId)
   if (!session) return null
@@ -44,10 +44,14 @@ function SessionOpen() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
         <input
           type="date" value={session.date} onChange={(e) => setSessionDate(e.target.value)}
           style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+        />
+        <input
+          type="time" value={session.time || ''} onChange={(e) => setSessionTime(e.target.value)}
+          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
