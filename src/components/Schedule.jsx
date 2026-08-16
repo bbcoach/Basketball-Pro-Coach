@@ -45,7 +45,7 @@ export default function Schedule() {
     push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, location: g.location || '', description, onOpen: () => goToGame(g.id) })
   })
   events.forEach((e) => {
-    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, location: '', description: '', raw: e })
+    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, sub: e.location || '', location: e.location || '', description: '', raw: e })
   })
   upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   past.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
@@ -105,20 +105,24 @@ export default function Schedule() {
               style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
             />
           )}
-          {evKind === 'game' && (
+          {(evKind === 'game' || evKind === 'event') && (
             <div style={{ display: 'flex', gap: 6 }}>
-              <div
-                onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
-                style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
-              >
-                Home
-              </div>
-              <div
-                onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
-                style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
-              >
-                Away
-              </div>
+              {evKind === 'game' && (
+                <>
+                  <div
+                    onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
+                    style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+                  >
+                    Home
+                  </div>
+                  <div
+                    onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
+                    style={{ flex: 'none', padding: '10px 12px', borderRadius: 10, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+                  >
+                    Away
+                  </div>
+                </>
+              )}
               <input
                 type="text" value={evLocationIn} onChange={(e) => set({ evLocationIn: e.target.value })} placeholder="Location (optional)"
                 style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}

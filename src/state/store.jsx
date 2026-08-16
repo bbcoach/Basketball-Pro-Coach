@@ -694,22 +694,23 @@ export function AppProvider({ children }) {
     }
     const title = (s.evTitleIn || '').trim()
     if (!title) return
-    if (s.evEditId) persistEvents((es) => sortEvents(es.map((x) => (x.id === s.evEditId ? { ...x, title, date, time } : x))))
-    else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time }])))
-    set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evEditId: null })
+    const location = (s.evLocationIn || '').trim()
+    if (s.evEditId) persistEvents((es) => sortEvents(es.map((x) => (x.id === s.evEditId ? { ...x, title, date, time, location } : x))))
+    else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time, location }])))
+    set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '', evEditId: null })
   }
   // Imported .ics entries always become events — they carry no attendance
   // marks or stat log, so a real training/game is never the right shape.
   const importIcsEvents = (parsedItems) => {
     const stamp = Date.now()
-    const entries = parsedItems.map((it, i) => ({ id: 'ev' + stamp + '_' + i, title: it.title, date: it.date, time: it.time || '' }))
+    const entries = parsedItems.map((it, i) => ({ id: 'ev' + stamp + '_' + i, title: it.title, date: it.date, time: it.time || '', location: it.location || '' }))
     persistEvents((es) => sortEvents(es.concat(entries)))
   }
-  const editEvent = (e) => set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '', evKind: 'event' })
-  const cancelEditEvent = () => set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '' })
+  const editEvent = (e) => set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '', evLocationIn: e.location || '', evKind: 'event' })
+  const cancelEditEvent = () => set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '' })
   const removeEvent = (e) => {
     persistEvents((es) => es.filter((x) => x.id !== e.id))
-    if (stateRef.current.evEditId === e.id) set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '' })
+    if (stateRef.current.evEditId === e.id) set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '' })
   }
 
   // ── practice ────────────────────────────────────────────────
