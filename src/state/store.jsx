@@ -66,7 +66,7 @@ function initialState() {
 
     // practice
     practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
-    dName: '', dMin: '', dDesc: '', dPlayId: null, dEdit: null,
+    dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '', dEdit: null,
     runPlanId: null, runIdx: 0, runLeft: 0, runPaused: false,
   }
 }
@@ -757,21 +757,25 @@ export function AppProvider({ children }) {
     const min = parseInt(s.dMin, 10) || 10
     const desc = (s.dDesc || '').trim()
     const playId = s.dPlayId || null
-    if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min, desc, playId } : x)))
-    else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min, desc, playId }]))
-    set({ dName: '', dMin: '', dDesc: '', dPlayId: null, dEdit: null })
+    const category = (s.dCategory || '').trim()
+    if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min, desc, playId, category } : x)))
+    else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min, desc, playId, category, fav: false }]))
+    set({ dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '', dEdit: null })
   }
-  const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || ''), dDesc: d.desc || '', dPlayId: d.playId || null })
-  const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '', dDesc: '', dPlayId: null })
+  const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || ''), dDesc: d.desc || '', dPlayId: d.playId || null, dCategory: d.category || '' })
+  const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '' })
   const removeDrill = (d) => {
     persistDrills((ds) => ds.filter((x) => x.id !== d.id))
     persistPlans((ps) => ps.map((x) => ({ ...x, items: (x.items || []).filter((id) => id !== d.id) })))
   }
+  const toggleDrillFavorite = (d) => {
+    persistDrills((ds) => ds.map((x) => (x.id === d.id ? { ...x, fav: !x.fav } : x)))
+  }
   const addExampleDrills = () => persistDrills((ds) => ds.concat([
-    { id: 'dr' + Date.now(), name: 'Warm-up & mobility', min: 10 },
-    { id: 'dr' + (Date.now() + 1), name: 'Two-ball handling', min: 10 },
-    { id: 'dr' + (Date.now() + 2), name: 'Spot shooting', min: 15 },
-    { id: 'dr' + (Date.now() + 3), name: '3 on 2 transition', min: 15 },
+    { id: 'dr' + Date.now(), name: 'Warm-up & mobility', min: 10, category: 'Warm-up' },
+    { id: 'dr' + (Date.now() + 1), name: 'Two-ball handling', min: 10, category: 'Ball handling' },
+    { id: 'dr' + (Date.now() + 2), name: 'Spot shooting', min: 15, category: 'Shooting' },
+    { id: 'dr' + (Date.now() + 3), name: '3 on 2 transition', min: 15, category: 'Transition' },
   ]))
 
   const startRun = (planId) => {
@@ -822,7 +826,7 @@ export function AppProvider({ children }) {
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
     planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
-    movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, addExampleDrills,
+    movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills,
     startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,
     fileBase,
     // eslint-disable-next-line react-hooks/exhaustive-deps
