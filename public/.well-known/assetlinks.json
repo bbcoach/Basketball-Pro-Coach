@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.basketballprocoach.twa",
+      "sha256_cert_fingerprints": [
+        "CA:AD:64:A8:CA:2E:90:82:B7:B4:21:2A:9F:F6:91:7F:C1:74:19:AF:24:00:1F:F1:43:94:9F:E1:7D:88:34:D8"
+      ]
+    }
+  }
+]

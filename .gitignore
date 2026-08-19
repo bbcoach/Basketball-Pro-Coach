@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Local Android TWA (Play Store) project scaffold — generated locally, contains
+# the app signing keystore and must never be committed, especially not to a
+# public repo. Kept out of version control entirely rather than gitignoring
+# just the keystore, since the whole thing is a separate, regeneratable build
+# artifact from a different toolchain than this repo.
+android-twa/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
