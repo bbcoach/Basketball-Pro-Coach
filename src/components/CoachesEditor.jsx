@@ -2,7 +2,7 @@ import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 
 export default function CoachesEditor({ emptyHint }) {
-  const { state, set, addCoach, editCoach, cancelEditCoach, removeCoach } = useApp()
+  const { state, set, addCoach, editCoach, cancelEditCoach, removeCoach, askConfirm } = useApp()
   const { coaches, coachNameIn, coachEditId } = state
 
   return (
@@ -22,7 +22,7 @@ export default function CoachesEditor({ emptyHint }) {
             <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
             <div onClick={() => editCoach(c)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-            <div onClick={() => removeCoach(c)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+            <div onClick={() => askConfirm({ title: 'Remove coach', message: `Remove ${c.name}? This can't be undone.`, onConfirm: () => removeCoach(c) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
           </div>
         ))}
         {!coaches.length && <div style={{ padding: '2px 2px 4px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>{emptyHint}</div>}

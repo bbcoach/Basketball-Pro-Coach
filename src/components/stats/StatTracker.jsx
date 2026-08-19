@@ -31,7 +31,7 @@ function gameTitle(g) {
 }
 
 function GamesTab() {
-  const { state, newGame, openGame, removeGame } = useApp()
+  const { state, newGame, openGame, removeGame, askConfirm } = useApp()
   const { games } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
@@ -48,7 +48,7 @@ function GamesTab() {
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtGameDate(g.date)}{g.time ? ' · ' + g.time : ''} · {t.pts} pts · {g.log.length} logged</div>
               </div>
-              <div onClick={() => removeGame(g)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete game', message: `Delete ${gameTitle(g)} (${fmtGameDate(g.date)})? ${g.log.length} logged actions will be lost.`, onConfirm: () => removeGame(g) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}

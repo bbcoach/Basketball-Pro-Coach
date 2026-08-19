@@ -9,7 +9,7 @@ function playMeta(p) {
 }
 
 export default function PlaysSheet() {
-  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay } = useApp()
+  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay, askConfirm } = useApp()
   if (!state.sheetOpen) return null
   const { plays, nameDraft, currentId } = state
 
@@ -34,7 +34,7 @@ export default function PlaysSheet() {
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
             </div>
             <div onClick={() => renamePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✎</div>
-            <div onClick={() => removePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✕</div>
+            <div onClick={() => askConfirm({ title: 'Delete play', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✕</div>
           </div>
         ))}
         {!plays.length && (

@@ -34,6 +34,7 @@ function initialState() {
   return {
     screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams' | 'schedule'
     boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false,
+    confirmAsk: null, // { title, message, confirmLabel, onConfirm }
 
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
@@ -458,6 +459,16 @@ export function AppProvider({ children }) {
   const openBackup = () => set({ backupOpen: true })
   const closeBackup = () => set({ backupOpen: false })
 
+  // Generic confirmation gate for destructive actions (delete/reset).
+  // Call with a message and the action to run if the user confirms.
+  const askConfirm = (ask) => set({ confirmAsk: ask })
+  const closeConfirm = () => set({ confirmAsk: null })
+  const runConfirm = () => {
+    const ask = stateRef.current.confirmAsk
+    set({ confirmAsk: null })
+    if (ask && ask.onConfirm) ask.onConfirm()
+  }
+
   // ── teams ───────────────────────────────────────────────────
   // Switching teams re-points the flat roster/games/sessions mirror at the
   // newly active team and drops any in-progress game/session view, since
@@ -817,6 +828,7 @@ export function AppProvider({ children }) {
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
+    askConfirm, closeConfirm, runConfirm,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,

@@ -13,7 +13,7 @@ function planMeta(app, p, active) {
 
 function PlansList() {
   const app = useApp()
-  const { state, newPlan, setActivePlan, openPlan, runPlanCmd, removePlan } = app
+  const { state, newPlan, setActivePlan, openPlan, runPlanCmd, removePlan, askConfirm } = app
   const { plans } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
@@ -29,7 +29,7 @@ function PlansList() {
               </div>
               <div onClick={() => setActivePlan(p.id)} style={{ padding: '7px 10px', borderRadius: 9, background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{active ? 'ACTIVE' : 'USE'}</div>
               <div onClick={() => runPlanCmd(p.id)} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>▶</div>
-              <div onClick={() => removePlan(p.id)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.5)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete plan', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlan(p.id) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.5)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}
@@ -128,7 +128,7 @@ function DrillPlayPicker() {
 
 function DrillsTab() {
   const app = useApp()
-  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, openPlan } = app
+  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, openPlan, askConfirm } = app
   const { drills, plans, plays, activePlan, openPlan: openId, dName, dMin, dDesc, dCategory, dEdit } = state
   const target = plans.find((x) => x.id === activePlan) || plans.find((x) => x.id === openId) || plans[0]
   const [filterCat, setFilterCat] = useState(null)
@@ -217,7 +217,7 @@ function DrillsTab() {
               <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ padding: '7px 11px', borderRadius: 9, background: inPlan ? 'rgba(255,255,255,.10)' : ACCENT, color: inPlan ? '#fff' : '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{inPlan ? '＋ again' : '＋ Add'}</div>
               <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-              <div onClick={() => removeDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete drill', message: `Delete "${d.name}"? It will be removed from any plans that use it.`, onConfirm: () => removeDrill(d) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}
