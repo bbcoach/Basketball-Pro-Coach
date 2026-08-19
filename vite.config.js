@@ -30,6 +30,16 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // vite-plugin-pwa only turns these on by itself when it also injects
+        // the register script (injectRegister: 'auto' | null). We register
+        // manually in main.jsx instead, so without this a new service
+        // worker installs but sits in "waiting" forever — nothing ever
+        // sends it the skip-waiting message our own registerType
+        // 'autoUpdate' client code expects to be unnecessary, so a device
+        // can stay on a stale build until every open tab/app instance for
+        // the origin is fully gone.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
