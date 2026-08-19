@@ -62,14 +62,21 @@ function safeAreaTop() {
 // The layout viewport is the stable one: documentElement.clientHeight reads
 // 793 in both states, i.e. it consistently excludes the status-bar strip. So
 // clientHeight plus the top inset is the full paintable height, in either
-// state. This correction is confined to iOS standalone (navigator.standalone
-// is iOS-only) because elsewhere — Android edge-to-edge in particular — the
-// layout viewport already includes the inset and adding it would overshoot.
+// state. This correction — and the whole measure-with-JS approach below —
+// is confined to iOS standalone (navigator.standalone is iOS-only).
+// Elsewhere, in an ordinary Safari tab, native `100dvh` already tracks
+// Safari's address bar/toolbar show-hide animation correctly and stays
+// compositor-synced throughout it. Running this JS on every resize (the
+// ResizeObserver in particular fires continuously as the toolbar
+// animates, since it watches documentElement's size) fights that native
+// behavior instead of complementing it — main-thread layout writes racing
+// a live compositor animation is a good way to produce exactly the kind
+// of transient overlap/mispaint glitch this was seen causing in a plain
+// browser tab. So: only touch --app-height at all when standalone.
 function measureAppHeight() {
   const visual = (window.visualViewport && window.visualViewport.height) || 0
   const layout = document.documentElement.clientHeight || 0
   const reported = Math.max(visual, layout, window.innerHeight || 0)
-  if (window.navigator.standalone !== true) return reported
   return Math.max(reported, layout + safeAreaTop())
 }
 function setAppHeight() {
@@ -80,16 +87,18 @@ function setAppHeight() {
   if (document.documentElement.style.getPropertyValue('--app-height') === next) return
   document.documentElement.style.setProperty('--app-height', next)
 }
-setAppHeight()
-// Re-measure shortly after launch, in case the viewport is still settling.
-requestAnimationFrame(() => requestAnimationFrame(setAppHeight))
-setTimeout(setAppHeight, 300)
-window.addEventListener('resize', setAppHeight)
-window.addEventListener('orientationchange', setAppHeight)
-if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
-// A ResizeObserver catches viewport changes that never fire a window resize
-// event.
-if (window.ResizeObserver) new ResizeObserver(setAppHeight).observe(document.documentElement)
+if (window.navigator.standalone === true) {
+  setAppHeight()
+  // Re-measure shortly after launch, in case the viewport is still settling.
+  requestAnimationFrame(() => requestAnimationFrame(setAppHeight))
+  setTimeout(setAppHeight, 300)
+  window.addEventListener('resize', setAppHeight)
+  window.addEventListener('orientationchange', setAppHeight)
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight)
+  // A ResizeObserver catches viewport changes that never fire a window
+  // resize event.
+  if (window.ResizeObserver) new ResizeObserver(setAppHeight).observe(document.documentElement)
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
