@@ -146,7 +146,9 @@ function ToolsRow() {
 
 function FooterButtons() {
   const app = useApp()
-  const { state, goHome, openSave, openSheet, enterTimeout, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll } = app
+  const { state, goHome, openSave, openSheet, enterTimeout, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
+  const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
+  const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const btn = (label, onClick, active) => (
     <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT : 'rgba(255,255,255,.07)', color: active ? '#101012' : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
   )
@@ -162,8 +164,8 @@ function FooterButtons() {
         {btn('Setup', openFormations)}
         {btn('Share', openShare)}
         {btn('Undo', undo)}
-        {btn('Clear paths', clearRoutes)}
-        {btn('Reset', resetAll)}
+        {btn('Clear paths', askClearRoutes)}
+        {btn('Reset', askResetAll)}
       </div>
     </div>
   )

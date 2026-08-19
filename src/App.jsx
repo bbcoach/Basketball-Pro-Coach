@@ -11,6 +11,7 @@ import Schedule from './components/Schedule'
 import InfoOverlay from './components/InfoOverlay'
 import BackupModal from './components/BackupModal'
 import RunScreen from './components/practice/RunScreen'
+import ConfirmModal from './components/ConfirmModal'
 
 function Screen() {
   const { state } = useApp()
@@ -26,6 +27,7 @@ function Screen() {
       {state.infoPage && <InfoOverlay />}
       <BackupModal />
       <RunScreen />
+      <ConfirmModal />
     </>
   )
 }

@@ -10,7 +10,7 @@ function playMeta(p) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup } = useApp()
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, askConfirm } = useApp()
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -65,7 +65,7 @@ export default function Home() {
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
                     </div>
-                    <div onClick={() => removePlay(p)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer' }}>✕</div>
+                    <div onClick={() => askConfirm({ title: 'Delete play', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer' }}>✕</div>
                   </div>
                 ))}
                 {!plays.length && (

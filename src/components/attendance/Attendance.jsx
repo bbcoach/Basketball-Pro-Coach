@@ -6,7 +6,7 @@ import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
 
 function SessionsTab() {
-  const { state, newSession, openSession, removeSession } = useApp()
+  const { state, newSession, openSession, removeSession, askConfirm } = useApp()
   const { sessions, plans } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
@@ -24,7 +24,7 @@ function SessionsTab() {
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{s.label || s.date}{s.time ? ' · ' + s.time : ''}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} present · {out} out{injured ? ' · ' + injured + ' injured' : ''}{plan ? ' · ' + plan.name : ''}</div>
               </div>
-              <div onClick={() => removeSession(s)} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete session', message: `Delete ${s.label || s.date}? Attendance marks for this session will be lost.`, onConfirm: () => removeSession(s) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}

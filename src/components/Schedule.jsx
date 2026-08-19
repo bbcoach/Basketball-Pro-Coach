@@ -184,6 +184,7 @@ export default function Schedule() {
 }
 
 function ScheduleRow({ it, editEvent, removeEvent }) {
+  const { askConfirm } = useApp()
   const meta = KIND_META[it.kind]
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
@@ -195,7 +196,7 @@ function ScheduleRow({ it, editEvent, removeEvent }) {
       {it.kind === 'event' && (
         <>
           <div onClick={() => editEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-          <div onClick={() => removeEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+          <div onClick={() => askConfirm({ title: 'Delete event', message: `Delete "${it.title}"? This can't be undone.`, onConfirm: () => removeEvent(it.raw) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
         </>
       )}
     </div>
