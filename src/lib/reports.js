@@ -95,7 +95,9 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
       <td class="sessions" colspan="2">${inn} / ${total}</td>
     </tr>`).join('')
 
-  const generated = new Date().toLocaleString()
+  const now = new Date()
+  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedTime = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Training attendance</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,700;1,800&display=swap" rel="stylesheet">
@@ -103,12 +105,13 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
       @page{size:A4 portrait;margin:18mm 16mm}
       *{box-sizing:border-box}
       body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .topbar{height:6px;background:${ACCENT};margin:-18mm -16mm 20px;border-radius:0 0 3px 3px}
+      .topbar{height:5px;background:${ACCENT};border-radius:99px;margin:0 0 20px}
       header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
       .logo{width:38px;height:38px;flex:none;border-radius:11px;border:1.5px solid ${ACCENT};display:flex;align-items:center;justify-content:center}
       h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:23px;letter-spacing:.3px;text-transform:uppercase;margin:0;line-height:1.05}
       h2{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;color:${ACCENT};margin:1px 0 0}
-      .meta{margin-left:auto;text-align:right;font-size:11px;color:#888;line-height:1.5}
+      .meta{margin-left:auto;text-align:right;font-size:11px;color:#888;line-height:1.6}
+      .meta .date{font-size:12.5px;font-weight:700;color:#333}
       h3{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#555;margin:26px 0 8px}
       table{border-collapse:collapse;width:100%;font-size:12.5px}
       th{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#999;text-align:left;padding:0 8px 6px;border-bottom:2px solid #222}
@@ -132,7 +135,7 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
         <h1>${esc(teamName || 'Basketball Pro Coach')}</h1>
         <h2>Training Attendance</h2>
       </div>
-      <div class="meta">${total} session${total === 1 ? '' : 's'} counted<br>Generated ${esc(generated)}</div>
+      <div class="meta"><span class="date">${esc(generatedDate)}</span><br>${esc(generatedTime)} · ${total} session${total === 1 ? '' : 's'} counted</div>
     </header>
     <h3>Players — by attendance</h3>
     <table><thead><tr><th></th><th>#</th><th>Player</th><th>Sessions</th><th>Attendance</th></tr></thead>
