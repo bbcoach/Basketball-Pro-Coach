@@ -1,9 +1,21 @@
+import { useState } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function TimingBadge({ date }) {
+  const today = todayStr()
+  if (date > today) return <div style={{ flex: 'none', padding: '2px 7px', borderRadius: 99, background: 'rgba(127,178,224,.16)', color: '#7fb2e0', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>Upcoming</div>
+  if (date < today) return <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.45)', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>🔒 Past</div>
+  return <div style={{ flex: 'none', padding: '2px 7px', borderRadius: 99, background: 'rgba(91,191,114,.16)', color: '#5bbf72', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>Today</div>
+}
 
 function SessionsTab() {
   const { state, newSession, openSession, removeSession, askConfirm } = useApp()
@@ -21,7 +33,10 @@ function SessionsTab() {
           return (
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: state.openSession === s.id ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (state.openSession === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)') }}>
               <div onClick={() => openSession(s.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{s.label || s.date}{s.time ? ' · ' + s.time : ''}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label || s.date}{s.time ? ' · ' + s.time : ''}</div>
+                  <TimingBadge date={s.date} />
+                </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} present · {out} out{injured ? ' · ' + injured + ' injured' : ''}{plan ? ' · ' + plan.name : ''}</div>
               </div>
               <div onClick={() => askConfirm({ title: 'Delete session', message: `Delete ${s.label || s.date}? Attendance marks for this session will be lost.`, onConfirm: () => removeSession(s) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
@@ -35,10 +50,23 @@ function SessionsTab() {
 }
 
 function SessionOpen() {
-  const { state, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance } = useApp()
+  const { state, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance, askConfirm } = useApp()
   const { sessions, openSession: openId, roster, coaches, plans } = state
   const session = sessions.find((x) => x.id === openId)
+  const [unlockedId, setUnlockedId] = useState(null)
   if (!session) return null
+
+  const isPast = session.date < todayStr()
+  const locked = isPast && unlockedId !== session.id
+
+  const askUnlock = () => askConfirm({
+    title: 'Edit past session',
+    message: 'This session is in the past. Unlock it to change attendance marks?',
+    confirmLabel: 'Unlock',
+    onConfirm: () => setUnlockedId(session.id),
+  })
+  const markPlayer = (playerId, val) => (locked ? askUnlock() : markAttendance(playerId, val))
+  const markCoach = (coachId, val) => (locked ? askUnlock() : markCoachAttendance(coachId, val))
 
   const picks = [{ id: null, name: '—' }].concat(plans)
 
@@ -55,6 +83,12 @@ function SessionOpen() {
         />
         <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
+      {isPast && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 10, borderRadius: 10, background: locked ? 'rgba(217,132,60,.12)' : 'rgba(91,191,114,.12)', border: '1px solid ' + (locked ? 'rgba(217,132,60,.3)' : 'rgba(91,191,114,.3)') }}>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: locked ? '#d9843c' : '#5bbf72' }}>{locked ? '🔒 Past session — attendance marks are locked' : 'Unlocked — attendance marks can be edited'}</div>
+          {locked && <div onClick={askUnlock} style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Unlock</div>}
+        </div>
+      )}
       <div className="scrollx" style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 10 }}>
         <div style={{ flex: 'none', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', alignSelf: 'center', paddingRight: 2 }}>Trained</div>
         {picks.map((pl) => {
@@ -75,8 +109,8 @@ function SessionOpen() {
           const cur = (session.marks || {})[p.id] || null
           const opt = (val, label, color) => (
             <div
-              key={val} onClick={() => markAttendance(p.id, val)}
-              style={{ padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 'none', background: cur === val ? color : 'rgba(255,255,255,.05)', color: cur === val ? '#101012' : 'rgba(255,255,255,.62)', border: '1px solid ' + (cur === val ? color : 'rgba(255,255,255,.09)') }}
+              key={val} onClick={() => markPlayer(p.id, val)}
+              style={{ padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 'none', opacity: locked ? 0.5 : 1, background: cur === val ? color : 'rgba(255,255,255,.05)', color: cur === val ? '#101012' : 'rgba(255,255,255,.62)', border: '1px solid ' + (cur === val ? color : 'rgba(255,255,255,.09)') }}
             >
               {label}
             </div>
@@ -100,8 +134,8 @@ function SessionOpen() {
               const cur = (session.coachMarks || {})[c.id] || null
               const opt = (val, label, color) => (
                 <div
-                  key={val} onClick={() => markCoachAttendance(c.id, val)}
-                  style={{ padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 'none', background: cur === val ? color : 'rgba(255,255,255,.05)', color: cur === val ? '#101012' : 'rgba(255,255,255,.62)', border: '1px solid ' + (cur === val ? color : 'rgba(255,255,255,.09)') }}
+                  key={val} onClick={() => markCoach(c.id, val)}
+                  style={{ padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer', flex: 'none', opacity: locked ? 0.5 : 1, background: cur === val ? color : 'rgba(255,255,255,.05)', color: cur === val ? '#101012' : 'rgba(255,255,255,.62)', border: '1px solid ' + (cur === val ? color : 'rgba(255,255,255,.09)') }}
                 >
                   {label}
                 </div>
@@ -126,8 +160,7 @@ function SessionOpen() {
 function SummaryTab() {
   const { state } = useApp()
   const { roster, coaches, sessions } = state
-  const today = new Date().toISOString().slice(0, 10)
-  const pastSessions = sessions.filter((s) => s.date <= today)
+  const pastSessions = sessions.filter((s) => s.date <= todayStr())
   const total = pastSessions.length
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px' }}>
