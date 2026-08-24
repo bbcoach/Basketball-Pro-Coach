@@ -5,6 +5,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
+import { exportAttendancePdf } from '../../lib/reports'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -159,15 +160,29 @@ function SessionOpen() {
 
 function SummaryTab() {
   const { state } = useApp()
-  const { roster, coaches, sessions } = state
+  const { roster, coaches, sessions, teams, activeTeamId } = state
+  const teamName = teams.find((t) => t.id === activeTeamId)?.name
   const pastSessions = sessions.filter((s) => s.date <= todayStr())
   const total = pastSessions.length
+  const ranked = roster
+    .map((p) => {
+      const inn = pastSessions.filter((s) => (s.marks || {})[p.id] === 'in').length
+      const injured = pastSessions.filter((s) => (s.marks || {})[p.id] === 'inj').length
+      const pct = total ? Math.round((inn / total) * 100) : 0
+      return { p, inn, injured, pct }
+    })
+    .sort((a, b) => b.pct - a.pct || b.inn - a.inn)
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px' }}>
-      {roster.map((p) => {
-        const inn = pastSessions.filter((s) => (s.marks || {})[p.id] === 'in').length
-        const injured = pastSessions.filter((s) => (s.marks || {})[p.id] === 'inj').length
-        const pct = total ? Math.round((inn / total) * 100) : 0
+      {!!roster.length && (
+        <div
+          onClick={() => exportAttendancePdf(roster, coaches, sessions, teamName)}
+          style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
+        >
+          Export PDF
+        </div>
+      )}
+      {ranked.map(({ p, inn, injured, pct }) => {
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
