@@ -52,7 +52,7 @@ function initialState() {
 
     // stat tracker (roster is shared with attendance, scoped to the active team)
     statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
-    games: [], activeGameId: null, resetAsk: false,
+    games: [], activeGameId: null, resetAsk: false, importSheetOpen: false, twoTeamModalOpen: false,
 
     // coaches (scoped to the active team, tracked mainly for attendance/pay)
     coaches: [], coachNameIn: '', coachEditId: null,
@@ -628,6 +628,32 @@ export function AppProvider({ children }) {
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, location: v } : x)))
   }
 
+  // Two-team tracking is entirely optional per-game metadata (twoTeam,
+  // teamAName/teamBName, importedPlayers, sides) — every reader treats a
+  // missing field as "off", so games created before this feature (or with
+  // it left off) behave exactly as before with no migration needed.
+  const patchGame = (patch) => {
+    const s = stateRef.current
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, ...(typeof patch === 'function' ? patch(x) : patch) } : x)))
+  }
+  const toggleTwoTeam = () => patchGame((x) => ({ twoTeam: !x.twoTeam }))
+  const setTeamAName = (v) => patchGame({ teamAName: v })
+  const setTeamBName = (v) => patchGame({ teamBName: v })
+  const setPlayerSide = (playerId, side) => patchGame((x) => ({ sides: { ...(x.sides || {}), [playerId]: side } }))
+  const openImportSheet = () => set({ importSheetOpen: true })
+  const closeImportSheet = () => set({ importSheetOpen: false })
+  const importTeamRoster = (teamId) => {
+    const s = stateRef.current
+    const team = s.teams.find((t) => t.id === teamId)
+    if (!team) return
+    const stamp = Date.now()
+    const imported = (team.roster || []).map((p, i) => ({ id: 'imp' + stamp + '_' + i, name: p.name, num: p.num }))
+    const current = s.games.find((g) => g.id === s.activeGameId)
+    patchGame({ importedPlayers: imported, teamBName: (current && current.teamBName) || team.name })
+    set({ importSheetOpen: false })
+  }
+  const removeImportedPlayer = (playerId) => patchGame((x) => ({ importedPlayers: (x.importedPlayers || []).filter((p) => p.id !== playerId) }))
+
   // ── attendance ──────────────────────────────────────────────
   const newSession = () => {
     const id = 'ses' + Date.now()
@@ -836,6 +862,7 @@ export function AppProvider({ children }) {
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
+    toggleTwoTeam, setTeamAName, setTeamBName, setPlayerSide, openImportSheet, closeImportSheet, importTeamRoster, removeImportedPlayer,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
     planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills,

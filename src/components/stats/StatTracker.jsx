@@ -7,6 +7,18 @@ import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 
+// Two-team tracking folds the active team's roster and any imported
+// opposing roster into one list, each player tagged with which side they're
+// tracked on. Untagged own-roster players default to A, untagged imported
+// players default to B, so importing/splitting only ever needs to record
+// the exceptions.
+function gamePlayers(roster, game) {
+  const sides = game.sides || {}
+  const own = roster.map((p) => ({ ...p, side: sides[p.id] || 'A', imported: false }))
+  const imported = (game.importedPlayers || []).map((p) => ({ ...p, side: sides[p.id] || 'B', imported: true }))
+  return own.concat(imported)
+}
+
 function sortedRoster(roster, onCourt) {
   return roster.slice().sort((a, b) => {
     const ca = onCourt.indexOf(a.id) >= 0 ? 0 : 1
@@ -67,7 +79,7 @@ function NoActiveGame() {
 }
 
 function GameMetaEditor({ game }) {
-  const { setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation } = useApp()
+  const { set, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation, toggleTwoTeam } = useApp()
   const isGame = game.type === 'game'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px 10px' }}>
@@ -109,6 +121,41 @@ function GameMetaEditor({ game }) {
           />
         </div>
       )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          onClick={toggleTwoTeam}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: game.twoTeam ? ACCENT : 'rgba(255,255,255,.06)', color: game.twoTeam ? '#101012' : 'rgba(255,255,255,.6)' }}
+        >
+          <span style={{ fontSize: 12 }}>{game.twoTeam ? '☑' : '☐'}</span> Track two teams
+        </div>
+        {game.twoTeam && (
+          <div onClick={() => set({ twoTeamModalOpen: true })} style={{ padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' }}>
+            Manage teams →
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt }) {
+  const t = tallyFor(log, p.id)
+  const on = selPlayer === p.id
+  const court = onCourt.indexOf(p.id) >= 0
+  return (
+    <div
+      onClick={() => selectStatPlayer(p)}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 11, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
+    >
+      <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: court ? '#fff' : 'rgba(255,255,255,.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>
+      <div
+        onClick={(e) => { e.stopPropagation(); toggleCourt(p) }}
+        style={{ padding: '5px 8px', borderRadius: 7, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
+      >
+        {court ? 'ON' : 'OFF'}
+      </div>
     </div>
   )
 }
@@ -117,47 +164,37 @@ function LiveTab({ game }) {
   const { state, selectStatPlayer, toggleCourt, logStat, undoStat } = useApp()
   const { roster, selPlayer } = state
   const { log, onCourt } = game
-  const rows = sortedRoster(roster, onCourt)
+  const players = gamePlayers(roster, game)
   const promptOpen = !(selPlayer && onCourt.indexOf(selPlayer) >= 0)
 
   let lastAction
-  if (!selPlayer) lastAction = roster.length ? 'Select a player, then tap a stat' : 'Add players under “Roster” first'
+  if (!selPlayer) lastAction = players.length ? 'Select a player, then tap a stat' : 'Add players under “Roster” first'
   else if (onCourt.indexOf(selPlayer) < 0) {
-    const bp = roster.find((x) => x.id === selPlayer)
+    const bp = players.find((x) => x.id === selPlayer)
     lastAction = (bp ? '#' + bp.num + ' ' + bp.name : 'This player') + ' is on the bench — tap the OFF badge to sub him in'
   } else {
     const e = log[log.length - 1]
     if (!e) lastAction = 'Tap a stat to log it'
-    else { const p = roster.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
+    else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
   }
+
+  const rowProps = { log, onCourt, selPlayer, selectStatPlayer, toggleCourt }
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <GameMetaEditor game={game} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
-        {rows.map((p) => {
-          const t = tallyFor(log, p.id)
-          const on = selPlayer === p.id
-          const court = onCourt.indexOf(p.id) >= 0
-          return (
-            <div
-              key={p.id}
-              onClick={() => selectStatPlayer(p)}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 11, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
-            >
-              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: court ? '#fff' : 'rgba(255,255,255,.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>
-              <div
-                onClick={(e) => { e.stopPropagation(); toggleCourt(p) }}
-                style={{ padding: '5px 8px', borderRadius: 7, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
-              >
-                {court ? 'ON' : 'OFF'}
-              </div>
-            </div>
-          )
-        })}
-        {!roster.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
+        {game.twoTeam ? (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>{game.teamAName || 'Team A'}</div>
+            {sortedRoster(players.filter((p) => p.side === 'A'), onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)}
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginTop: 6 }}>{game.teamBName || 'Team B'}</div>
+            {sortedRoster(players.filter((p) => p.side === 'B'), onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)}
+          </>
+        ) : (
+          sortedRoster(players, onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)
+        )}
+        {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
       </div>
 
       {promptOpen && (
@@ -200,43 +237,69 @@ function LiveTab({ game }) {
 
 const BOX_HEAD = ['PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
 
+function BoxTable({ players, log, title }) {
+  return (
+    <div style={{ minWidth: 150 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3, marginBottom: title ? 14 : 0 }}>
+      {title && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '0 6px 4px' }}>{title}</div>}
+      <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+        <div style={{ width: 150, flex: 'none' }}>Player</div>
+        {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
+      </div>
+      {players.map((p) => {
+        const t = tallyFor(log, p.id)
+        const cells = [
+          String(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
+          t.ftm + '/' + (t.ftm + t.fta), String(t.reb), String(t.ast),
+          String(t.stl), String(t.blk), String(t.tov), String(t.pf),
+        ]
+        const cellStyle = (i) => (i === 0
+          ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
+          : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
+        return (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
+            <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
+              <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+            </div>
+            {cells.map((c, i) => <div key={i} style={cellStyle(i)}>{c}</div>)}
+          </div>
+        )
+      })}
+      {!players.length && <div style={{ padding: '8px 6px', fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No players.</div>}
+    </div>
+  )
+}
+
 function BoxTab({ game }) {
   const { state, askReset } = useApp()
   const { roster } = state
   const { log } = game
+  const players = gamePlayers(roster, game)
+  const teamAName = game.teamAName || 'Team A'
+  const teamBName = game.teamBName || 'Team B'
+
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <div style={{ minWidth: 150 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
-            <div style={{ width: 150, flex: 'none' }}>Player</div>
-            {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
-          </div>
-          {roster.map((p) => {
-            const t = tallyFor(log, p.id)
-            const cells = [
-              String(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
-              t.ftm + '/' + (t.ftm + t.fta), String(t.reb), String(t.ast),
-              String(t.stl), String(t.blk), String(t.tov), String(t.pf),
-            ]
-            const cellStyle = (i) => (i === 0
-              ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
-              : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
-            return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
-                <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
-                  <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                </div>
-                {cells.map((c, i) => <div key={i} style={cellStyle(i)}>{c}</div>)}
-              </div>
-            )
-          })}
+      {game.twoTeam && (
+        <div style={{ textAlign: 'center', padding: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+          {teamAName} <span style={{ color: ACCENT }}>{teamTally(log.filter((e) => players.find((p) => p.id === e.p)?.side === 'A')).pts}</span>
+          {' – '}
+          <span style={{ color: ACCENT }}>{teamTally(log.filter((e) => players.find((p) => p.id === e.p)?.side === 'B')).pts}</span> {teamBName}
         </div>
+      )}
+      <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {game.twoTeam ? (
+          <>
+            <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
+            <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} />
+          </>
+        ) : (
+          <BoxTable players={players} log={log} />
+        )}
       </div>
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => exportBoxPdf(roster, log, TEAM_NAME, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
-        <div onClick={() => exportBoxCsv(roster, log, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
+        <div onClick={() => exportBoxPdf(players, log, TEAM_NAME, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => exportBoxCsv(players, log, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
         <div onClick={askReset} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Reset</div>
       </div>
     </div>
@@ -263,6 +326,90 @@ function ResetModal() {
   )
 }
 
+function TwoTeamModal() {
+  const {
+    state, set, setTeamAName, setTeamBName, setPlayerSide, openImportSheet, closeImportSheet, importTeamRoster, removeImportedPlayer, askConfirm,
+  } = useApp()
+  const { roster, games, activeGameId, teams, activeTeamId, importSheetOpen } = state
+  const game = games.find((g) => g.id === activeGameId)
+  if (!state.twoTeamModalOpen || !game) return null
+
+  const players = gamePlayers(roster, game)
+  const otherTeams = teams.filter((t) => t.id !== activeTeamId)
+  const activeTeamName = teams.find((t) => t.id === activeTeamId)?.name
+
+  const sidePill = (p, side) => (
+    <div
+      key={side} onClick={() => setPlayerSide(p.id, side)}
+      style={{ padding: '5px 9px', borderRadius: 7, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: p.side === side ? ACCENT : 'rgba(255,255,255,.06)', color: p.side === side ? '#101012' : 'rgba(255,255,255,.55)' }}
+    >
+      {side}
+    </div>
+  )
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.9)', display: 'flex', flexDirection: 'column', padding: '60px 20px 34px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 14 }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Two teams</div>
+        <div onClick={() => set({ twoTeamModalOpen: false, importSheetOpen: false })} style={{ padding: '7px 13px', borderRadius: 9, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            type="text" value={game.teamAName || ''} onChange={(e) => setTeamAName(e.target.value)} placeholder={activeTeamName || 'Team A'}
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+          />
+          <input
+            type="text" value={game.teamBName || ''} onChange={(e) => setTeamBName(e.target.value)} placeholder="Opponent"
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+          />
+        </div>
+
+        <div>
+          <div onClick={openImportSheet} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
+            ⇩ Import another team's roster
+          </div>
+          {importSheetOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+              {otherTeams.map((t) => (
+                <div
+                  key={t.id} onClick={() => importTeamRoster(t.id)}
+                  style={{ padding: '9px 11px', borderRadius: 9, background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {t.name} · {t.roster.length} players
+                </div>
+              ))}
+              {!otherTeams.length && <div style={{ padding: '4px 2px', fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No other teams to import from — add one under “My roster”.</div>}
+              <div onClick={closeImportSheet} style={{ padding: '7px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Assign players</div>
+          {players.map((p) => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+              <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{p.imported ? <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 500 }}> · imported</span> : ''}</div>
+              {sidePill(p, 'A')}
+              {sidePill(p, 'B')}
+              {p.imported && (
+                <div
+                  onClick={() => askConfirm({ title: 'Remove player', message: `Remove ${p.name} from this game?`, onConfirm: () => removeImportedPlayer(p.id) })}
+                  style={{ padding: '5px 8px', borderRadius: 7, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 11, cursor: 'pointer' }}
+                >
+                  ✕
+                </div>
+              )}
+            </div>
+          ))}
+          {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)' }}>No players yet — add your roster or import another team's.</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function StatTracker() {
   const { state, set, closeStats } = useApp()
   const { roster, games, activeGameId, statsTab, teams, activeTeamId } = state
@@ -281,6 +428,7 @@ export default function StatTracker() {
       {statsTab === 'roster' && <RosterEditor emptyHint="Add every player once — the roster stays on this device for all games." />}
       {statsTab === 'box' && (game ? <BoxTab game={game} /> : <NoActiveGame />)}
       <ResetModal />
+      <TwoTeamModal />
     </div>
   )
 }

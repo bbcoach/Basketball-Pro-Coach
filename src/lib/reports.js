@@ -76,28 +76,62 @@ function openReportWindow(html, fallbackName) {
   }
 }
 
-export function exportBoxCsv(roster, log, game) {
+// `players` is either a plain roster array, or one already tagged with a
+// `side` ('A'/'B') for a two-team game — box score / CSV export split into
+// per-side tables whenever `game.twoTeam` is set, and treat everything as
+// one team otherwise (an untagged player has no `.side`, which just never
+// matches 'A'/'B' and falls through to the single-table path unaffected).
+function boxRows(players, log) {
+  const tot = { pts: 0, fgm: 0, fga: 0, fg3m: 0, fg3a: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0 }
+  const rows = players.map((p) => {
+    const t = tallyFor(log, p.id)
+    Object.keys(tot).forEach((k) => { tot[k] += t[k] || 0 })
+    return { num: p.num, name: p.name, cells: [t.pts, t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta), t.reb, t.ast, t.stl, t.blk, t.tov, t.pf] }
+  })
+  return { rows, totRow: { num: '', name: 'Team', cells: [tot.pts, tot.fgm + '/' + tot.fga, tot.fg3m + '/' + (tot.fg3m + tot.fg3a), tot.ftm + '/' + (tot.ftm + tot.fta), tot.reb, tot.ast, tot.stl, tot.blk, tot.tov, tot.pf] }, pts: tot.pts }
+}
+
+export function exportBoxCsv(players, log, game) {
   const head = ['Number', 'Player', 'PTS', 'FGM', 'FGA', '3PM', '3PA', 'FTM', 'FTA', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
-  const rows = roster.map((p) => {
+  const rowsFor = (list) => list.map((p) => {
     const t = tallyFor(log, p.id)
     return [p.num, p.name, t.pts, t.fgm, t.fga, t.fg3m, t.fg3m + t.fg3a, t.ftm, t.ftm + t.fta, t.reb, t.ast, t.stl, t.blk, t.tov, t.pf]
   })
+  const rows = game && game.twoTeam
+    ? [[game.teamAName || 'Team A']].concat(rowsFor(players.filter((p) => p.side === 'A')), [[game.teamBName || 'Team B']], rowsFor(players.filter((p) => p.side === 'B')))
+    : rowsFor(players)
   const csv = [head].concat(rows).map((r) => r.join(',')).join('\n')
   download(new Blob([csv], { type: 'text/csv' }), gameSlug(game) + '.csv')
 }
 
-export function exportBoxPdf(roster, log, teamName, game) {
+function boxTableHtml(head, tr, players, log, title) {
+  const { rows, totRow } = boxRows(players, log)
+  const heading = title ? `<h3>${esc(title)}</h3>` : ''
+  return heading + '<table><thead>' + tr(head, 'th') + '</thead><tbody>' +
+    rows.map((r) => tr([r.num, r.name].concat(r.cells), 'td')).join('') +
+    tr([totRow.num, totRow.name].concat(totRow.cells), 'td', 'total') + '</tbody></table>'
+}
+
+export function exportBoxPdf(players, log, teamName, game) {
   const head = ['#', 'Player', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
-  const tot = { pts: 0, fgm: 0, fga: 0, fg3m: 0, fg3a: 0, ftm: 0, fta: 0, reb: 0, ast: 0, stl: 0, blk: 0, tov: 0, pf: 0 }
-  const rows = roster.map((p) => {
-    const t = tallyFor(log, p.id)
-    Object.keys(tot).forEach((k) => { tot[k] += t[k] || 0 })
-    return [p.num, p.name, t.pts, t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta), t.reb, t.ast, t.stl, t.blk, t.tov, t.pf]
-  })
-  const totRow = ['', 'Team', tot.pts, tot.fgm + '/' + tot.fga, tot.fg3m + '/' + (tot.fg3m + tot.fg3a), tot.ftm + '/' + (tot.ftm + tot.fta), tot.reb, tot.ast, tot.stl, tot.blk, tot.tov, tot.pf]
   const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
   const date = game ? new Date(game.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const opponent = game ? (game.type === 'practice' ? 'Free play' : (game.opponent ? 'vs ' + game.opponent : 'Game')) : ''
+
+  let tablesHtml
+  let metaLines
+  if (game && game.twoTeam) {
+    const teamAName = game.teamAName || 'Team A'
+    const teamBName = game.teamBName || 'Team B'
+    const ptsA = boxRows(players.filter((p) => p.side === 'A'), log).pts
+    const ptsB = boxRows(players.filter((p) => p.side === 'B'), log).pts
+    tablesHtml = boxTableHtml(head, tr, players.filter((p) => p.side === 'A'), log, teamAName) +
+      boxTableHtml(head, tr, players.filter((p) => p.side === 'B'), log, teamBName)
+    metaLines = [date, `${teamAName} ${ptsA} – ${ptsB} ${teamBName}`]
+  } else {
+    tablesHtml = boxTableHtml(head, tr, players, log)
+    metaLines = [date, opponent, log.length + ' logged actions']
+  }
 
   const html = `<!doctype html><html><head>${reportHead('Box score')}<style>
       ${reportStyles('A4 landscape')}
@@ -106,8 +140,8 @@ export function exportBoxPdf(roster, log, teamName, game) {
       th:nth-child(2),td:nth-child(2){text-align:left}
       tr.total td{font-weight:700;border-top:2px solid #111;border-bottom:none;background:rgba(232,177,60,.1)}
     </style></head><body>
-    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Box score', metaLines: [date, opponent, log.length + ' logged actions'] })}
-    <table><thead>${tr(head, 'th')}</thead><tbody>${rows.map((r) => tr(r, 'td')).join('')}${tr(totRow, 'td', 'total')}</tbody></table>
+    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Box score', metaLines })}
+    ${tablesHtml}
     ${reportFooter()}
     </body></html>`
 
