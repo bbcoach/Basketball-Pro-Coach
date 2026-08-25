@@ -6,6 +6,7 @@ import RosterEditor from '../RosterEditor'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
+import { useLandscape } from '../../lib/useLandscape'
 
 // Two-team tracking folds the active team's roster and any imported
 // opposing roster into one list, each player tagged with which side they're
@@ -78,8 +79,44 @@ function NoActiveGame() {
   )
 }
 
+function TwoTeamToggle({ game }) {
+  const { set, toggleTwoTeam } = useApp()
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+      <div
+        onClick={toggleTwoTeam}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: game.twoTeam ? ACCENT : 'rgba(255,255,255,.06)', color: game.twoTeam ? '#101012' : 'rgba(255,255,255,.6)' }}
+      >
+        <span style={{ fontSize: 12 }}>{game.twoTeam ? '☑' : '☐'}</span> Track two teams
+      </div>
+      {game.twoTeam && (
+        <div onClick={() => set({ twoTeamModalOpen: true })} style={{ padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' }}>
+          Manage teams →
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Landscape trades width for height, and height is scarce on a phone turned
+// sideways — the full editor's three stacked rows would eat most of it, so
+// this condenses date/opponent/home-away/location to a read-only summary
+// line (still editable by rotating back to portrait) and keeps only the
+// two-team controls interactive, since those are what landscape is for.
+function GameMetaSummary({ game }) {
+  const isGame = game.type === 'game'
+  const summary = fmtGameDate(game.date) + (game.time ? ' · ' + game.time : '') +
+    (isGame ? ' · ' + (game.opponent ? 'vs ' + game.opponent : 'Opponent TBD') + (game.home ? ' · ' + (game.home === 'home' ? 'Home' : 'Away') : '') : ' · Free play')
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 10px' }}>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{summary}</div>
+      <TwoTeamToggle game={game} />
+    </div>
+  )
+}
+
 function GameMetaEditor({ game }) {
-  const { set, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation, toggleTwoTeam } = useApp()
+  const { setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation } = useApp()
   const isGame = game.type === 'game'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px 10px' }}>
@@ -121,19 +158,7 @@ function GameMetaEditor({ game }) {
           />
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div
-          onClick={toggleTwoTeam}
-          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: game.twoTeam ? ACCENT : 'rgba(255,255,255,.06)', color: game.twoTeam ? '#101012' : 'rgba(255,255,255,.6)' }}
-        >
-          <span style={{ fontSize: 12 }}>{game.twoTeam ? '☑' : '☐'}</span> Track two teams
-        </div>
-        {game.twoTeam && (
-          <div onClick={() => set({ twoTeamModalOpen: true })} style={{ padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' }}>
-            Manage teams →
-          </div>
-        )}
-      </div>
+      <TwoTeamToggle game={game} />
     </div>
   )
 }
@@ -160,12 +185,64 @@ function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt }
   )
 }
 
+function PlayerColumn({ title, players, onCourt, style, ...rowProps }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
+      {title && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>{title}</div>}
+      {sortedRoster(players, onCourt).map((p) => <PlayerRow key={p.id} p={p} onCourt={onCourt} {...rowProps} />)}
+    </div>
+  )
+}
+
+function PromptHint({ text }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
+      <div style={{ fontSize: 13, lineHeight: 1 }}>☝</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{text}</div>
+    </div>
+  )
+}
+
+function StatPad({ selPlayer, onCourt, logStat, columns = 3 }) {
+  const enabled = selPlayer && onCourt.indexOf(selPlayer) >= 0
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns},1fr)`, gap: 6 }}>
+      {STAT_DEFS.map((sd) => (
+        <div
+          key={sd.k}
+          onClick={() => logStat(sd.k)}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '11px 4px', borderRadius: 12, cursor: 'pointer',
+            background: enabled ? (sd.pos ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.045)') : 'rgba(255,255,255,.05)',
+            border: '1px solid ' + (enabled && sd.pos ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.09)'),
+            color: enabled ? '#fff' : 'rgba(255,255,255,.62)',
+          }}
+        >
+          <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '.2px' }}>{sd.label}</div>
+          <div style={{ fontSize: 9.5, fontWeight: 600, opacity: enabled ? 0.6 : 0.75, textTransform: 'uppercase', letterSpacing: '.6px' }}>{sd.sub}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LastActionBar({ lastAction, selPlayer, undoStat }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: selPlayer ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastAction}</div>
+      <div onClick={undoStat} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Undo</div>
+    </div>
+  )
+}
+
 function LiveTab({ game }) {
   const { state, selectStatPlayer, toggleCourt, logStat, undoStat } = useApp()
   const { roster, selPlayer } = state
   const { log, onCourt } = game
+  const landscape = useLandscape()
   const players = gamePlayers(roster, game)
   const promptOpen = !(selPlayer && onCourt.indexOf(selPlayer) >= 0)
+  const promptText = !selPlayer ? 'Select a player above to start logging' : 'On the bench — tap the OFF badge in his row to sub him in'
 
   let lastAction
   if (!selPlayer) lastAction = players.length ? 'Select a player, then tap a stat' : 'Add players under “Roster” first'
@@ -178,7 +255,38 @@ function LiveTab({ game }) {
     else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
   }
 
-  const rowProps = { log, onCourt, selPlayer, selectStatPlayer, toggleCourt }
+  const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt }
+  const padProps = { selPlayer, onCourt, logStat }
+
+  if (landscape) {
+    // Player lists get whatever height is left above a full-width action
+    // bar, rather than being squeezed into a side column — a 6-column stat
+    // grid stays short even though the screen itself is short, which a
+    // narrow column version of the same grid can't do without scrolling.
+    return (
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <GameMetaSummary game={game} />
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 8px' }}>
+          {game.twoTeam ? (
+            <>
+              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+            </>
+          ) : (
+            <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+          )}
+          {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
+        </div>
+        <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px' }}>
+          {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastAction}</div>}
+          <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>Undo</div>
+        </div>
+        <div style={{ flex: 'none', padding: '6px 18px 8px' }}>
+          <StatPad {...padProps} columns={6} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -186,50 +294,23 @@ function LiveTab({ game }) {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
         {game.twoTeam ? (
           <>
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>{game.teamAName || 'Team A'}</div>
-            {sortedRoster(players.filter((p) => p.side === 'A'), onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)}
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginTop: 6 }}>{game.teamBName || 'Team B'}</div>
-            {sortedRoster(players.filter((p) => p.side === 'B'), onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)}
+            <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} {...rowProps} />
+            <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ marginTop: 6 }} {...rowProps} />
           </>
         ) : (
-          sortedRoster(players, onCourt).map((p) => <PlayerRow key={p.id} p={p} {...rowProps} />)
+          <PlayerColumn players={players} onCourt={onCourt} {...rowProps} />
         )}
         {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
       </div>
 
-      {promptOpen && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 18px 8px', padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
-          <div style={{ fontSize: 13, lineHeight: 1 }}>☝</div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{!selPlayer ? 'Select a player above to start logging' : 'On the bench — tap the OFF badge in his row to sub him in'}</div>
-        </div>
-      )}
+      {promptOpen && <div style={{ margin: '0 18px 8px' }}><PromptHint text={promptText} /></div>}
 
       <div style={{ flex: 'none', padding: '2px 18px 0' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
-          {STAT_DEFS.map((sd) => {
-            const enabled = selPlayer && onCourt.indexOf(selPlayer) >= 0
-            return (
-              <div
-                key={sd.k}
-                onClick={() => logStat(sd.k)}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '11px 4px', borderRadius: 12, cursor: 'pointer',
-                  background: enabled ? (sd.pos ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.045)') : 'rgba(255,255,255,.05)',
-                  border: '1px solid ' + (enabled && sd.pos ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.09)'),
-                  color: enabled ? '#fff' : 'rgba(255,255,255,.62)',
-                }}
-              >
-                <div style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '.2px' }}>{sd.label}</div>
-                <div style={{ fontSize: 9.5, fontWeight: 600, opacity: enabled ? 0.6 : 0.75, textTransform: 'uppercase', letterSpacing: '.6px' }}>{sd.sub}</div>
-              </div>
-            )
-          })}
-        </div>
+        <StatPad {...padProps} />
       </div>
 
-      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '12px 18px 0' }}>
-        <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: selPlayer ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastAction}</div>
-        <div onClick={undoStat} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Undo</div>
+      <div style={{ flex: 'none', padding: '12px 18px 0' }}>
+        <LastActionBar lastAction={lastAction} selPlayer={selPlayer} undoStat={undoStat} />
       </div>
     </div>
   )
@@ -418,9 +499,13 @@ export default function StatTracker() {
   const gameLine = (teamName ? teamName + ' · ' : '') + (game
     ? gameTitle(game) + ' · ' + fmtGameDate(game.date)
     : (roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') : 'Set up your roster, then track a game'))
+  // Landscape is mainly for the Live tab's two-team layout, where every
+  // pixel of height matters — the portrait top/bottom padding below is
+  // sized to clear a notch that, rotated, is no longer at the top anyway.
+  const landscape = useLandscape()
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px 0 10px' : '56px 0 46px' }}>
       <ScreenHeader title="Stat tracker" line={gameLine} onClose={closeStats} />
       <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
       {statsTab === 'games' && <GamesTab />}
