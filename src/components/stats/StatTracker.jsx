@@ -163,21 +163,27 @@ function GameMetaEditor({ game }) {
   )
 }
 
-function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt }) {
+function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, compact }) {
   const t = tallyFor(log, p.id)
   const on = selPlayer === p.id
   const court = onCourt.indexOf(p.id) >= 0
   return (
     <div
       onClick={() => selectStatPlayer(p)}
-      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 11, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
+      style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: compact ? '7px 9px' : '8px 10px', borderRadius: 11, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
     >
-      <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
-      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: court ? '#fff' : 'rgba(255,255,255,.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>
+      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num}</div>
+      {/* The full "PTS · REB · AST" line is dropped here rather than shrunk,
+          since it's fixed-width and would otherwise win the space against
+          the name (flex:1, minWidth:0) — exactly what made names unreadably
+          truncated in the two-column landscape layout this is used for. */}
+      <div style={{ flex: 1, minWidth: 0, fontSize: compact ? 12.5 : 13, fontWeight: 600, color: court ? '#fff' : 'rgba(255,255,255,.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+      {compact
+        ? <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, flex: 'none' }}>{t.pts}</div>
+        : <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>}
       <div
         onClick={(e) => { e.stopPropagation(); toggleCourt(p) }}
-        style={{ padding: '5px 8px', borderRadius: 7, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
+        style={{ padding: compact ? '4px 7px' : '5px 8px', borderRadius: 7, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
       >
         {court ? 'ON' : 'OFF'}
       </div>
@@ -255,7 +261,7 @@ function LiveTab({ game }) {
     else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
   }
 
-  const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt }
+  const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt, compact: landscape }
   const padProps = { selPlayer, onCourt, logStat }
 
   if (landscape) {
