@@ -148,6 +148,43 @@ export function exportBoxPdf(players, log, teamName, game) {
   openReportWindow(html, gameSlug(game) + '.html')
 }
 
+export function exportSeasonPdf(roster, games, teamName) {
+  const log = games.flatMap((g) => g.log)
+  const head = ['#', 'Player', 'GP', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
+  const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
+  const avg = (v, gp) => (gp ? (v / gp).toFixed(1) : '0.0')
+
+  const rows = roster
+    .map((p) => {
+      const t = tallyFor(log, p.id)
+      const gp = games.filter((g) => g.log.some((e) => e.p === p.id)).length
+      return { p, t, gp }
+    })
+    .sort((a, b) => b.t.pts - a.t.pts)
+
+  const body = rows.map(({ p, t, gp }, i) => tr([
+    i + 1, p.name, gp,
+    avg(t.pts, gp), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta),
+    avg(t.reb, gp), avg(t.ast, gp), avg(t.stl, gp), avg(t.blk, gp), avg(t.tov, gp), avg(t.pf, gp),
+  ], 'td')).join('')
+
+  const now = new Date()
+  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+  const html = `<!doctype html><html><head>${reportHead('Season stats')}<style>
+      ${reportStyles('A4 landscape')}
+      table{font-size:12px}
+      th,td{text-align:center}
+      th:nth-child(2),td:nth-child(2){text-align:left}
+    </style></head><body>
+    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked', 'Averages per game played'] })}
+    <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="13" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
+    ${reportFooter()}
+    </body></html>`
+
+  openReportWindow(html, 'season-stats.html')
+}
+
 function pctColorFor(pct, hasData) {
   if (!hasData) return '#aaa'
   if (pct >= 80) return '#4da864'

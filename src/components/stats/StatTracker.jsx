@@ -4,7 +4,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
-import { exportBoxCsv, exportBoxPdf } from '../../lib/reports'
+import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
 
@@ -406,6 +406,73 @@ function BoxTab({ game }) {
   )
 }
 
+// Per-game box scores are useful in the moment, but a coach also needs to
+// see how a player is trending across the whole season — so this pools
+// every tracked game's log into one combined log and reuses the exact same
+// `tallyFor` aggregation the single-game box score uses (it's log-array
+// agnostic), then divides by games-played to get per-game averages.
+function SeasonTable({ rows }) {
+  return (
+    <div style={{ minWidth: 176 + 46 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+        <div style={{ width: 176, flex: 'none' }}>Player</div>
+        <div style={{ width: 46, flex: 'none', textAlign: 'center' }}>GP</div>
+        {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
+      </div>
+      {rows.map(({ p, t, gp }, i) => {
+        const avg = (v) => (gp ? (v / gp).toFixed(1) : '0.0')
+        const cells = [
+          avg(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
+          t.ftm + '/' + (t.ftm + t.fta), avg(t.reb), avg(t.ast),
+          avg(t.stl), avg(t.blk), avg(t.tov), avg(t.pf),
+        ]
+        const cellStyle = (i2) => (i2 === 0
+          ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
+          : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
+        return (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
+            <div style={{ width: 176, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+              <div style={{ width: 16, flex: 'none', fontWeight: 700, color: 'rgba(255,255,255,.3)' }}>{i + 1}</div>
+              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
+              <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+            </div>
+            <div style={{ width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.7)', fontWeight: 600 }}>{gp}</div>
+            {cells.map((c, i2) => <div key={i2} style={cellStyle(i2)}>{c}</div>)}
+          </div>
+        )
+      })}
+      {!rows.length && <div style={{ padding: '8px 6px', fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No players.</div>}
+    </div>
+  )
+}
+
+function SeasonTab() {
+  const { state, showToast } = useApp()
+  const { roster, games } = state
+  const log = games.flatMap((g) => g.log)
+  const rows = roster
+    .map((p) => {
+      const t = tallyFor(log, p.id)
+      const gp = games.filter((g) => g.log.some((e) => e.p === p.id)).length
+      return { p, t, gp }
+    })
+    .sort((a, b) => b.t.pts - a.t.pts)
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
+      <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)', padding: '0 6px 10px' }}>
+        {games.length} game{games.length === 1 ? '' : 's'} tracked · averages per game played
+      </div>
+      <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <SeasonTable rows={rows} />
+      </div>
+      <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
+        <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+      </div>
+    </div>
+  )
+}
+
 function ResetModal() {
   const { state, closeReset, resetGame, resetRoster } = useApp()
   if (!state.resetAsk) return null
@@ -530,11 +597,12 @@ export default function StatTracker() {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px env(safe-area-inset-right, 0px) 10px env(safe-area-inset-left, 0px)' : '56px 0 46px' }}>
       <ScreenHeader title="Stat tracker" line={gameLine} onClose={closeStats} />
-      <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
+      <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score'], ['season', 'Season']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
       {statsTab === 'games' && <GamesTab />}
       {statsTab === 'live' && (game ? <LiveTab game={game} /> : <NoActiveGame />)}
       {statsTab === 'roster' && <RosterEditor emptyHint="Add every player once — the roster stays on this device for all games." />}
       {statsTab === 'box' && (game ? <BoxTab game={game} /> : <NoActiveGame />)}
+      {statsTab === 'season' && <SeasonTab />}
       <ResetModal />
       <TwoTeamModal />
     </div>
