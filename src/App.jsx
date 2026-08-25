@@ -99,12 +99,14 @@ function RotateLock() {
 function AppShell() {
   const { state } = useApp()
   const landscape = useLandscape()
-  // The Tactics Board gets a landscape layout (useful held sideways, e.g.
-  // on a tablet, to walk players through a play) — every other screen
-  // keeps the fixed phone-width portrait column and the rotate-lock
-  // prompt. The board's own layout replaces the lock, on any device.
-  const wide = state.screen === 'board' && landscape
-  const showRotateLock = state.screen !== 'board'
+  // The Tactics Board and Stat Tracker get a landscape layout (useful held
+  // sideways, e.g. on a tablet, to walk players through a play, or to see
+  // both sides of a two-team game side by side without scrolling) — every
+  // other screen keeps the fixed phone-width portrait column and the
+  // rotate-lock prompt. Each screen's own layout replaces the lock.
+  const landscapeScreens = state.screen === 'board' || state.screen === 'stats'
+  const wide = landscapeScreens && landscape
+  const showRotateLock = !landscapeScreens
   return (
     <>
       <div
