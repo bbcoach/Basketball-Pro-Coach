@@ -128,7 +128,7 @@ function DrillPlayPicker() {
 
 function DrillsTab() {
   const app = useApp()
-  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, openPlan, askConfirm } = app
+  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, openPlan, askConfirm, shareDrill, openImport } = app
   const { drills, plans, plays, activePlan, openPlan: openId, dName, dMin, dDesc, dCategory, dEdit } = state
   const target = plans.find((x) => x.id === activePlan) || plans.find((x) => x.id === openId) || plans[0]
   const [filterCat, setFilterCat] = useState(null)
@@ -144,6 +144,7 @@ function DrillsTab() {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{target ? target.name : 'New session (created on first drill)'}</div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{target ? `${app.planDrills(target).length} drills · ${app.planDrills(target).reduce((a, d) => a + (parseInt(d.min, 10) || 0), 0)} min` : 'Tap a drill below to start a session plan'}</div>
         </div>
+        <div onClick={openImport} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>Import</div>
         <div onClick={() => { set({ practiceTab: 'plans' }); openPlan(target ? target.id : (plans[0] && plans[0].id) || null) }} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{plans.length ? 'Open' : 'Plans'}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 8 }}>
@@ -216,6 +217,7 @@ function DrillsTab() {
               </div>
               <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ padding: '7px 11px', borderRadius: 9, background: inPlan ? 'rgba(255,255,255,.10)' : ACCENT, color: inPlan ? '#fff' : '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{inPlan ? '＋ again' : '＋ Add'}</div>
               <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
+              <div onClick={() => shareDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>⇪</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
               <div onClick={() => askConfirm({ title: 'Delete drill', message: `Delete "${d.name}"? It will be removed from any plans that use it.`, onConfirm: () => removeDrill(d) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>

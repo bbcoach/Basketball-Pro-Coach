@@ -9,7 +9,7 @@ function playMeta(p) {
 }
 
 export default function PlaysSheet() {
-  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay, askConfirm } = useApp()
+  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay, askConfirm, sharePlay, openImport, openStarterPlays } = useApp()
   if (!state.sheetOpen) return null
   const { plays, nameDraft, currentId } = state
 
@@ -18,6 +18,10 @@ export default function PlaysSheet() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 10 }}>
         <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>My plays</div>
         <div onClick={closeSheet} style={{ padding: '7px 13px', borderRadius: 9, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, paddingBottom: 10 }}>
+        <div onClick={openStarterPlays} style={{ flex: 1, textAlign: 'center', padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Starter plays</div>
+        <div onClick={openImport} style={{ flex: 1, textAlign: 'center', padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Import</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
         <input
@@ -33,6 +37,7 @@ export default function PlaysSheet() {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
             </div>
+            <div onClick={() => sharePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>⇪</div>
             <div onClick={() => renamePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✎</div>
             <div onClick={() => askConfirm({ title: 'Delete play', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✕</div>
           </div>
