@@ -39,4 +39,54 @@ export const STARTER_PLAYS = [
     ],
     ball: { x: 800, y: 1230, acts: [{ type: 'pass', step: 1, pts: [{ x: 520, y: 560 }] }] },
   },
+  // 5-out motion: all five offensive players start beyond the arc (no post
+  // player) and read off ball movement — these four cover its core reads.
+  {
+    id: 'sp-5out-drivekick', name: '5-out: drive and kick', desc: 'Drive downhill from the top to draw help, then kick out to the open corner.',
+    view: 'half', steps: 2,
+    players: [
+      { id: 'o1', team: 'off', label: '1', x: 750, y: 1220, acts: [{ type: 'dribble', step: 1, pts: [{ x: 680, y: 850 }, { x: 620, y: 600 }] }] },
+      { id: 'o2', team: 'off', label: '2', x: 130, y: 900, acts: [] },
+      { id: 'o3', team: 'off', label: '3', x: 1370, y: 900, acts: [] },
+      { id: 'o4', team: 'off', label: '4', x: 300, y: 350, acts: [] },
+      { id: 'o5', team: 'off', label: '5', x: 1200, y: 350, acts: [] },
+    ],
+    ball: { x: 800, y: 1270, acts: [{ type: 'pass', step: 2, pts: [{ x: 300, y: 350 }] }] },
+  },
+  {
+    id: 'sp-5out-drivefill', name: '5-out: drive and fill', desc: 'Drive the middle; the weak-side corner relocates up top to keep the spacing even.',
+    view: 'half', steps: 1,
+    players: [
+      { id: 'o1', team: 'off', label: '1', x: 750, y: 1220, acts: [{ type: 'dribble', step: 1, pts: [{ x: 700, y: 900 }, { x: 650, y: 650 }] }] },
+      { id: 'o2', team: 'off', label: '2', x: 130, y: 900, acts: [] },
+      { id: 'o3', team: 'off', label: '3', x: 1370, y: 900, acts: [] },
+      { id: 'o4', team: 'off', label: '4', x: 300, y: 350, acts: [{ type: 'cut', step: 1, pts: [{ x: 500, y: 700 }, { x: 750, y: 1100 }] }] },
+      { id: 'o5', team: 'off', label: '5', x: 1200, y: 350, acts: [] },
+    ],
+    ball: { x: 800, y: 1270, acts: [] },
+  },
+  {
+    id: 'sp-5out-screenaway', name: '5-out: screen away', desc: 'The weak corner screens away for the wing, who cuts hard to the rim.',
+    view: 'half', steps: 1,
+    players: [
+      { id: 'o1', team: 'off', label: '1', x: 750, y: 1220, acts: [] },
+      { id: 'o2', team: 'off', label: '2', x: 130, y: 900, acts: [] },
+      { id: 'o3', team: 'off', label: '3', x: 1370, y: 900, acts: [{ type: 'cut', step: 1, pts: [{ x: 1180, y: 650 }, { x: 820, y: 300 }] }] },
+      { id: 'o4', team: 'off', label: '4', x: 300, y: 350, acts: [] },
+      { id: 'o5', team: 'off', label: '5', x: 1200, y: 350, acts: [{ type: 'screen', step: 1, pts: [{ x: 1150, y: 620 }] }] },
+    ],
+    ball: { x: 800, y: 1270, acts: [] },
+  },
+  {
+    id: 'sp-5out-dho', name: '5-out: dribble hand-off', desc: 'The point dribbles at the wing, hands off, and the wing drives to the rim.',
+    view: 'half', steps: 1,
+    players: [
+      { id: 'o1', team: 'off', label: '1', x: 750, y: 1220, acts: [{ type: 'dribble', step: 1, pts: [{ x: 450, y: 1000 }, { x: 280, y: 880 }] }] },
+      { id: 'o2', team: 'off', label: '2', x: 130, y: 900, acts: [{ type: 'cut', step: 1, pts: [{ x: 350, y: 700 }, { x: 550, y: 400 }] }] },
+      { id: 'o3', team: 'off', label: '3', x: 1370, y: 900, acts: [] },
+      { id: 'o4', team: 'off', label: '4', x: 300, y: 350, acts: [] },
+      { id: 'o5', team: 'off', label: '5', x: 1200, y: 350, acts: [] },
+    ],
+    ball: { x: 800, y: 1270, acts: [] },
+  },
 ]
