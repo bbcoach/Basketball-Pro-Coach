@@ -4,6 +4,7 @@ import {
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { exportClip, exportStill } from '../lib/export'
+import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 
 const LS = {
   plays: 'tb.plays.v1',
@@ -47,6 +48,8 @@ function initialState() {
     formOpen: false, shareOpen: false, exporting: false,
     shareStatus: 'Sends the current play to your team',
     plays: [],
+    shareCode: null, // { title, code } — the coach-to-coach export/import sheet
+    importOpen: false, importErr: '', importText: '', starterPlaysOpen: false,
 
     // teams (each team owns its own roster, games and attendance sessions)
     teams: [], activeTeamId: null, teamsDetail: false, teamRemoveAsk: null,
@@ -433,6 +436,54 @@ export function AppProvider({ children }) {
   const goHome = () => set({ screen: 'home', boardMenu: true, loadOpen: false, playing: false })
   const toggleBoardMenu = () => set((s) => ({ boardMenu: !s.boardMenu }))
   const toggleLoad = () => set((s) => ({ loadOpen: !s.loadOpen }))
+
+  // ── coach-to-coach sharing (plays & drills) ──────────────────
+  // A lightweight, serverless alternative to full account sync: export a
+  // single play or drill as a self-contained text code (lib/share.js) that
+  // another coach pastes back in on their own device — nothing round-trips
+  // through a server, so it fits the app's "everything stays on your
+  // device" privacy stance.
+  const openShareCode = (title, code) => set({ shareCode: { title, code } })
+  const closeShareCode = () => set({ shareCode: null })
+  const sharePlay = (p) => openShareCode(p.name, encodePlayShare(p))
+  const shareDrill = (d) => openShareCode(d.name, encodeDrillShare(d, stateRef.current.plays))
+
+  const openImport = () => set({ importOpen: true, importText: '', importErr: '' })
+  const closeImport = () => set({ importOpen: false })
+  const setImportText = (t) => set({ importText: t, importErr: '' })
+  const submitImport = () => {
+    const s = stateRef.current
+    let decoded
+    try {
+      decoded = decodeShare(s.importText)
+    } catch (e) {
+      set({ importErr: e.message })
+      return
+    }
+    if (decoded.kind === 'play') {
+      const { name, view, steps, players, ball } = decoded.payload
+      persistPlays((ps) => [{ id: 'pl' + Date.now(), name: name || 'Imported play', ts: Date.now(), view, steps, players, ball }].concat(ps))
+      showToast('Play imported')
+    } else {
+      const { name, min, desc, category, play } = decoded.payload
+      let playId = null
+      if (play) {
+        playId = 'pl' + Date.now()
+        persistPlays((ps) => [{ id: playId, name: play.name || name, ts: Date.now(), view: play.view, steps: play.steps, players: play.players, ball: play.ball }].concat(ps))
+      }
+      persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min: min || 10, desc: desc || '', category: category || '', playId, fav: false }]))
+      showToast('Drill imported')
+    }
+    set({ importOpen: false })
+  }
+
+  const openStarterPlays = () => set({ starterPlaysOpen: true })
+  const closeStarterPlays = () => set({ starterPlaysOpen: false })
+  const addStarterPlay = (sp) => {
+    persistPlays((ps) => [{ id: 'pl' + Date.now(), name: sp.name, ts: Date.now(), view: sp.view, steps: sp.steps, players: sp.players, ball: sp.ball }].concat(ps))
+    showToast('Play added')
+    set({ starterPlaysOpen: false, sheetOpen: false })
+  }
 
   // ── formations / share modals ──────────────────────────────
   const openFormations = () => set({ formOpen: true, playing: false })
@@ -873,6 +924,9 @@ export function AppProvider({ children }) {
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
+    openShareCode, closeShareCode, sharePlay, shareDrill,
+    openImport, closeImport, setImportText, submitImport,
+    openStarterPlays, closeStarterPlays, addStarterPlay,
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
