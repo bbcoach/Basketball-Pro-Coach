@@ -259,14 +259,14 @@ function LiveTab({ game }) {
   const padProps = { selPlayer, onCourt, logStat }
 
   if (landscape) {
-    // Player lists get whatever height is left above a full-width action
-    // bar, rather than being squeezed into a side column — a 6-column stat
-    // grid stays short even though the screen itself is short, which a
-    // narrow column version of the same grid can't do without scrolling.
+    // A landscape phone has width to spare, so the stat grid belongs in a
+    // side column, not a full-width bar — the latter looked fine on a
+    // short/narrow phone but ate exactly the height the player lists need
+    // on a bigger or taller landscape screen, leaving them barely visible.
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <GameMetaSummary game={game} />
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 8px' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 10px' }}>
           {game.twoTeam ? (
             <>
               <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
@@ -276,13 +276,13 @@ function LiveTab({ game }) {
             <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
           )}
           {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
-        </div>
-        <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px' }}>
-          {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastAction}</div>}
-          <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>Undo</div>
-        </div>
-        <div style={{ flex: 'none', padding: '6px 18px 8px' }}>
-          <StatPad {...padProps} columns={6} />
+          <div style={{ flex: '0 0 260px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', overflow: 'hidden' }}>{lastAction}</div>}
+            </div>
+            <StatPad {...padProps} columns={4} />
+            <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Undo</div>
+          </div>
         </div>
       </div>
     )
