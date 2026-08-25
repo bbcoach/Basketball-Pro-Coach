@@ -3,6 +3,9 @@
 // downloaded as a JSON file the coach can keep somewhere safe and restore
 // from later, since the app itself has no server and no sync.
 const LS_KEYS = ['tb.plays.v1', 'tb.drills.v1', 'tb.plans.v1', 'tb.teams.v1', 'tb.activeTeam.v1']
+const LAST_BACKUP_KEY = 'tb.lastBackup.v1'
+const SNOOZE_KEY = 'tb.backupSnooze.v1'
+const REMINDER_INTERVAL_DAYS = 14
 
 function buildBackup() {
   const data = {}
@@ -25,6 +28,27 @@ export function downloadBackup() {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+  try { localStorage.setItem(LAST_BACKUP_KEY, String(Date.now())) } catch { /* ignore quota errors */ }
+}
+
+// A lost phone or a cleared browser means starting over, since the app has
+// no server and no sync — this is the reminder that nudges a coach who's
+// never backed up (or hasn't in a while) before that actually happens.
+export function snoozeBackupReminder() {
+  try { localStorage.setItem(SNOOZE_KEY, String(Date.now())) } catch { /* ignore quota errors */ }
+}
+
+export function shouldShowBackupReminder(hasData) {
+  if (!hasData) return false
+  try {
+    const last = Number(localStorage.getItem(LAST_BACKUP_KEY)) || 0
+    const snoozed = Number(localStorage.getItem(SNOOZE_KEY)) || 0
+    const since = Math.max(last, snoozed)
+    if (!since) return true
+    return Date.now() - since > REMINDER_INTERVAL_DAYS * 24 * 60 * 60 * 1000
+  } catch {
+    return false
+  }
 }
 
 // Parses and validates a backup file without touching localStorage, so the

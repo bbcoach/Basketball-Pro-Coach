@@ -35,6 +35,7 @@ function initialState() {
     screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams' | 'schedule'
     boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false,
     confirmAsk: null, // { title, message, confirmLabel, onConfirm }
+    toast: null, // { id, text }
 
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
@@ -88,6 +89,7 @@ export function AppProvider({ children }) {
   const rafRef = useRef(0)
   const lastRef = useRef(0)
   const runTimerRef = useRef(0)
+  const toastTimerRef = useRef(0)
 
   // ── load persisted data once ──────────────────────────────
   useEffect(() => {
@@ -383,6 +385,7 @@ export function AppProvider({ children }) {
     if (s.renameId) {
       persistPlays((ps) => ps.map((x) => (x.id === s.renameId ? { ...x, name } : x)))
       set((st) => ({ saveOpen: false, renameId: null, playName: st.currentId === s.renameId ? name : st.playName }))
+      showToast('Play renamed')
       return
     }
     const n = nSteps()
@@ -392,6 +395,7 @@ export function AppProvider({ children }) {
     const entry = { id, name, ts: Date.now(), ...snap }
     persistPlays((ps) => (ps.some((x) => x.id === id) ? ps.map((x) => (x.id === id ? entry : x)) : [entry].concat(ps)))
     set({ currentId: id, playName: name, sheetOpen: false, saveOpen: false, renameId: null, hint: 'Saved as “' + name + '”' })
+    showToast('Play saved')
   }
   // "open" — from the home screen's Load list: fresh board, undo history cleared.
   const openPlayFromHome = (p) => {
@@ -469,6 +473,19 @@ export function AppProvider({ children }) {
     if (ask && ask.onConfirm) ask.onConfirm()
   }
 
+  // Brief, self-dismissing confirmation for actions with no other visible
+  // feedback (an export that just opens a new tab or downloads a file, an
+  // add that scrolls a long list). Re-showing it resets the clock rather
+  // than layering toasts, since only one is ever shown at a time.
+  const showToast = (text) => {
+    clearTimeout(toastTimerRef.current)
+    const id = Date.now()
+    set({ toast: { id, text } })
+    toastTimerRef.current = setTimeout(() => {
+      set((s) => (s.toast && s.toast.id === id ? { toast: null } : {}))
+    }, 2200)
+  }
+
   // ── teams ───────────────────────────────────────────────────
   // Switching teams re-points the flat roster/games/sessions mirror at the
   // newly active team and drops any in-progress game/session view, since
@@ -533,6 +550,7 @@ export function AppProvider({ children }) {
     if (s.editId) persistRoster((r) => r.map((x) => (x.id === s.editId ? { ...x, name, num } : x)))
     else persistRoster((r) => r.concat([{ id: 'rp' + Date.now(), name, num }]))
     set({ nameIn: '', numIn: '', editId: null })
+    showToast(s.editId ? 'Player updated' : 'Player added')
   }
   const editPlayer = (p) => set({ editId: p.id, nameIn: p.name, numIn: p.num })
   const cancelEditPlayer = () => set({ editId: null, nameIn: '', numIn: '' })
@@ -549,6 +567,7 @@ export function AppProvider({ children }) {
     if (s.coachEditId) persistCoaches((c) => c.map((x) => (x.id === s.coachEditId ? { ...x, name } : x)))
     else persistCoaches((c) => c.concat([{ id: 'co' + Date.now(), name }]))
     set({ coachNameIn: '', coachEditId: null })
+    showToast(s.coachEditId ? 'Coach updated' : 'Coach added')
   }
   const editCoach = (c) => set({ coachEditId: c.id, coachNameIn: c.name })
   const cancelEditCoach = () => set({ coachEditId: null, coachNameIn: '' })
@@ -723,10 +742,11 @@ export function AppProvider({ children }) {
     const date = s.evDateIn || ''
     if (!date) return
     const time = s.evTimeIn || ''
-    if (!s.evEditId && s.evKind === 'training') { scheduleSession(date, time); set({ evDateIn: '', evTimeIn: '' }); return }
+    if (!s.evEditId && s.evKind === 'training') { scheduleSession(date, time); set({ evDateIn: '', evTimeIn: '' }); showToast('Training scheduled'); return }
     if (!s.evEditId && s.evKind === 'game') {
       scheduleGame(date, (s.evTitleIn || '').trim(), time, s.evHome, (s.evLocationIn || '').trim())
       set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '' })
+      showToast('Game scheduled')
       return
     }
     const title = (s.evTitleIn || '').trim()
@@ -735,6 +755,7 @@ export function AppProvider({ children }) {
     if (s.evEditId) persistEvents((es) => sortEvents(es.map((x) => (x.id === s.evEditId ? { ...x, title, date, time, location } : x))))
     else persistEvents((es) => sortEvents(es.concat([{ id: 'ev' + Date.now(), title, date, time, location }])))
     set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '', evEditId: null })
+    showToast(s.evEditId ? 'Event updated' : 'Event added')
   }
   // Imported .ics entries always become events — they carry no attendance
   // marks or stat log, so a real training/game is never the right shape.
@@ -798,6 +819,7 @@ export function AppProvider({ children }) {
     if (s.dEdit) persistDrills((ds) => ds.map((x) => (x.id === s.dEdit ? { ...x, name, min, desc, playId, category } : x)))
     else persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min, desc, playId, category, fav: false }]))
     set({ dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '', dEdit: null })
+    showToast(s.dEdit ? 'Drill updated' : 'Drill added')
   }
   const editDrill = (d) => set({ dEdit: d.id, dName: d.name, dMin: String(d.min || ''), dDesc: d.desc || '', dPlayId: d.playId || null, dCategory: d.category || '' })
   const cancelDrill = () => set({ dEdit: null, dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '' })
@@ -854,7 +876,7 @@ export function AppProvider({ children }) {
     enterTimeout, exitTimeout,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
-    askConfirm, closeConfirm, runConfirm,
+    askConfirm, closeConfirm, runConfirm, showToast,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,

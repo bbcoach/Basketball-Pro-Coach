@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
 import { COND } from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
+import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
@@ -19,6 +21,13 @@ export default function Home() {
     + games.filter((g) => g.type === 'game' && g.date >= today).length
     + events.filter((e) => e.date >= today).length
 
+  const hasData = teams.some((t) => (t.roster || []).length || (t.games || []).length || (t.sessions || []).length) || plays.length > 0 || drills.length > 0
+  // Teams load from localStorage in an effect after the first render, so
+  // hasData starts false on every mount — a useState initializer would
+  // capture that and never reconsider once the real data arrives.
+  const [showBackupReminder, setShowBackupReminder] = useState(false)
+  useEffect(() => { setShowBackupReminder(shouldShowBackupReminder(hasData)) }, [hasData])
+
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
   return (
@@ -31,6 +40,27 @@ export default function Home() {
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>OVERVIEW</div>
           </div>
         </div>
+
+        {showBackupReminder && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
+            <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>💾</div>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
+              Everything lives only on this device. Worth a quick backup?
+            </div>
+            <div
+              onClick={() => { setShowBackupReminder(false); openBackup() }}
+              style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+            >
+              Back up
+            </div>
+            <div
+              onClick={() => { snoozeBackupReminder(); setShowBackupReminder(false) }}
+              style={{ flex: 'none', padding: '7px 9px', borderRadius: 8, color: 'rgba(255,255,255,.5)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Not now
+            </div>
+          </div>
+        )}
 
         <div
           onClick={toggleBoardMenu}

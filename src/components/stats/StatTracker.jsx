@@ -20,6 +20,20 @@ function gamePlayers(roster, game) {
   return own.concat(imported)
 }
 
+function sidePts(players, log, side) {
+  return teamTally(log.filter((e) => players.find((p) => p.id === e.p)?.side === side)).pts
+}
+
+function ScoreBar({ teamAName, teamBName, ptsA, ptsB, style }) {
+  return (
+    <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#fff', ...style }}>
+      {teamAName} <span style={{ color: ACCENT }}>{ptsA}</span>
+      {' – '}
+      <span style={{ color: ACCENT }}>{ptsB}</span> {teamBName}
+    </div>
+  )
+}
+
 function sortedRoster(roster, onCourt) {
   return roster.slice().sort((a, b) => {
     const ca = onCourt.indexOf(a.id) >= 0 ? 0 : 1
@@ -103,13 +117,14 @@ function TwoTeamToggle({ game }) {
 // this condenses date/opponent/home-away/location to a read-only summary
 // line (still editable by rotating back to portrait) and keeps only the
 // two-team controls interactive, since those are what landscape is for.
-function GameMetaSummary({ game }) {
+function GameMetaSummary({ game, score }) {
   const isGame = game.type === 'game'
   const summary = fmtGameDate(game.date) + (game.time ? ' · ' + game.time : '') +
     (isGame ? ' · ' + (game.opponent ? 'vs ' + game.opponent : 'Opponent TBD') + (game.home ? ' · ' + (game.home === 'home' ? 'Home' : 'Away') : '') : ' · Free play')
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 10px' }}>
       <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{summary}</div>
+      {score && <div style={{ flex: 'none', fontSize: 13, fontWeight: 700, color: ACCENT, whiteSpace: 'nowrap' }}>{score}</div>}
       <TwoTeamToggle game={game} />
     </div>
   )
@@ -263,6 +278,7 @@ function LiveTab({ game }) {
 
   const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt, compact: landscape }
   const padProps = { selPlayer, onCourt, logStat }
+  const scoreText = game.twoTeam ? sidePts(players, log, 'A') + ' – ' + sidePts(players, log, 'B') : null
 
   if (landscape) {
     // A landscape phone has width to spare, so the stat grid belongs in a
@@ -271,7 +287,7 @@ function LiveTab({ game }) {
     // on a bigger or taller landscape screen, leaving them barely visible.
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <GameMetaSummary game={game} />
+        <GameMetaSummary game={game} score={scoreText} />
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 10px' }}>
           {game.twoTeam ? (
             <>
@@ -300,6 +316,7 @@ function LiveTab({ game }) {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
         {game.twoTeam ? (
           <>
+            <ScoreBar teamAName={game.teamAName || 'Team A'} teamBName={game.teamBName || 'Team B'} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 6px' }} />
             <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} {...rowProps} />
             <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ marginTop: 6 }} {...rowProps} />
           </>
@@ -358,7 +375,7 @@ function BoxTable({ players, log, title }) {
 }
 
 function BoxTab({ game }) {
-  const { state, askReset } = useApp()
+  const { state, askReset, showToast } = useApp()
   const { roster } = state
   const { log } = game
   const players = gamePlayers(roster, game)
@@ -368,11 +385,7 @@ function BoxTab({ game }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       {game.twoTeam && (
-        <div style={{ textAlign: 'center', padding: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-          {teamAName} <span style={{ color: ACCENT }}>{teamTally(log.filter((e) => players.find((p) => p.id === e.p)?.side === 'A')).pts}</span>
-          {' – '}
-          <span style={{ color: ACCENT }}>{teamTally(log.filter((e) => players.find((p) => p.id === e.p)?.side === 'B')).pts}</span> {teamBName}
-        </div>
+        <ScoreBar teamAName={teamAName} teamBName={teamBName} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 10px' }} />
       )}
       <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {game.twoTeam ? (
@@ -385,8 +398,8 @@ function BoxTab({ game }) {
         )}
       </div>
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => exportBoxPdf(players, log, TEAM_NAME, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
-        <div onClick={() => exportBoxCsv(players, log, game)} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
+        <div onClick={() => { exportBoxPdf(players, log, TEAM_NAME, game); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => { exportBoxCsv(players, log, game); showToast('CSV downloaded') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
         <div onClick={askReset} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Reset</div>
       </div>
     </div>
