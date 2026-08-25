@@ -502,10 +502,14 @@ export default function StatTracker() {
   // Landscape is mainly for the Live tab's two-team layout, where every
   // pixel of height matters — the portrait top/bottom padding below is
   // sized to clear a notch that, rotated, is no longer at the top anyway.
+  // It moves to one of the *sides* instead, covering content flush against
+  // that edge — every inner element already adds its own 18px of breathing
+  // room on top of this, so the safe-area inset alone is all that's needed
+  // here (whichever side actually has the cutout; the other resolves to 0).
   const landscape = useLandscape()
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px 0 10px' : '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px env(safe-area-inset-right, 0px) 10px env(safe-area-inset-left, 0px)' : '56px 0 46px' }}>
       <ScreenHeader title="Stat tracker" line={gameLine} onClose={closeStats} />
       <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
       {statsTab === 'games' && <GamesTab />}
