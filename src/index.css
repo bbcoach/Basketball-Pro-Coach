@@ -95,7 +95,17 @@ input[type="range"]::-webkit-slider-thumb {
   100%     { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .rl-dunk-text { animation: none; }
+  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .rl-dunk-text, .toast-pop { animation: none; }
+}
+
+/* Brief confirmation toast: settles in, holds, then fades — timed against
+   the ~2.2s the store keeps it mounted, not looped. */
+.toast-pop { animation: toastPop 2.2s ease-out 1; }
+@keyframes toastPop {
+  0%   { opacity: 0; transform: translateY(8px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  85%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 input, button, textarea {

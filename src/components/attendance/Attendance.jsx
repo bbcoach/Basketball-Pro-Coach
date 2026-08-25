@@ -159,7 +159,7 @@ function SessionOpen() {
 }
 
 function SummaryTab() {
-  const { state } = useApp()
+  const { state, showToast } = useApp()
   const { roster, coaches, sessions, teams, activeTeamId } = state
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
   const pastSessions = sessions.filter((s) => s.date <= todayStr())
@@ -176,7 +176,7 @@ function SummaryTab() {
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, padding: '0 18px' }}>
       {!!roster.length && (
         <div
-          onClick={() => exportAttendancePdf(roster, coaches, sessions, teamName)}
+          onClick={() => { exportAttendancePdf(roster, coaches, sessions, teamName); showToast('Opening PDF…') }}
           style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
         >
           Export PDF

@@ -12,6 +12,7 @@ import InfoOverlay from './components/InfoOverlay'
 import BackupModal from './components/BackupModal'
 import RunScreen from './components/practice/RunScreen'
 import ConfirmModal from './components/ConfirmModal'
+import Toast from './components/Toast'
 
 function Screen() {
   const { state } = useApp()
@@ -28,6 +29,7 @@ function Screen() {
       <BackupModal />
       <RunScreen />
       <ConfirmModal />
+      <Toast />
     </>
   )
 }
