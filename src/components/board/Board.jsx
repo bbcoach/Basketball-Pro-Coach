@@ -176,17 +176,10 @@ export default function Board() {
   const { timeout } = state
   const landscape = useLandscape()
 
-  // Rotated to landscape, a notch/Dynamic Island sits on one of the side
-  // edges instead of the top, and this screen's own padding is the only
-  // thing clearing it (no inner element adds its own margin the way other
-  // screens do) — so the safe-area inset has to be added in full here,
-  // not just layered on top of an existing margin.
-  const landscapePadding = `14px calc(14px + env(safe-area-inset-right, 0px)) 14px calc(14px + env(safe-area-inset-left, 0px))`
-
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: timeout ? 0 : landscape ? landscapePadding : '52px 0 30px 0', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: timeout ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
       {timeout && (
-        <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 'calc(16px + env(safe-area-inset-right, 0px))', zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
+        <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
       )}
       {!timeout && !landscape && <Header />}
 
