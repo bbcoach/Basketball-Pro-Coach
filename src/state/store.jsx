@@ -479,10 +479,22 @@ export function AppProvider({ children }) {
 
   const openStarterPlays = () => set({ starterPlaysOpen: true })
   const closeStarterPlays = () => set({ starterPlaysOpen: false })
+  // Adding a starter play both saves the copy (so it's in "My plays" for
+  // next time) and opens it on the board right away — like picking a play
+  // from "My plays" itself — so tapping one is a single, obvious action
+  // instead of a silent add the coach then has to go find.
   const addStarterPlay = (sp) => {
-    persistPlays((ps) => [{ id: 'pl' + Date.now(), name: sp.name, ts: Date.now(), view: sp.view, steps: sp.steps, players: sp.players, ball: sp.ball }].concat(ps))
+    const id = 'pl' + Date.now()
+    const entry = { id, name: sp.name, ts: Date.now(), view: sp.view, steps: sp.steps, players: sp.players, ball: sp.ball }
+    persistPlays((ps) => [entry].concat(ps))
+    snapshot()
+    const d = JSON.parse(JSON.stringify(entry))
+    set({
+      view: d.view, players: d.players.map(normEnt), ball: normEnt(d.ball),
+      steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: id, playName: d.name,
+      starterPlaysOpen: false, sheetOpen: false, t: 0, playing: false, sel: null,
+    })
     showToast('Play added')
-    set({ starterPlaysOpen: false, sheetOpen: false })
   }
 
   // ── formations / share modals ──────────────────────────────
