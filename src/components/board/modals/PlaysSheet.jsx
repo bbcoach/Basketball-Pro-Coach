@@ -9,7 +9,7 @@ function playMeta(p) {
 }
 
 export default function PlaysSheet() {
-  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay, askConfirm, sharePlay, openImport, openStarterPlays } = useApp()
+  const { state, set, closeSheet, savePlay, loadPlayFromSheet, renamePlay, removePlay, askConfirm, sharePlay, openImport } = useApp()
   if (!state.sheetOpen) return null
   const { plays, nameDraft, currentId } = state
 
@@ -20,7 +20,6 @@ export default function PlaysSheet() {
         <div onClick={closeSheet} style={{ padding: '7px 13px', borderRadius: 9, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 10 }}>
-        <div onClick={openStarterPlays} style={{ flex: 1, textAlign: 'center', padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Starter plays</div>
         <div onClick={openImport} style={{ flex: 1, textAlign: 'center', padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.75)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Import</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
