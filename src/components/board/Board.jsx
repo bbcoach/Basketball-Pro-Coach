@@ -8,7 +8,6 @@ import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
 import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
-import StarterPlaysSheet from './modals/StarterPlaysSheet'
 
 // The ︎ (text variation selector) after each icon forces plain
 // glyph rendering instead of a platform color-emoji fallback — without it,
@@ -207,7 +206,6 @@ export default function Board() {
       <PlaysSheet />
       <FormationsModal />
       <ShareModal />
-      <StarterPlaysSheet />
     </div>
   )
 }
