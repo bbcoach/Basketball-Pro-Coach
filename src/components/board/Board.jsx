@@ -172,14 +172,26 @@ function FooterButtons() {
 }
 
 export default function Board() {
-  const { state, exitTimeout } = useApp()
-  const { timeout } = state
+  const { state, exitTimeout, togglePlay } = useApp()
+  const { timeout, playing } = state
   const landscape = useLandscape()
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: timeout ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
       {timeout && (
-        <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
+        <>
+          <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
+          <div
+            onClick={togglePlay}
+            style={{
+              position: 'absolute', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)',
+              zIndex: 60, width: 64, height: 64, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: ACCENT, color: '#101012', fontSize: 22, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+            }}
+          >
+            {playing ? '❙❙' : '▶'}
+          </div>
+        </>
       )}
       {!timeout && !landscape && <Header />}
 
