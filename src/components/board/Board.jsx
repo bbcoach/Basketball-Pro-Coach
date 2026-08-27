@@ -184,9 +184,9 @@ export default function Board() {
           <div
             onClick={togglePlay}
             style={{
-              position: 'absolute', bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)',
-              zIndex: 60, width: 64, height: 64, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: ACCENT, color: '#101012', fontSize: 22, fontWeight: 700, cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+              position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', right: 16,
+              zIndex: 60, width: 46, height: 46, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
             }}
           >
             {playing ? '❙❙' : '▶'}
