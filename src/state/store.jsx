@@ -5,6 +5,7 @@ import {
 import { HINTS } from '../lib/content'
 import { exportClip, exportStill } from '../lib/export'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
+import { exportPlayStepsPdf } from '../lib/reports'
 
 const LS = {
   plays: 'tb.plays.v1',
@@ -484,6 +485,11 @@ export function AppProvider({ children }) {
   const closeShareModal = () => set({ shareOpen: false })
   const doExportPng = () => exportStill(svgRef, contentRef, stateRef, set)
   const doExportVideo = () => exportClip(svgRef, contentRef, stateRef, set)
+  const doExportSteps = () => {
+    const s = stateRef.current
+    exportPlayStepsPdf({ name: s.playName, view: s.view, steps: nSteps(), players: s.players, ball: s.ball })
+    set({ shareOpen: false, shareStatus: 'Opening PDF…' })
+  }
 
   const enterTimeout = () => set({ timeout: true, playing: false })
   const exitTimeout = () => set({ timeout: false })
@@ -915,7 +921,7 @@ export function AppProvider({ children }) {
     undo, clearRoutes, resetAll, setTool, toggleAutoDef, applyFormation,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
-    openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo,
+    openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportVideo, doExportSteps,
     openShareCode, closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterTimeout, exitTimeout,
