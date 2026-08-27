@@ -45,7 +45,7 @@ function initialState() {
     autoDef: true, timeout: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '',
-    formOpen: false, shareOpen: false, exporting: false,
+    formOpen: false, shareOpen: false, exporting: false, exportGhost: false,
     shareStatus: 'Sends the current play to your team',
     plays: [],
     shareCode: null, // { title, code } — the coach-to-coach export/import sheet
