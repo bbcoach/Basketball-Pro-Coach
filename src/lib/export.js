@@ -142,17 +142,19 @@ export async function exportClip(svgRef, contentRef, stateRef, set) {
     const fps = 20
     const secPerStep = 1 / 0.42 / s0.speed
     const nStepsNow = Math.max(1, s0.steps)
-    const frames = Math.round(fps * secPerStep * nStepsNow)
+    const naturalSec = secPerStep * nStepsNow
+    // A long, many-step play can want a 30+ second continuous recording —
+    // reducing what's drawn each frame (previous fix) wasn't enough to keep
+    // Safari's MediaRecorder from failing on one of these, so the session's
+    // total length looks to be the actual constraint. Compress playback so
+    // the recording itself never runs past MAX_SEC; short plays that were
+    // already under the cap are completely unaffected (scale stays 1).
+    const MAX_SEC = 10
+    const scale = naturalSec > MAX_SEC ? naturalSec / MAX_SEC : 1
+    const frames = Math.round(fps * (naturalSec / scale))
     for (let i = 0; i <= frames; i++) {
       const t = i / frames
-      // Keeping `step` in sync with the live scrub position (instead of
-      // leaving exportGhost on, which shows every step's routes on every
-      // frame) is what keeps the per-frame SVG small regardless of how many
-      // steps the play has — re-serializing a 13-step play's full route set
-      // ~600 times over a long recording is exactly the kind of sustained
-      // canvas/memory load that trips Safari's MediaRecorder into an
-      // unrelated-looking "not allowed" failure partway through.
-      set({ t, step: stepAtTime(t, nStepsNow), shareStatus: 'Recording at ' + s0.speed + '× … ' + Math.round(t * 100) + '%' })
+      set({ t, step: stepAtTime(t, nStepsNow), shareStatus: 'Recording at ' + (s0.speed * scale).toFixed(1) + '× … ' + Math.round(t * 100) + '%' })
       await nextFrame()
       await drawFrame(svgRef, contentRef, s0.view, ctx, w, h)
     }
