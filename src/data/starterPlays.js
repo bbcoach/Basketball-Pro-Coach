@@ -32,12 +32,24 @@ export const STARTER_PLAYS = [
     view: 'half', steps: 2,
     players: [
       { id: 'o1', team: 'off', label: '1', x: 750, y: 1180, acts: [] },
-      { id: 'o2', team: 'off', label: '2', x: 110, y: 760, acts: [{ type: 'cut', step: 2, pts: [{ x: 300, y: 500 }, { x: 560, y: 250 }] }] },
-      { id: 'o3', team: 'off', label: '3', x: 1390, y: 760, acts: [] },
+      { id: 'o2', team: 'off', label: '2', x: 150, y: 320, acts: [{ type: 'cut', step: 2, pts: [{ x: 400, y: 220 }, { x: 650, y: 170 }] }] },
+      { id: 'o3', team: 'off', label: '3', x: 1350, y: 320, acts: [] },
       { id: 'o4', team: 'off', label: '4', x: 520, y: 560, acts: [] },
       { id: 'o5', team: 'off', label: '5', x: 980, y: 560, acts: [] },
     ],
     ball: { x: 800, y: 1230, acts: [{ type: 'pass', step: 1, pts: [{ x: 520, y: 560 }] }] },
+  },
+  {
+    id: 'sp-horns-flex', name: 'Horns flex', desc: 'Reverse to the corner; the strong elbow drops to flex-screen the weak corner across the baseline, then gets down-screened himself to pop back out.',
+    view: 'half', steps: 3,
+    players: [
+      { id: 'o1', team: 'off', label: '1', x: 750, y: 1180, acts: [] },
+      { id: 'o2', team: 'off', label: '2', x: 150, y: 320, acts: [{ type: 'cut', step: 2, pts: [{ x: 400, y: 180 }, { x: 700, y: 160 }, { x: 880, y: 220 }] }] },
+      { id: 'o3', team: 'off', label: '3', x: 1350, y: 320, acts: [] },
+      { id: 'o4', team: 'off', label: '4', x: 520, y: 560, acts: [{ type: 'screen', step: 3, pts: [{ x: 900, y: 450 }] }] },
+      { id: 'o5', team: 'off', label: '5', x: 980, y: 560, acts: [{ type: 'screen', step: 2, pts: [{ x: 900, y: 280 }] }, { type: 'cut', step: 3, pts: [{ x: 1000, y: 450 }, { x: 1000, y: 700 }] }] },
+    ],
+    ball: { x: 800, y: 1230, acts: [{ type: 'pass', step: 1, pts: [{ x: 1350, y: 320 }] }] },
   },
   // 5-out motion: all five offensive players start beyond the arc (no post
   // player) and read off ball movement — these four cover its core reads.
