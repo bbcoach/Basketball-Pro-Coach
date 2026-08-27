@@ -1,6 +1,7 @@
 import { tallyFor } from './stats'
 import { download } from './download'
 import { ACCENT } from '../state/config'
+import { playStepSvgs } from './playSvg'
 
 function gameSlug(game) {
   if (!game) return 'boxscore'
@@ -255,4 +256,30 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
     </body></html>`
 
   openReportWindow(html, 'attendance-summary.html')
+}
+
+// A single still image showing every step of a play at once gets unreadable
+// fast — this prints one clean tile per step instead, so a long, many-step
+// play stays legible as a handout. Also sidesteps the whole canvas/video
+// export pipeline entirely (no MediaRecorder involved).
+export function exportPlayStepsPdf(play) {
+  const svgs = playStepSvgs(play)
+  const tilesHtml = svgs.map((svg, i) => `<div class="tile"><div class="tile-head">Step ${i + 1}</div><div class="tile-court">${svg}</div></div>`).join('')
+
+  const now = new Date()
+  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+  const html = `<!doctype html><html><head>${reportHead(play.name || 'Play')}<style>
+      ${reportStyles('A4 portrait')}
+      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+      .tile{border:1px solid #eee;border-radius:10px;overflow:hidden;break-inside:avoid}
+      .tile-head{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:${ACCENT};padding:5px 9px}
+      .tile-court{aspect-ratio:15/28;background:#8a5e34}
+    </style></head><body>
+    ${reportHeader({ title: play.name || 'Untitled play', subtitle: 'Play — step by step', metaLines: [generatedDate, svgs.length + ' step' + (svgs.length === 1 ? '' : 's')] })}
+    <div class="tiles">${tilesHtml}</div>
+    ${reportFooter()}
+    </body></html>`
+
+  openReportWindow(html, (play.name || 'play').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '-steps.html')
 }
