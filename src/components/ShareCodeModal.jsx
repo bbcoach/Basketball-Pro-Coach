@@ -9,6 +9,19 @@ export default function ShareCodeModal() {
   if (!shareCode) return null
   const { title, code } = shareCode
 
+  // navigator.share hands the raw text straight to Messages/WhatsApp/Mail/
+  // AirDrop/Notes — no manual copy-paste step where a "smart" quote or a
+  // soft-wrapped line break can sneak into the code (exactly what corrupted
+  // a pasted code once already). Copy/Save-as-file stay as fallbacks for
+  // browsers without the Web Share API (mainly desktop).
+  const canNativeShare = typeof navigator.share === 'function'
+  const nativeShare = async () => {
+    try {
+      await navigator.share({ title: 'Basketball Pro Coach — ' + title, text: code })
+    } catch (err) {
+      if (err && err.name !== 'AbortError') showToast('Could not open the share sheet')
+    }
+  }
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code)
@@ -33,7 +46,8 @@ export default function ShareCodeModal() {
           style={{ width: '100%', padding: '10px 11px', marginBottom: 10, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 11, fontFamily: 'monospace', outline: 'none', resize: 'none' }}
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div onClick={copy} style={{ padding: 12, borderRadius: 11, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Copy code</div>
+          {canNativeShare && <div onClick={nativeShare} style={{ padding: 12, borderRadius: 11, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Share…</div>}
+          <div onClick={copy} style={{ padding: 12, borderRadius: 11, background: canNativeShare ? 'rgba(255,255,255,.09)' : ACCENT, color: canNativeShare ? '#fff' : '#101012', fontSize: 13.5, fontWeight: canNativeShare ? 600 : 700, cursor: 'pointer', textAlign: 'center' }}>Copy code</div>
           <div onClick={saveFile} style={{ padding: 12, borderRadius: 11, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Save as file</div>
           <div onClick={closeShareCode} style={{ padding: 10, borderRadius: 11, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Close</div>
         </div>
