@@ -150,6 +150,18 @@ export async function exportClip(svgRef, contentRef, stateRef, set) {
     const file = fileBase(s0) + (mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm')
     await shareOrDownload(blob, file, s0.playName, set, 'Video saved')
   } catch (err) {
-    set({ exporting: false, shareStatus: 'Could not record the animation' + (err && err.message ? ' (' + err.message + ')' : '') })
+    // Safari's captureStream()+MediaRecorder combo has been unreliable for
+    // years — both APIs individually feature-detect as present, but
+    // starting the recorder throws this exact permission-flavored error
+    // even though no permission prompt was ever involved. It's a platform
+    // limitation, not something an app-level retry or config fixes, so
+    // give a clear way forward instead of surfacing the raw DOMException.
+    const blockedBySafari = err && (err.name === 'NotAllowedError' || /not allowed/i.test(err.message || ''))
+    set({
+      exporting: false,
+      shareStatus: blockedBySafari
+        ? "Safari doesn't support recording this animation — use Still image instead"
+        : 'Could not record the animation' + (err && err.message ? ' (' + err.message + ')' : ''),
+    })
   }
 }
