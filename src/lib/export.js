@@ -1,4 +1,4 @@
-import { HALF, FULL, stepAtTime } from './board-geometry'
+import { HALF, FULL } from './board-geometry'
 import { download } from './download'
 
 function nextFrame() {
@@ -62,13 +62,7 @@ async function shareOrDownload(blob, file, title, set, savedLabel) {
 
 export async function exportStill(svgRef, contentRef, stateRef, set) {
   try {
-    // exportGhost shows every step's routes at once (dimmed for non-current
-    // ones) — the right call for a single still frame, which has no other
-    // way to convey the whole play. The video export below deliberately
-    // does NOT set this: it animates through the steps instead, and ghosting
-    // all of them on every frame was needlessly re-rendering the entire
-    // play's paths ~20 times a second (see exportClip).
-    set({ shareStatus: 'Rendering image…', exporting: true, exportGhost: true })
+    set({ shareStatus: 'Rendering image…', exporting: true })
     await nextFrame()
     const s = stateRef.current
     const [w, h] = canvasSize(s.view)
@@ -76,109 +70,10 @@ export async function exportStill(svgRef, contentRef, stateRef, set) {
     cv.width = w; cv.height = h
     await drawFrame(svgRef, contentRef, s.view, cv.getContext('2d'), w, h)
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'))
-    set({ exporting: false, exportGhost: false })
+    set({ exporting: false })
     const file = fileBase(s) + '.png'
     await shareOrDownload(blob, file, s.playName, set, 'Image saved')
   } catch {
-    set({ exporting: false, exportGhost: false, shareStatus: 'Could not render the image' })
-  }
-}
-
-function isIOSDevice() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPadOS 13+ reports as Mac
-}
-
-function isStandaloneOnIOS() {
-  // display-mode:standalone alone isn't enough — Android/Chrome PWAs match it
-  // too, and MediaRecorder on a canvas stream works fine there. The capture
-  // restriction is specific to iOS Safari's standalone (Home Screen) mode.
-  return isIOSDevice() && (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches)
-}
-
-export async function exportClip(svgRef, contentRef, stateRef, set) {
-  if (!window.MediaRecorder) { set({ shareStatus: 'Video recording is not supported here' }); return }
-  if (typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
-    set({ shareStatus: 'Video recording is not supported here' })
-    return
-  }
-  // iOS blocks MediaRecorder on a canvas stream when the app is installed to
-  // the Home Screen (standalone display mode) — it works fine in a regular
-  // Safari tab, so don't waste an attempt on a failure we can predict.
-  if (isStandaloneOnIOS()) {
-    set({ shareStatus: 'Video export needs Safari — open this app in a browser tab to record a video, or use Still image here' })
-    return
-  }
-
-  const s0 = stateRef.current
-  const [w, h] = canvasSize(s0.view)
-  const cv = document.createElement('canvas')
-  cv.width = w; cv.height = h
-  const ctx = cv.getContext('2d')
-
-  let stream
-  let type
-  let rec
-  try {
-    stream = cv.captureStream(20)
-    if (!stream.getVideoTracks().length) throw new Error('no video track from captureStream')
-    const cands = ['video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=h264', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm']
-    type = cands.find((c) => MediaRecorder.isTypeSupported(c)) || ''
-    rec = new MediaRecorder(stream, type ? { mimeType: type, videoBitsPerSecond: 5000000 } : { videoBitsPerSecond: 5000000 })
-  } catch (err) {
-    set({ shareStatus: 'Video recording is not supported here' + (err && err.message ? ' (' + err.message + ')' : '') })
-    return
-  }
-
-  const wasPlaying = s0.playing
-  const t0 = s0.t
-  const step0 = s0.step
-  try {
-    const parts = []
-    rec.ondataavailable = (e) => { if (e.data.size) parts.push(e.data) }
-    const done = new Promise((r) => { rec.onstop = r })
-    set({ playing: false, exporting: true })
-    rec.start()
-    const fps = 20
-    const secPerStep = 1 / 0.42 / s0.speed
-    const nStepsNow = Math.max(1, s0.steps)
-    const naturalSec = secPerStep * nStepsNow
-    // A long, many-step play can want a 30+ second continuous recording —
-    // reducing what's drawn each frame (previous fix) wasn't enough to keep
-    // Safari's MediaRecorder from failing on one of these, so the session's
-    // total length looks to be the actual constraint. Compress playback so
-    // the recording itself never runs past MAX_SEC; short plays that were
-    // already under the cap are completely unaffected (scale stays 1).
-    const MAX_SEC = 10
-    const scale = naturalSec > MAX_SEC ? naturalSec / MAX_SEC : 1
-    const frames = Math.round(fps * (naturalSec / scale))
-    for (let i = 0; i <= frames; i++) {
-      const t = i / frames
-      set({ t, step: stepAtTime(t, nStepsNow), shareStatus: 'Recording at ' + (s0.speed * scale).toFixed(1) + '× … ' + Math.round(t * 100) + '%' })
-      await nextFrame()
-      await drawFrame(svgRef, contentRef, s0.view, ctx, w, h)
-    }
-    rec.stop()
-    await done
-    set({ t: t0, step: step0, playing: wasPlaying, exporting: false })
-    if (!parts.length) throw new Error('recording produced no data')
-    const mime = (rec.mimeType || type || 'video/mp4').split(';')[0]
-    const blob = new Blob(parts, { type: mime })
-    const file = fileBase(s0) + (mime.indexOf('mp4') >= 0 ? '.mp4' : '.webm')
-    await shareOrDownload(blob, file, s0.playName, set, 'Video saved')
-  } catch (err) {
-    // Safari's captureStream()+MediaRecorder combo has been unreliable for
-    // years — both APIs individually feature-detect as present, but
-    // starting the recorder throws this exact permission-flavored error
-    // even though no permission prompt was ever involved. It's a platform
-    // limitation, not something an app-level retry or config fixes, so
-    // give a clear way forward instead of surfacing the raw DOMException.
-    const blockedBySafari = err && (err.name === 'NotAllowedError' || /not allowed/i.test(err.message || ''))
-    set({
-      t: t0, step: step0, playing: wasPlaying, exporting: false,
-      shareStatus: blockedBySafari
-        ? "Safari doesn't support recording this animation — use Still image instead"
-        : 'Could not record the animation' + (err && err.message ? ' (' + err.message + ')' : ''),
-    })
+    set({ exporting: false, shareStatus: 'Could not render the image' })
   }
 }

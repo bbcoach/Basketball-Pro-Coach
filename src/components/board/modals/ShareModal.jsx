@@ -3,7 +3,7 @@ import { ACCENT } from '../../../state/config'
 import { COND } from '../../../theme'
 
 export default function ShareModal() {
-  const { state, closeShareModal, doExportPng, doExportVideo, doExportSteps } = useApp()
+  const { state, closeShareModal, doExportPng, doExportSteps } = useApp()
   if (!state.shareOpen) return null
   const { shareStatus, exporting } = state
   return (
@@ -14,7 +14,6 @@ export default function ShareModal() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, opacity: exporting ? 0.6 : 1, pointerEvents: exporting ? 'none' : 'auto' }}>
           <div onClick={doExportSteps} style={{ padding: 12, borderRadius: 11, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Step by step (PDF)</div>
           <div onClick={doExportPng} style={{ padding: 12, borderRadius: 11, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Still image (PNG)</div>
-          <div onClick={doExportVideo} style={{ padding: 12, borderRadius: 11, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Animation (video)</div>
           <div onClick={closeShareModal} style={{ padding: 10, borderRadius: 11, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
         </div>
       </div>
