@@ -3,7 +3,6 @@ import {
   actsOf, baseAt, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
-import { exportStill } from '../lib/export'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
 
@@ -46,7 +45,7 @@ function initialState() {
     autoDef: true, timeout: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '',
-    formOpen: false, shareOpen: false, exporting: false,
+    formOpen: false, shareOpen: false,
     shareStatus: 'Sends the current play to your team',
     plays: [],
     shareCode: null, // { title, code } — the coach-to-coach export/import sheet
@@ -483,7 +482,6 @@ export function AppProvider({ children }) {
   const closeFormations = () => set({ formOpen: false })
   const openShare = () => set((s) => ({ shareOpen: true, playing: false, shareStatus: 'Step ' + s.step + ' of ' + nSteps() + ' · ' + (s.view === 'half' ? 'Halfcourt' : 'Fullcourt') }))
   const closeShareModal = () => set({ shareOpen: false })
-  const doExportPng = () => exportStill(svgRef, contentRef, stateRef, set)
   const doExportSteps = () => {
     const s = stateRef.current
     exportPlayStepsPdf({ name: s.playName, view: s.view, steps: nSteps(), players: s.players, ball: s.ball })
@@ -933,7 +931,7 @@ export function AppProvider({ children }) {
     undo, clearRoutes, resetAll, setTool, toggleAutoDef, applyFormation,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
-    openFormations, closeFormations, openShare, closeShareModal, doExportPng, doExportSteps,
+    openFormations, closeFormations, openShare, closeShareModal, doExportSteps,
     openShareCode, closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterTimeout, exitTimeout,
