@@ -19,33 +19,48 @@ const KIND_META = {
 
 const KINDS = ['training', 'game', 'event']
 
+// A coach with several teams needs to tell entries apart at a glance — a
+// small color per team, cycling if there are more teams than colors.
+const TEAM_COLORS = ['#e8b13c', '#7fb2e0', '#5bbf72', '#c98bd6', '#e0806f', '#7ec8c0']
+function teamColor(teams, teamId) {
+  const idx = teams.findIndex((t) => t.id === teamId)
+  return TEAM_COLORS[idx % TEAM_COLORS.length]
+}
+
 export default function Schedule() {
   const {
     state, set, closeSchedule, goToSession, goToGame,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
   } = useApp()
-  const { sessions, games, events, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
+  const { teams, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
   const [showPast, setShowPast] = useState(false)
   const [icsPreview, setIcsPreview] = useState(null)
   const [icsStatus, setIcsStatus] = useState(null)
   const icsFileRef = useRef(null)
   const today = todayStr()
+  const multiTeam = teams.length > 1
 
+  // Schedule shows every team at once, not just the active one — a coach
+  // running two teams needs one combined view of what's coming up, not a
+  // reason to flip between teams just to check for clashes.
   const upcoming = []
   const past = []
   const push = (isPast, item) => (isPast ? past : upcoming).push(item)
-  sessions.forEach((s) => {
-    push(s.date < today, { id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, location: '', description: 'Training', onOpen: () => goToSession(s.id) })
-  })
-  games.forEach((g) => {
-    if (g.type !== 'game') return
-    const homeAway = g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : ''
-    const sub = [homeAway, g.location].filter(Boolean).join(' · ')
-    const description = [homeAway ? homeAway + ' game' : 'Game', g.opponent ? 'vs ' + g.opponent : ''].filter(Boolean).join(' — ')
-    push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, location: g.location || '', description, onOpen: () => goToGame(g.id) })
-  })
-  events.forEach((e) => {
-    push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, sub: e.location || '', location: e.location || '', description: '', raw: e })
+  teams.forEach((team) => {
+    const teamTag = multiTeam ? { teamId: team.id, teamName: team.name, teamColor: teamColor(teams, team.id) } : null
+    ;(team.sessions || []).forEach((s) => {
+      push(s.date < today, { id: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || s.date, location: '', description: 'Training', ...teamTag, onOpen: () => goToSession(s.id, team.id) })
+    })
+    ;(team.games || []).forEach((g) => {
+      if (g.type !== 'game') return
+      const homeAway = g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : ''
+      const sub = [homeAway, g.location].filter(Boolean).join(' · ')
+      const description = [homeAway ? homeAway + ' game' : 'Game', g.opponent ? 'vs ' + g.opponent : ''].filter(Boolean).join(' — ')
+      push(g.date < today, { id: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub, location: g.location || '', description, ...teamTag, onOpen: () => goToGame(g.id, team.id) })
+    })
+    ;(team.events || []).forEach((e) => {
+      push(e.date < today, { id: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title, sub: e.location || '', location: e.location || '', description: '', ...teamTag, raw: e })
+    })
   })
   upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   past.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
@@ -191,12 +206,15 @@ function ScheduleRow({ it, editEvent, removeEvent }) {
       <div style={{ width: 32, height: 32, flex: 'none', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: meta.color, fontSize: 15, fontWeight: 700 }}>{meta.icon}</div>
       <div onClick={it.onOpen} style={{ flex: 1, minWidth: 0, cursor: it.onOpen ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', gap: 2 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.title}</div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}{it.sub ? ' · ' + it.sub : ''}</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          {it.teamName && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 99, background: it.teamColor, flex: 'none' }} />}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.teamName ? it.teamName + ' · ' : ''}{meta.label} · {fmtDate(it.date)}{it.time ? ' · ' + it.time : ''}{it.sub ? ' · ' + it.sub : ''}</span>
+        </div>
       </div>
       {it.kind === 'event' && (
         <>
-          <div onClick={() => editEvent(it.raw)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-          <div onClick={() => askConfirm({ title: 'Delete event', message: `Delete "${it.title}"? This can't be undone.`, onConfirm: () => removeEvent(it.raw) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+          <div onClick={() => editEvent(it.raw, it.teamId)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
+          <div onClick={() => askConfirm({ title: 'Delete event', message: `Delete "${it.title}"? This can't be undone.`, onConfirm: () => removeEvent(it.raw, it.teamId) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
         </>
       )}
     </div>
