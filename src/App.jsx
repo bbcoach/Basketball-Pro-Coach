@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppProvider, useApp } from './state/store'
 import { useLandscape } from './lib/useLandscape'
 import Home from './components/Home'
@@ -137,9 +137,56 @@ function AppShell() {
   )
 }
 
+// Temporary on-device diagnostic for the "page doesn't fill the tablet
+// screen" report — opened via ?debug=viewport so real numbers can be read
+// off the device itself instead of guessed at from a photo. Remove once
+// the cause is confirmed.
+function DebugViewport() {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    const bump = () => setN((x) => x + 1)
+    window.addEventListener('resize', bump)
+    window.addEventListener('orientationchange', bump)
+    return () => {
+      window.removeEventListener('resize', bump)
+      window.removeEventListener('orientationchange', bump)
+    }
+  }, [])
+  if (new URLSearchParams(window.location.search).get('debug') !== 'viewport') return null
+
+  const de = document.documentElement
+  const frame = document.querySelector('[data-app-frame]')
+  const vv = window.visualViewport
+  const rows = [
+    ['window.innerWidth × innerHeight', window.innerWidth + ' × ' + window.innerHeight],
+    ['documentElement.clientWidth × clientHeight', de.clientWidth + ' × ' + de.clientHeight],
+    ['documentElement.scrollWidth × scrollHeight', de.scrollWidth + ' × ' + de.scrollHeight],
+    ['visualViewport width × height', vv ? Math.round(vv.width) + ' × ' + Math.round(vv.height) : 'n/a'],
+    ['screen.width × height', window.screen.width + ' × ' + window.screen.height],
+    ['devicePixelRatio', window.devicePixelRatio],
+    ['matchMedia(orientation: landscape)', String(window.matchMedia('(orientation: landscape)').matches)],
+    ['app-frame rect', frame ? Math.round(frame.getBoundingClientRect().width) + ' × ' + Math.round(frame.getBoundingClientRect().height) : 'not mounted'],
+    ['app-frame computed max-width', frame ? getComputedStyle(frame).maxWidth : 'not mounted'],
+    ['--app-height custom property', de.style.getPropertyValue('--app-height') || '(unset)'],
+    ['userAgent', navigator.userAgent],
+  ]
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: '#000', color: '#0f0', fontFamily: 'monospace', fontSize: 13, padding: 16, overflow: 'auto' }}>
+      <div style={{ color: '#fff', fontWeight: 700, marginBottom: 10 }}>Viewport debug (n={n})</div>
+      {rows.map(([label, val]) => (
+        <div key={label} style={{ marginBottom: 8, wordBreak: 'break-word' }}>
+          <div style={{ color: '#8f8' }}>{label}</div>
+          <div>{val}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <AppProvider>
+      <DebugViewport />
       <AppShell />
     </AppProvider>
   )
