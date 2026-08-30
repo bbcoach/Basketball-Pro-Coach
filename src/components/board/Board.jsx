@@ -146,7 +146,7 @@ function ToolsRow() {
 
 function FooterButtons() {
   const app = useApp()
-  const { state, goHome, openSave, openSheet, enterTimeout, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
+  const { state, goHome, openSave, openSheet, enterFullScreen, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const btn = (label, onClick, active) => (
@@ -159,7 +159,7 @@ function FooterButtons() {
         {btn('Menu', goHome)}
         {btn('Save', openSave)}
         <div onClick={openSheet} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Plays</div>
-        {btn('Timeout', enterTimeout)}
+        {btn('Full screen', enterFullScreen)}
         {btn('D follows', toggleAutoDef, state.autoDef)}
         {btn('Setup', openFormations)}
         {btn('Share', openShare)}
@@ -171,16 +171,39 @@ function FooterButtons() {
   )
 }
 
+// Full screen strips away everything but the court so a coach can prop the
+// device up during a timeout — but that shouldn't mean losing the ability
+// to step through the play; these mirror the step controls from StepBar in
+// a compact, presentation-friendly form.
+function FullScreenControls() {
+  const { state, gotoStep, nSteps } = useApp()
+  const { step, playing, t } = state
+  const n = nSteps()
+  const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
+  const circleBtn = (disabled) => ({
+    width: 44, height: 44, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(255,255,255,.16)', color: disabled ? 'rgba(255,255,255,.3)' : '#fff', fontSize: 19, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
+  })
+  return (
+    <div style={{ position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', left: 16, zIndex: 60, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div onClick={() => editStep > 1 && gotoStep(editStep - 1)} style={circleBtn(editStep <= 1)}>‹</div>
+      <div style={{ padding: '8px 4px', borderRadius: 99, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
+      <div onClick={() => editStep < n && gotoStep(editStep + 1)} style={circleBtn(editStep >= n)}>›</div>
+    </div>
+  )
+}
+
 export default function Board() {
-  const { state, exitTimeout, togglePlay } = useApp()
-  const { timeout, playing } = state
+  const { state, exitFullScreen, togglePlay } = useApp()
+  const { fullScreen, playing } = state
   const landscape = useLandscape()
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: timeout ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
-      {timeout && (
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
+      {fullScreen && (
         <>
-          <div onClick={exitTimeout} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit timeout</div>
+          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
+          <FullScreenControls />
           <div
             onClick={togglePlay}
             style={{
@@ -193,13 +216,13 @@ export default function Board() {
           </div>
         </>
       )}
-      {!timeout && !landscape && <Header />}
+      {!fullScreen && !landscape && <Header />}
 
       <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
         <Court />
       </div>
 
-      {!timeout && (
+      {!fullScreen && (
         <div
           className={landscape ? 'scrollx' : undefined}
           style={landscape

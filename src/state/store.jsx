@@ -42,7 +42,7 @@ function initialState() {
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
-    autoDef: true, timeout: false,
+    autoDef: true, fullScreen: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '',
     formOpen: false, shareOpen: false,
@@ -488,8 +488,8 @@ export function AppProvider({ children }) {
     set({ shareOpen: false, shareStatus: 'Opening PDF…' })
   }
 
-  const enterTimeout = () => set({ timeout: true, playing: false })
-  const exitTimeout = () => set({ timeout: false })
+  const enterFullScreen = () => set({ fullScreen: true, playing: false })
+  const exitFullScreen = () => set({ fullScreen: false })
 
   // ── navigation ──────────────────────────────────────────────
   // Landing on "Games" with an empty roster is a dead end — you can start a
@@ -934,7 +934,7 @@ export function AppProvider({ children }) {
     openFormations, closeFormations, openShare, closeShareModal, doExportSteps,
     openShareCode, closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
-    enterTimeout, exitTimeout,
+    enterFullScreen, exitFullScreen,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
     askConfirm, closeConfirm, runConfirm, showToast,
