@@ -8,7 +8,7 @@ const COURT_W = 1500
 
 export default function Court() {
   const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
-  const { players, ball, t, step, playing, timeout, exporting, sel, view } = state
+  const { players, ball, t, step, playing, timeout, sel, view } = state
   const landscape = useLandscape()
 
   const board = useMemo(() => makeBoard(state), [state])
@@ -47,7 +47,7 @@ export default function Court() {
         const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : baseAt(ent, act.step)
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
-        if (!exporting && act.step !== editStep) return
+        if (act.step !== editStep) return
         const ty = act.type
         const op = act.step === editStep ? 0.97 : 0.5
         rts.push({
@@ -70,7 +70,7 @@ export default function Court() {
     })
     return { tokens: tks, routes: rts, caps: cps, badges: bdg }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, ball, t, step, playing, timeout, exporting, sel, nSteps])
+  }, [players, ball, t, step, playing, timeout, sel, nSteps])
 
   const courtH = view === 'half' ? 1400 : 2800
   // In landscape the <g> below carries a 90° rotation so the (portrait-authored)

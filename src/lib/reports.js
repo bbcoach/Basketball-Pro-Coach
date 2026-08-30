@@ -2,6 +2,7 @@ import { tallyFor } from './stats'
 import { download } from './download'
 import { ACCENT } from '../state/config'
 import { playStepSvgs } from './playSvg'
+import { HALF, FULL } from './board-geometry'
 
 function gameSlug(game) {
   if (!game) return 'boxscore'
@@ -264,7 +265,19 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
 // export pipeline entirely (no MediaRecorder involved).
 export function exportPlayStepsPdf(play) {
   const svgs = playStepSvgs(play)
-  const tilesHtml = svgs.map((svg, i) => `<div class="tile"><div class="tile-head">Step ${i + 1}</div><div class="tile-court">${svg}</div></div>`).join('')
+  // The court's ratio is baked in as a padding-top percentage (padding
+  // percentages resolve against the container's *width*, so this yields an
+  // exact height) rather than the `aspect-ratio` property — Mobile Safari's
+  // print/PDF pipeline has been seen ignoring `aspect-ratio` and falling
+  // back to some other height for the tile, squashing the court. The
+  // padding trick is old enough that every print engine sizes it correctly
+  // no matter how it handles the newer property. Half and full court have
+  // different ratios (1500×1400 vs 1500×2800), so this has to match
+  // whichever the play actually uses, not one fixed number for both.
+  const vb = play.view === 'full' ? FULL : HALF
+  const [, , vbW, vbH] = vb.split(' ').map(Number)
+  const padTop = ((vbH / vbW) * 100).toFixed(3) + '%'
+  const tilesHtml = svgs.map((svg, i) => `<div class="tile"><div class="tile-head">Step ${i + 1}</div><div class="tile-court-wrap" style="padding-top:${padTop}"><div class="tile-court">${svg}</div></div></div>`).join('')
 
   const now = new Date()
   const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -274,7 +287,8 @@ export function exportPlayStepsPdf(play) {
       .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
       .tile{border:1px solid #eee;border-radius:10px;overflow:hidden;break-inside:avoid}
       .tile-head{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:${ACCENT};padding:5px 9px}
-      .tile-court{aspect-ratio:15/28;background:#8a5e34}
+      .tile-court-wrap{position:relative;width:100%}
+      .tile-court{position:absolute;inset:0;background:#8a5e34}
     </style></head><body>
     ${reportHeader({ title: play.name || 'Untitled play', subtitle: 'Play — step by step', metaLines: [generatedDate, svgs.length + ' step' + (svgs.length === 1 ? '' : 's')] })}
     <div class="tiles">${tilesHtml}</div>
