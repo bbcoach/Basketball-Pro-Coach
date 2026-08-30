@@ -507,8 +507,18 @@ export function AppProvider({ children }) {
   const closeTeams = () => set({ screen: 'home', teamsDetail: false })
   const openSchedule = () => set({ screen: 'schedule' })
   const closeSchedule = () => set({ screen: 'home' })
-  const goToSession = (id) => set({ screen: 'attend', openSession: id })
-  const goToGame = (id) => set({ screen: 'stats', activeGameId: id, statsTab: 'live', selPlayer: null })
+  // Schedule can show entries from every team at once — opening one that
+  // belongs to a team other than the currently active one has to switch
+  // teams first, or the target screen would look for it in the wrong team's
+  // data and come up empty.
+  const goToSession = (id, teamId) => {
+    if (teamId && teamId !== stateRef.current.activeTeamId) switchTeam(teamId)
+    set({ screen: 'attend', openSession: id })
+  }
+  const goToGame = (id, teamId) => {
+    if (teamId && teamId !== stateRef.current.activeTeamId) switchTeam(teamId)
+    set({ screen: 'stats', activeGameId: id, statsTab: 'live', selPlayer: null })
+  }
   const openInfo = (page) => set({ infoPage: page })
   const closeInfo = () => set({ infoPage: null })
   const openBackup = () => set({ backupOpen: true })
@@ -815,9 +825,16 @@ export function AppProvider({ children }) {
     const entries = parsedItems.map((it, i) => ({ id: 'ev' + stamp + '_' + i, title: it.title, date: it.date, time: it.time || '', location: it.location || '' }))
     persistEvents((es) => sortEvents(es.concat(entries)))
   }
-  const editEvent = (e) => set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '', evLocationIn: e.location || '', evKind: 'event' })
+  // Editing/removing an event persists to whichever team is active at save
+  // time — since Schedule can show every team's events at once, switch to
+  // the owning team first so the edit lands in the right team's data.
+  const editEvent = (e, teamId) => {
+    if (teamId && teamId !== stateRef.current.activeTeamId) switchTeam(teamId)
+    set({ evEditId: e.id, evTitleIn: e.title, evDateIn: e.date, evTimeIn: e.time || '', evLocationIn: e.location || '', evKind: 'event' })
+  }
   const cancelEditEvent = () => set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '' })
-  const removeEvent = (e) => {
+  const removeEvent = (e, teamId) => {
+    if (teamId && teamId !== stateRef.current.activeTeamId) switchTeam(teamId)
     persistEvents((es) => es.filter((x) => x.id !== e.id))
     if (stateRef.current.evEditId === e.id) set({ evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evLocationIn: '' })
   }
