@@ -86,7 +86,14 @@ export default function Court() {
   return (
     <svg
       viewBox={displayViewBox} preserveAspectRatio="xMidYMid meet" ref={svgRef}
-      style={{ position: 'absolute', left: 9, top: 9, width: 'calc(100% - 18px)', height: 'calc(100% - 18px)', touchAction: 'none', cursor: 'crosshair' }}
+      style={{
+        position: 'absolute', left: 9, top: 9, width: 'calc(100% - 18px)', height: 'calc(100% - 18px)', touchAction: 'none', cursor: 'crosshair',
+        // Without this, dragging with a mouse/trackpad (as opposed to a
+        // finger) can kick off the browser's native text selection instead
+        // of — or in addition to — the custom drag gesture, highlighting
+        // player number labels and sometimes dropping the drawn path.
+        userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
+      }}
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
     >
       <defs>
