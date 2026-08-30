@@ -5,34 +5,30 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import PlayPreview from './PlayPreview'
 
-function planMeta(app, p, active) {
+function planMeta(app, p) {
   const list = app.planDrills(p)
   const total = list.reduce((a, d) => a + (parseInt(d.min, 10) || 0), 0)
-  return list.length + (list.length === 1 ? ' drill · ' : ' drills · ') + total + ' min' + (active ? ' · active' : '')
+  return list.length + (list.length === 1 ? ' drill · ' : ' drills · ') + total + ' min'
 }
 
 function PlansList() {
   const app = useApp()
-  const { state, newPlan, setActivePlan, openPlan, runPlanCmd, removePlan, askConfirm } = app
+  const { state, newPlan, openPlan, runPlanCmd, removePlan, askConfirm } = app
   const { plans } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       <div onClick={newPlan} style={{ padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}>＋ New session plan</div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {plans.map((p) => {
-          const active = (state.activePlan || (plans[0] && plans[0].id)) === p.id
-          return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-              <div onClick={() => openPlan(p.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{planMeta(app, p, active)}</div>
-              </div>
-              <div onClick={() => setActivePlan(p.id)} style={{ padding: '7px 10px', borderRadius: 9, background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 10.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{active ? 'ACTIVE' : 'USE'}</div>
-              <div onClick={() => runPlanCmd(p.id)} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>▶</div>
-              <div onClick={() => askConfirm({ title: 'Delete plan', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlan(p.id) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.5)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+        {plans.map((p) => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+            <div onClick={() => openPlan(p.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{planMeta(app, p)}</div>
             </div>
-          )
-        })}
+            <div onClick={() => runPlanCmd(p.id)} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>▶</div>
+            <div onClick={() => askConfirm({ title: 'Delete plan', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlan(p.id) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.5)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+          </div>
+        ))}
         {!plans.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No plans yet — create one and fill it with your own drills.</div>}
       </div>
     </div>
@@ -128,9 +124,8 @@ function DrillPlayPicker() {
 
 function DrillsTab() {
   const app = useApp()
-  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, openPlan, askConfirm, shareDrill, openImport } = app
-  const { drills, plans, plays, activePlan, openPlan: openId, dName, dMin, dDesc, dCategory, dEdit } = state
-  const target = plans.find((x) => x.id === activePlan) || plans.find((x) => x.id === openId) || plans[0]
+  const { state, set, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills, askConfirm, shareDrill, openImport } = app
+  const { drills, plays, dName, dMin, dDesc, dCategory, dEdit } = state
   const [filterCat, setFilterCat] = useState(null)
   const [favOnly, setFavOnly] = useState(false)
   const categories = Array.from(new Set(drills.map((d) => d.category).filter(Boolean))).sort()
@@ -138,14 +133,9 @@ function DrillsTab() {
 
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', marginBottom: 10, borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)' }}>
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: ACCENT }}>Adding to</div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{target ? target.name : 'New session (created on first drill)'}</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{target ? `${app.planDrills(target).length} drills · ${app.planDrills(target).reduce((a, d) => a + (parseInt(d.min, 10) || 0), 0)} min` : 'Tap a drill below to start a session plan'}</div>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{drills.length} {drills.length === 1 ? 'drill' : 'drills'} in your library</div>
         <div onClick={openImport} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>Import</div>
-        <div onClick={() => { set({ practiceTab: 'plans' }); openPlan(target ? target.id : (plans[0] && plans[0].id) || null) }} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{plans.length ? 'Open' : 'Plans'}</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 8 }}>
         <input type="text" value={dName} onChange={(e) => set({ dName: e.target.value })} placeholder="Drill name" style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }} />
@@ -202,7 +192,6 @@ function DrillsTab() {
       )}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {visibleDrills.map((d) => {
-          const inPlan = target ? (target.items || []).filter((id) => id === d.id).length : 0
           const linkedPlay = d.playId && plays.find((p) => p.id === d.playId)
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', borderRadius: 11, background: dEdit === d.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (dEdit === d.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
@@ -211,11 +200,10 @@ function DrillsTab() {
                   <PlayPreview play={linkedPlay} />
                 </div>
               )}
-              <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{d.category ? ' · ' + d.category : ''}{inPlan ? ' · in this session ×' + inPlan : ''}{d.desc ? ' · ' + d.desc : ''}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{d.category ? ' · ' + d.category : ''}{d.desc ? ' · ' + d.desc : ''}</div>
               </div>
-              <div onClick={() => app.addDrillToPlan(target ? target.id : null, d.id)} style={{ padding: '7px 11px', borderRadius: 9, background: inPlan ? 'rgba(255,255,255,.10)' : ACCENT, color: inPlan ? '#fff' : '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap' }}>{inPlan ? '＋ again' : '＋ Add'}</div>
               <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
               <div onClick={() => shareDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>⇪</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>

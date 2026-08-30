@@ -71,7 +71,7 @@ function initialState() {
     events: [], evKind: 'training', evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '', evEditId: null,
 
     // practice
-    practiceTab: 'plans', drills: [], plans: [], openPlan: null, activePlan: null,
+    practiceTab: 'plans', drills: [], plans: [], openPlan: null,
     dName: '', dMin: '', dDesc: '', dPlayId: null, dCategory: '', dEdit: null,
     runPlanId: null, runIdx: 0, runLeft: 0, runPaused: false,
   }
@@ -832,10 +832,9 @@ export function AppProvider({ children }) {
     const id = 'pn' + Date.now()
     const d = new Date()
     persistPlans((ps) => [{ id, name: 'Session ' + d.toLocaleDateString(), items: [] }].concat(ps))
-    set({ openPlan: id, activePlan: id })
+    set({ openPlan: id })
   }
-  const setActivePlan = (id) => set({ activePlan: id, practiceTab: 'drills' })
-  const openPlan = (id) => set({ openPlan: id, activePlan: id })
+  const openPlan = (id) => set({ openPlan: id })
   const backToPlans = () => set({ openPlan: null })
   const removePlan = (id) => persistPlans((ps) => ps.filter((x) => x.id !== id))
   const setPlanName = (v) => {
@@ -851,12 +850,6 @@ export function AppProvider({ children }) {
   }))
   const removePlanItem = (planId, i) => persistPlans((ps) => ps.map((x) => (x.id === planId ? { ...x, items: (x.items || []).filter((_, j) => j !== i) } : x)))
   const addDrillToPlan = (planId, drillId) => {
-    if (!planId) {
-      const id = 'pn' + Date.now()
-      persistPlans((ps) => [{ id, name: 'Session ' + new Date().toLocaleDateString(), items: [drillId] }].concat(ps))
-      set({ activePlan: id })
-      return
-    }
     persistPlans((ps) => ps.map((x) => (x.id === planId ? { ...x, items: (x.items || []).concat([drillId]) } : x)))
   }
   const addDrill = () => {
@@ -911,7 +904,7 @@ export function AppProvider({ children }) {
   const runPlanCmd = (id) => {
     const s = stateRef.current
     const p = s.plans.find((x) => x.id === id)
-    if (!p || !(p.items || []).length) { set({ practiceTab: 'drills', activePlan: id }); return }
+    if (!p || !(p.items || []).length) { set({ openPlan: id }); return }
     startRun(id)
   }
 
@@ -939,7 +932,7 @@ export function AppProvider({ children }) {
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
     toggleTwoTeam, setTeamAName, setTeamBName, setPlayerSide, openImportSheet, closeImportSheet, importTeamRoster, removeImportedPlayer,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
-    planDrills, newPlan, setActivePlan, openPlan, backToPlans, removePlan, setPlanName,
+    planDrills, newPlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills,
     startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,
     fileBase,
