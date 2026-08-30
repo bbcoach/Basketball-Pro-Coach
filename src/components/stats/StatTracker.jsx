@@ -291,16 +291,20 @@ function LiveTab({ game }) {
     // short/narrow phone but ate exactly the height the player lists need
     // on a bigger or taller landscape screen, leaving them barely visible.
     return (
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      // overflowY here is a safety net, not the normal path: the minHeight
+      // floors below mean the fixed controls (stat pad, undo) could in
+      // theory be pushed past the bottom of a very short screen — better to
+      // let the whole tab scroll to reach them than to clip them silently.
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <GameMetaSummary game={game} score={scoreText} />
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 10px' }}>
           {game.twoTeam ? (
             <>
-              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
-              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
+              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
             </>
           ) : (
-            <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+            <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
           )}
           {!players.length && <div style={{ padding: '10px 2px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>}
           <div style={{ flex: '0 0 260px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
@@ -316,10 +320,18 @@ function LiveTab({ game }) {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    // overflowY here is a safety net, not the normal path: the minHeight
+    // floor below means the fixed controls (stat pad, undo) could in theory
+    // be pushed past the bottom of a very short screen — better to let the
+    // whole tab scroll to reach them than to clip them silently.
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <GameMetaEditor game={game} />
       {players.length ? (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
+        // A floor, not a fixed size: with many players this still shrinks
+        // and scrolls normally, but on a short screen (Safari's URL bar
+        // eating viewport height) it won't get squeezed all the way down to
+        // where the first row — the one thing you need to tap — is hidden.
+        <div style={{ flex: 1, minHeight: 92, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
           {game.twoTeam ? (
             <>
               <ScoreBar teamAName={game.teamAName || 'Team A'} teamBName={game.teamBName || 'Team B'} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 6px' }} />
