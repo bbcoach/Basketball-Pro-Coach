@@ -488,8 +488,12 @@ export function AppProvider({ children }) {
     set({ shareOpen: false, shareStatus: 'Opening PDF…' })
   }
 
-  const enterFullScreen = () => set({ fullScreen: true, playing: false })
-  const exitFullScreen = () => set({ fullScreen: false })
+  // Half-court in full screen wastes the one thing full screen is for —
+  // showing the whole play as big as possible — so it always switches to
+  // full court, and restores whatever view the coach had been editing in
+  // once they exit rather than silently changing their preference for good.
+  const enterFullScreen = () => set((s) => ({ fullScreen: true, playing: false, view: 'full', preFullScreenView: s.view }))
+  const exitFullScreen = () => set((s) => ({ fullScreen: false, view: s.preFullScreenView || s.view }))
 
   // ── navigation ──────────────────────────────────────────────
   // Landing on "Games" with an empty roster is a dead end — you can start a
