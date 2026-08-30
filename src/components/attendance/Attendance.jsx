@@ -105,8 +105,11 @@ function SessionOpen() {
           )
         })}
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {/* Rendered outside the flex:1/overflow:auto region below — that region
+          can get squeezed to a sliver on a short screen (e.g. Safari's URL
+          bar eating viewport height), clipping this hint instead of showing it. */}
       {!roster.length && <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ attendTab: 'roster' })} />}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {roster.map((p) => {
           const cur = (session.marks || {})[p.id] || null

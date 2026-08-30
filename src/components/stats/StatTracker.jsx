@@ -264,7 +264,10 @@ function LiveTab({ game }) {
   const { log, onCourt } = game
   const landscape = useLandscape()
   const players = gamePlayers(roster, game)
-  const promptOpen = !(selPlayer && onCourt.indexOf(selPlayer) >= 0)
+  // With no players there's nothing to "select above" — showing that prompt
+  // anyway squeezed the flex-1 player list area down to a sliver on short
+  // screens, visually overlapping it with the "No players yet" hint above.
+  const promptOpen = players.length > 0 && !(selPlayer && onCourt.indexOf(selPlayer) >= 0)
   const promptText = !selPlayer ? 'Select a player above to start logging' : 'On the bench — tap the OFF badge in his row to sub him in'
 
   let lastAction
@@ -288,16 +291,20 @@ function LiveTab({ game }) {
     // short/narrow phone but ate exactly the height the player lists need
     // on a bigger or taller landscape screen, leaving them barely visible.
     return (
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      // overflowY here is a safety net, not the normal path: the minHeight
+      // floors below mean the fixed controls (stat pad, undo) could in
+      // theory be pushed past the bottom of a very short screen — better to
+      // let the whole tab scroll to reach them than to clip them silently.
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <GameMetaSummary game={game} score={scoreText} />
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 10, padding: '0 18px 10px' }}>
           {game.twoTeam ? (
             <>
-              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
-              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
+              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
             </>
           ) : (
-            <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
+            <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, minHeight: 92, overflowY: 'auto' }} {...rowProps} />
           )}
           {!players.length && <div style={{ padding: '10px 2px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>}
           <div style={{ flex: '0 0 260px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
@@ -313,20 +320,36 @@ function LiveTab({ game }) {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    // overflowY here is a safety net, not the normal path: the minHeight
+    // floor below means the fixed controls (stat pad, undo) could in theory
+    // be pushed past the bottom of a very short screen — better to let the
+    // whole tab scroll to reach them than to clip them silently.
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <GameMetaEditor game={game} />
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
-        {game.twoTeam ? (
-          <>
-            <ScoreBar teamAName={game.teamAName || 'Team A'} teamBName={game.teamBName || 'Team B'} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 6px' }} />
-            <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} {...rowProps} />
-            <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ marginTop: 6 }} {...rowProps} />
-          </>
-        ) : (
-          <PlayerColumn players={players} onCourt={onCourt} {...rowProps} />
-        )}
-        {!players.length && <div style={{ padding: '10px 2px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>}
-      </div>
+      {players.length ? (
+        // A floor, not a fixed size: with many players this still shrinks
+        // and scrolls normally, but on a short screen (Safari's URL bar
+        // eating viewport height) it won't get squeezed all the way down to
+        // where the first row — the one thing you need to tap — is hidden.
+        <div style={{ flex: 1, minHeight: 92, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5, padding: '0 18px 10px' }}>
+          {game.twoTeam ? (
+            <>
+              <ScoreBar teamAName={game.teamAName || 'Team A'} teamBName={game.teamBName || 'Team B'} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 6px' }} />
+              <PlayerColumn title={game.teamAName || 'Team A'} players={players.filter((p) => p.side === 'A')} onCourt={onCourt} {...rowProps} />
+              <PlayerColumn title={game.teamBName || 'Team B'} players={players.filter((p) => p.side === 'B')} onCourt={onCourt} style={{ marginTop: 6 }} {...rowProps} />
+            </>
+          ) : (
+            <PlayerColumn players={players} onCourt={onCourt} {...rowProps} />
+          )}
+        </div>
+      ) : (
+        // Deliberately *not* inside a flex:1/overflow:auto region — on a
+        // short screen (e.g. Safari's URL bar eating viewport height) that
+        // region can get squeezed down to a sliver, clipping this hint to
+        // just its top edge instead of showing it. A plain block always
+        // renders at its full height.
+        <div style={{ padding: '10px 18px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>
+      )}
 
       {promptOpen && <div style={{ margin: '0 18px 8px' }}><PromptHint text={promptText} /></div>}
 
@@ -389,18 +412,22 @@ function BoxTab({ game }) {
       {game.twoTeam && (
         <ScoreBar teamAName={teamAName} teamBName={teamBName} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 10px' }} />
       )}
-      <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {!players.length ? (
-          <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
-        ) : game.twoTeam ? (
-          <>
-            <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
-            <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} />
-          </>
-        ) : (
-          <BoxTable players={players} log={log} />
-        )}
-      </div>
+      {players.length ? (
+        <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {game.twoTeam ? (
+            <>
+              <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
+              <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} />
+            </>
+          ) : (
+            <BoxTable players={players} log={log} />
+          )}
+        </div>
+      ) : (
+        // Not inside the flex:1/overflow:auto region above — that can get
+        // squeezed to a sliver on a short screen, clipping this hint.
+        <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
+      )}
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
         <div onClick={() => { exportBoxPdf(players, log, TEAM_NAME, game); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
         <div onClick={() => { exportBoxCsv(players, log, game); showToast('CSV downloaded') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
@@ -466,11 +493,15 @@ function SeasonTab() {
       <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)', padding: '0 6px 10px' }}>
         {games.length} game{games.length === 1 ? '' : 's'} tracked · averages per game played
       </div>
-      <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {roster.length
-          ? <SeasonTable rows={rows} />
-          : <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />}
-      </div>
+      {roster.length ? (
+        <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <SeasonTable rows={rows} />
+        </div>
+      ) : (
+        // Not inside the flex:1/overflow:auto region above — that can get
+        // squeezed to a sliver on a short screen, clipping this hint.
+        <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
+      )}
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
         <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
       </div>
