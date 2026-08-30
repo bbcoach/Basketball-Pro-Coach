@@ -494,7 +494,10 @@ export function AppProvider({ children }) {
   const exitTimeout = () => set({ timeout: false })
 
   // ── navigation ──────────────────────────────────────────────
-  const openStats = () => set({ screen: 'stats', playing: false })
+  // Landing on "Games" with an empty roster is a dead end — you can start a
+  // game, but Live tracking then has no players to tap. Send a first-time
+  // coach straight to "Roster" instead, where the fix actually is.
+  const openStats = () => set({ screen: 'stats', playing: false, statsTab: stateRef.current.roster.length ? 'games' : 'roster' })
   const closeStats = () => set({ screen: 'home', activeGameId: null, statsTab: 'games' })
   const openAttend = () => set({ screen: 'attend' })
   const closeAttend = () => set({ screen: 'home', openSession: null })

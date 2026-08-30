@@ -3,6 +3,7 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
+import ActionHint from '../ActionHint'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
@@ -86,9 +87,10 @@ function GamesTab() {
 }
 
 function NoActiveGame() {
+  const { set } = useApp()
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 30px', textAlign: 'center' }}>
-      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.45)', lineHeight: 1.6 }}>Select or start a game under “Games” first.</div>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 30px' }}>
+      <ActionHint text="No game selected yet." actionLabel="Go to Games" onAction={() => set({ statsTab: 'games' })} />
     </div>
   )
 }
@@ -257,7 +259,7 @@ function LastActionBar({ lastAction, selPlayer, undoStat }) {
 }
 
 function LiveTab({ game }) {
-  const { state, selectStatPlayer, toggleCourt, logStat, undoStat } = useApp()
+  const { state, set, selectStatPlayer, toggleCourt, logStat, undoStat } = useApp()
   const { roster, selPlayer } = state
   const { log, onCourt } = game
   const landscape = useLandscape()
@@ -297,7 +299,7 @@ function LiveTab({ game }) {
           ) : (
             <PlayerColumn players={players} onCourt={onCourt} style={{ flex: 1, minWidth: 0, overflowY: 'auto' }} {...rowProps} />
           )}
-          {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
+          {!players.length && <div style={{ padding: '10px 2px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>}
           <div style={{ flex: '0 0 260px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', overflow: 'hidden' }}>{lastAction}</div>}
@@ -323,7 +325,7 @@ function LiveTab({ game }) {
         ) : (
           <PlayerColumn players={players} onCourt={onCourt} {...rowProps} />
         )}
-        {!players.length && <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.42)', lineHeight: 1.5 }}>No players yet — add your roster under “Roster”.</div>}
+        {!players.length && <div style={{ padding: '10px 2px' }}><ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} /></div>}
       </div>
 
       {promptOpen && <div style={{ margin: '0 18px 8px' }}><PromptHint text={promptText} /></div>}
@@ -375,7 +377,7 @@ function BoxTable({ players, log, title }) {
 }
 
 function BoxTab({ game }) {
-  const { state, askReset, showToast } = useApp()
+  const { state, set, askReset, showToast } = useApp()
   const { roster } = state
   const { log } = game
   const players = gamePlayers(roster, game)
@@ -388,7 +390,9 @@ function BoxTab({ game }) {
         <ScoreBar teamAName={teamAName} teamBName={teamBName} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 10px' }} />
       )}
       <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {game.twoTeam ? (
+        {!players.length ? (
+          <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
+        ) : game.twoTeam ? (
           <>
             <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
             <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} />
@@ -441,13 +445,12 @@ function SeasonTable({ rows }) {
           </div>
         )
       })}
-      {!rows.length && <div style={{ padding: '8px 6px', fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No players.</div>}
     </div>
   )
 }
 
 function SeasonTab() {
-  const { state, showToast } = useApp()
+  const { state, set, showToast } = useApp()
   const { roster, games } = state
   const log = games.flatMap((g) => g.log)
   const rows = roster
@@ -464,7 +467,9 @@ function SeasonTab() {
         {games.length} game{games.length === 1 ? '' : 's'} tracked · averages per game played
       </div>
       <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <SeasonTable rows={rows} />
+        {roster.length
+          ? <SeasonTable rows={rows} />
+          : <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />}
       </div>
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
         <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
