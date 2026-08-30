@@ -5,6 +5,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
+import ActionHint from '../ActionHint'
 import { exportAttendancePdf } from '../../lib/reports'
 
 function todayStr() {
@@ -51,7 +52,7 @@ function SessionsTab() {
 }
 
 function SessionOpen() {
-  const { state, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance, askConfirm } = useApp()
+  const { state, set, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance, askConfirm } = useApp()
   const { sessions, openSession: openId, roster, coaches, plans } = state
   const session = sessions.find((x) => x.id === openId)
   const [unlockedId, setUnlockedId] = useState(null)
@@ -105,6 +106,7 @@ function SessionOpen() {
         })}
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {!roster.length && <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ attendTab: 'roster' })} />}
       <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {roster.map((p) => {
           const cur = (session.marks || {})[p.id] || null
