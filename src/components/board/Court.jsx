@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, baseAt, dist, makeBoard, poly, stepAtTime, wavy } from '../../lib/board-geometry'
+import { actsOf, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 
 const COURT_W = 1500
@@ -51,7 +51,7 @@ export default function Court() {
         const ty = act.type
         const op = act.step === editStep ? 0.97 : 0.5
         rts.push({
-          key: ent.id + '-' + act.step, d: ty === 'dribble' ? wavy(pts) : poly(pts),
+          key: ent.id + '-' + act.step, d: ty === 'dribble' ? wavy(pts) : smoothPoly(pts),
           dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : 'none',
           marker: ty === 'screen' ? 'none' : 'url(#arw)', op,
         })

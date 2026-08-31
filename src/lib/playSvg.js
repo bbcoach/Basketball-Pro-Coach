@@ -1,5 +1,5 @@
 import {
-  HALF, FULL, actsOf, baseAt, dist, makeBoard, poly, wavy,
+  HALF, FULL, actsOf, baseAt, dist, makeBoard, smoothPoly, wavy,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -59,7 +59,7 @@ function stepSvg(play, board, cmap, stepIndex) {
       if (pts.length < 2) return
       const ty = act.type
       routes.push({
-        d: ty === 'dribble' ? wavy(pts) : poly(pts),
+        d: ty === 'dribble' ? wavy(pts) : smoothPoly(pts),
         dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : 'none',
         marker: ty === 'screen' ? 'none' : 'url(#step-arw)',
       })
