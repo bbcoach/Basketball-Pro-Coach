@@ -225,7 +225,7 @@ function defaultToolBarStyle(landscape) {
 // completely differently, so a spot picked in one rarely makes sense in
 // the other) and restored next time full screen opens.
 function FullScreenTools() {
-  const { state, setTool } = useApp()
+  const { state, setTool, undo } = useApp()
   const landscape = useLandscape()
   const tools = TOOLS.filter(([id]) => FULLSCREEN_TOOL_IDS.includes(id))
   const storageKey = 'tb.fsToolsPos.' + (landscape ? 'landscape' : 'portrait') + '.v1'
@@ -300,6 +300,17 @@ function FullScreenTools() {
           </div>
         )
       })}
+      <div
+        onClick={undo}
+        style={{
+          flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 6 : 2,
+          padding: landscape ? '8px 12px' : '7px 11px', borderRadius: 11, cursor: 'pointer',
+          background: 'rgba(255,255,255,.16)', color: '#fff',
+        }}
+      >
+        <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>↺︎</div>
+        <div style={{ fontSize: landscape ? 11 : 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Undo</div>
+      </div>
     </div>
   )
 }
