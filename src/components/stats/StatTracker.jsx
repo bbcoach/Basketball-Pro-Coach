@@ -478,7 +478,10 @@ function SeasonTable({ rows }) {
 
 function SeasonTab() {
   const { state, set, showToast } = useApp()
-  const { roster, games } = state
+  const { roster } = state
+  // Free play games are just practice reps, not part of the season record —
+  // excluded here so a coach's per-game averages aren't diluted by scrimmages.
+  const games = state.games.filter((g) => g.type !== 'practice')
   const log = games.flatMap((g) => g.log)
   const rows = roster
     .map((p) => {
