@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  actsOf, baseAt, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
+  actsOf, baseAt, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
@@ -285,7 +285,13 @@ export function AppProvider({ children }) {
           if (d.id === 'ball') set((st) => ({ ball: strip(st.ball) }))
           else set((st) => ({ players: st.players.map((x) => (x.id === d.id ? strip(x) : x)) }))
         } else {
-          set((st) => ({ steps: Math.max(st.steps, d.step) }))
+          // A finger drawing a route naturally wobbles a little — smooth
+          // that out once the stroke is finished rather than while it's
+          // still being drawn, so live feedback stays immediate.
+          const smoothed = cleanFreehandPath(a.pts)
+          const setSmoothed = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).map((z) => (z.step === d.step ? { ...z, pts: smoothed } : z)) })
+          if (d.id === 'ball') set((st) => ({ ball: setSmoothed(st.ball), steps: Math.max(st.steps, d.step) }))
+          else set((st) => ({ players: st.players.map((x) => (x.id === d.id ? setSmoothed(x) : x)), steps: Math.max(st.steps, d.step) }))
         }
       }
     }

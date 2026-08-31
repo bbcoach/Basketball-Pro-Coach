@@ -108,6 +108,88 @@ export function poly(pts) {
   return pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
 }
 
+function perpDist(p, a, b) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const len2 = dx * dx + dy * dy
+  if (!len2) return dist(p, a)
+  const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2
+  return dist(p, { x: a.x + t * dx, y: a.y + t * dy })
+}
+
+// Ramer–Douglas–Peucker: drops points that already sit close to the
+// straight line between their neighbors. On its own this is a poor fit for
+// hand tremor: RDP only ever removes the single worst-offending point per
+// pass, and a shaky stroke spreads its wobble fairly evenly across *every*
+// point rather than concentrating it in one spot — so it ends up peeling
+// off one point at a time instead of collapsing the noise. Run it after
+// smoothJitter() (below), once the points already lie close to a clean
+// curve, and it does what it's actually good at: dropping the
+// now-redundant points a smooth curve doesn't need. Endpoints are never
+// touched either way, so where a route starts and ends (a player, a pass
+// target, the hoop) is unaffected.
+export function simplifyPath(pts, epsilon = 14) {
+  if (pts.length < 3) return pts
+  let maxD = 0
+  let idx = 0
+  for (let i = 1; i < pts.length - 1; i++) {
+    const d = perpDist(pts[i], pts[0], pts[pts.length - 1])
+    if (d > maxD) { maxD = d; idx = i }
+  }
+  if (maxD > epsilon) {
+    const left = simplifyPath(pts.slice(0, idx + 1), epsilon)
+    const right = simplifyPath(pts.slice(idx), epsilon)
+    return left.slice(0, -1).concat(right)
+  }
+  return [pts[0], pts[pts.length - 1]]
+}
+
+// A few passes of 1-2-1 weighted averaging with each point's neighbors —
+// the actual fix for tremor, since it evens out small back-and-forth
+// wobble everywhere along the stroke rather than hunting for one worst
+// point. Endpoints are excluded from the averaging (kept exactly as
+// recorded) for the same reason simplifyPath leaves them alone.
+function smoothJitter(pts, passes = 3) {
+  if (pts.length < 3) return pts
+  let cur = pts
+  for (let pass = 0; pass < passes; pass++) {
+    const next = [cur[0]]
+    for (let i = 1; i < cur.length - 1; i++) {
+      const a = cur[i - 1]
+      const b = cur[i]
+      const c = cur[i + 1]
+      next.push({ x: (a.x + 2 * b.x + c.x) / 4, y: (a.y + 2 * b.y + c.y) / 4 })
+    }
+    next.push(cur[cur.length - 1])
+    cur = next
+  }
+  return cur
+}
+
+// Cleans up a freehand-drawn route once the stroke is finished: smooth
+// away tremor first, then simplify the now-clean curve down to the points
+// that actually matter.
+export function cleanFreehandPath(pts) {
+  return simplifyPath(smoothJitter(pts))
+}
+
+// Draws a smooth curve through the points instead of straight segments
+// between them, using each point as the control for a quadratic curve to
+// the midpoint of itself and the next — a standard trick for turning a
+// simplified polyline's remaining corners into one continuous line.
+export function smoothPoly(pts) {
+  if (pts.length < 3) return poly(pts)
+  let d = 'M' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1)
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2
+    const my = (pts[i].y + pts[i + 1].y) / 2
+    d += ' Q' + pts[i].x.toFixed(1) + ' ' + pts[i].y.toFixed(1) + ' ' + mx.toFixed(1) + ' ' + my.toFixed(1)
+  }
+  const last = pts[pts.length - 1]
+  d += ' L' + last.x.toFixed(1) + ' ' + last.y.toFixed(1)
+  return d
+}
+
 // Resample a polyline and offset it perpendicular with a sine wave (dribble path).
 export function wavy(pts) {
   const out = []
