@@ -26,6 +26,11 @@ const TOOLS = [
   ['erase', '⌫︎', 'Erase'],
 ]
 
+// Full screen is otherwise read-only (step through, play/pause) — these are
+// the drawing tools a coach still needs to sketch an adjustment on the spot
+// while the team is watching the big screen, without the full toolbar.
+const FULLSCREEN_TOOL_IDS = ['move', 'cut', 'dribble', 'screen', 'pass']
+
 function Header({ compact }) {
   const { state, setView, goHome } = useApp()
   const { view, playName } = state
@@ -193,6 +198,30 @@ function FullScreenControls() {
   )
 }
 
+function FullScreenTools() {
+  const { state, setTool } = useApp()
+  const tools = TOOLS.filter(([id]) => FULLSCREEN_TOOL_IDS.includes(id))
+  return (
+    <div style={{ position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, right: 16, zIndex: 60, display: 'flex', gap: 6, justifyContent: 'center' }}>
+      {tools.map(([id, icon, label]) => {
+        const active = state.tool === id
+        return (
+          <div
+            key={id} onClick={() => setTool(id)}
+            style={{
+              flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '7px 11px', borderRadius: 11, cursor: 'pointer',
+              background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
+            }}
+          >
+            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
+            <div style={{ fontSize: 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Board() {
   const { state, exitFullScreen, togglePlay } = useApp()
   const { fullScreen, playing } = state
@@ -203,6 +232,7 @@ export default function Board() {
       {fullScreen && (
         <>
           <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
+          <FullScreenTools />
           <FullScreenControls />
           <div
             onClick={togglePlay}
