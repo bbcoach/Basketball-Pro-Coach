@@ -62,8 +62,11 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* Hidden easter egg: tap the ball 10 times to see it slam-dunk through the
-   hoop, then settle back into its normal idle spin. */
-.rl-dunk { animation: rlDunk 1.05s cubic-bezier(.3,.1,.2,1) 1; transform-origin: 0 0; }
+   hoop while a full-screen comic-book "SLAM DUNK!" celebration bursts in
+   behind it, then settle back into its normal idle spin. Durations are
+   stretched from the original 1.05s to 1.5s to give the bigger celebration
+   room to land. */
+.rl-dunk { animation: rlDunk 1.5s cubic-bezier(.3,.1,.2,1) 1; transform-origin: 0 0; }
 @keyframes rlDunk {
   0%   { transform: translate(0px, 0px) rotate(0deg) scale(1); }
   8%   { transform: translate(-3px, 5px) rotate(-10deg) scale(.95); }
@@ -73,14 +76,14 @@ input[type="range"]::-webkit-slider-thumb {
   78%  { transform: translate(0px, -16px) rotate(410deg) scale(1.05); }
   100% { transform: translate(0px, 0px) rotate(720deg) scale(1); }
 }
-.rl-net-flex { animation: rlNetFlex 1.05s ease-out 1; transform-origin: 0px 1px; }
+.rl-net-flex { animation: rlNetFlex 1.5s ease-out 1; transform-origin: 0px 1px; }
 @keyframes rlNetFlex {
   0%, 64% { transform: scaleY(1) translateY(0); }
   72%     { transform: scaleY(1.22) translateY(1px); }
   84%     { transform: scaleY(.92) translateY(-1px); }
   100%    { transform: scaleY(1) translateY(0); }
 }
-.rl-rim-shake { animation: rlRimShake 1.05s ease-out 1; transform-origin: 0 0; }
+.rl-rim-shake { animation: rlRimShake 1.5s ease-out 1; transform-origin: 0 0; }
 @keyframes rlRimShake {
   0%, 66% { transform: rotate(0deg); }
   72%     { transform: rotate(-5deg); }
@@ -88,14 +91,66 @@ input[type="range"]::-webkit-slider-thumb {
   90%     { transform: rotate(-1.5deg); }
   100%    { transform: rotate(0deg); }
 }
-.rl-dunk-text { animation: rlDunkText 1.05s ease-out 1; }
-@keyframes rlDunkText {
-  0%, 58%  { opacity: 0; }
-  66%, 88% { opacity: 1; }
+
+/* Full-screen comic-burst celebration that fires alongside the dunk above. */
+.rl-screen-shake { animation: rlScreenShake 1.5s ease-out 1; }
+@keyframes rlScreenShake {
+  0%, 34%  { transform: translate(0, 0); }
+  38%      { transform: translate(-6px, 3px); }
+  42%      { transform: translate(5px, -4px); }
+  46%      { transform: translate(-4px, 2px); }
+  50%      { transform: translate(2px, -1px); }
+  54%, 100% { transform: translate(0, 0); }
+}
+.rl-burst-wrap { animation: rlBurstFade 1.5s ease-out 1; }
+@keyframes rlBurstFade {
+  0%, 32%  { opacity: 0; }
+  38%      { opacity: 1; }
+  88%      { opacity: 1; }
   100%     { opacity: 0; }
 }
+.rl-burst-spin { animation: rlBurstSpin 1.5s cubic-bezier(.2,.7,.3,1) 1; transform-origin: 0 0; }
+@keyframes rlBurstSpin {
+  0%   { transform: rotate(-25deg) scale(.4); opacity: 0; }
+  38%  { transform: rotate(-25deg) scale(.4); opacity: 0; }
+  55%  { transform: rotate(6deg) scale(1.08); opacity: 1; }
+  70%  { transform: rotate(-2deg) scale(1); opacity: 1; }
+  100% { transform: rotate(14deg) scale(1.04); opacity: 1; }
+}
+.rl-burst-pop { animation: rlBurstPop 1.5s cubic-bezier(.3,1.4,.4,1) 1; transform-origin: 0 0; }
+@keyframes rlBurstPop {
+  0%, 34%  { transform: scale(0); opacity: 0; }
+  52%      { transform: scale(1.12); opacity: 1; }
+  64%      { transform: scale(.97); }
+  100%     { transform: scale(1); opacity: 1; }
+}
+.rl-comic-text-1, .rl-comic-text-2 {
+  animation: rlComicText 1.5s cubic-bezier(.3,1.5,.35,1) 1;
+  animation-fill-mode: backwards;
+}
+@keyframes rlComicText {
+  0%, 44%  { transform: scale(0) rotate(var(--rl-tilt, 0deg)); opacity: 0; }
+  62%      { transform: scale(1.15) rotate(var(--rl-tilt, 0deg)); opacity: 1; }
+  74%      { transform: scale(.95) rotate(var(--rl-tilt, 0deg)); }
+  100%     { transform: scale(1) rotate(var(--rl-tilt, 0deg)); opacity: 1; }
+}
+.rl-sparkle {
+  animation: rlSparkle 1.5s ease-in-out 1;
+  animation-fill-mode: backwards;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes rlSparkle {
+  0%, 40%  { transform: scale(0) rotate(0deg); opacity: 0; }
+  56%      { transform: scale(1.3) rotate(35deg); opacity: 1; }
+  70%      { transform: scale(.7) rotate(35deg); opacity: .8; }
+  85%      { transform: scale(1.05) rotate(35deg); opacity: 1; }
+  100%     { transform: scale(.9) rotate(35deg); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .rl-dunk-text, .toast-pop { animation: none; }
+  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .toast-pop,
+  .rl-screen-shake, .rl-burst-wrap, .rl-burst-spin, .rl-burst-pop,
+  .rl-comic-text-1, .rl-comic-text-2, .rl-sparkle { animation: none; }
 }
 
 /* Brief confirmation toast: settles in, holds, then fades — timed against
