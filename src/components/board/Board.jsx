@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, TEAM_NAME } from '../../state/config'
 import { COND } from '../../theme'
@@ -198,23 +199,103 @@ function FullScreenControls() {
   )
 }
 
+function loadToolBarPos(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+// The default (undragged) placement — a row near the top in portrait, a
+// column in the landscape side margin — same spot as before this became
+// draggable.
+function defaultToolBarStyle(landscape) {
+  return landscape
+    ? { top: 'calc(64px + env(safe-area-inset-top, 0px))', bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))', right: 16, left: 'auto', flexDirection: 'column' }
+    : { top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, right: 16, flexDirection: 'row' }
+}
+
+// A coach may want the tool bar somewhere the default spot doesn't suit —
+// off to one side, closer to the players, out of the way of a specific
+// play. Dragging the grip handle repositions the whole bar freely; the
+// chosen spot is remembered per orientation (portrait/landscape lay out
+// completely differently, so a spot picked in one rarely makes sense in
+// the other) and restored next time full screen opens.
 function FullScreenTools() {
   const { state, setTool } = useApp()
+  const landscape = useLandscape()
   const tools = TOOLS.filter(([id]) => FULLSCREEN_TOOL_IDS.includes(id))
+  const storageKey = 'tb.fsToolsPos.' + (landscape ? 'landscape' : 'portrait') + '.v1'
+  const barRef = useRef(null)
+  const dragRef = useRef(null)
+  const [pos, setPos] = useState(() => loadToolBarPos(storageKey))
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => { setPos(loadToolBarPos(storageKey)) }, [storageKey])
+
+  const onHandleDown = (e) => {
+    e.preventDefault()
+    const bar = barRef.current
+    if (!bar) return
+    const rect = bar.getBoundingClientRect()
+    dragRef.current = { startX: e.clientX, startY: e.clientY, originX: rect.left, originY: rect.top }
+    setDragging(true)
+
+    const onMove = (ev) => {
+      const d = dragRef.current
+      if (!d) return
+      const bw = bar.offsetWidth
+      const bh = bar.offsetHeight
+      const nx = Math.max(4, Math.min(window.innerWidth - bw - 4, d.originX + (ev.clientX - d.startX)))
+      const ny = Math.max(4, Math.min(window.innerHeight - bh - 4, d.originY + (ev.clientY - d.startY)))
+      setPos({ x: nx, y: ny })
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      dragRef.current = null
+      setDragging(false)
+      setPos((p) => {
+        try { localStorage.setItem(storageKey, JSON.stringify(p)) } catch { /* ignore quota errors */ }
+        return p
+      })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  const wrapStyle = {
+    position: 'absolute', zIndex: 60, display: 'flex', gap: 6, overflowY: 'auto',
+    ...defaultToolBarStyle(landscape),
+    ...(pos ? { top: pos.y, left: pos.x, right: 'auto', bottom: 'auto', flexDirection: landscape ? 'column' : 'row' } : null),
+    alignItems: landscape && !pos ? 'stretch' : 'center', justifyContent: 'center',
+    opacity: dragging ? 0.85 : 1,
+  }
+
   return (
-    <div style={{ position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, right: 16, zIndex: 60, display: 'flex', gap: 6, justifyContent: 'center' }}>
+    <div ref={barRef} style={wrapStyle}>
+      <div
+        onPointerDown={onHandleDown}
+        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 14, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+      >
+        ⠿
+      </div>
       {tools.map(([id, icon, label]) => {
         const active = state.tool === id
+        const row = landscape
         return (
           <div
             key={id} onClick={() => setTool(id)}
             style={{
-              flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '7px 11px', borderRadius: 11, cursor: 'pointer',
+              flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 6 : 2,
+              padding: row ? '8px 12px' : '7px 11px', borderRadius: 11, cursor: 'pointer',
               background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
             }}
           >
             <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ fontSize: row ? 11 : 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
