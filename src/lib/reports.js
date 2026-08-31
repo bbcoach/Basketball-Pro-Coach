@@ -150,7 +150,10 @@ export function exportBoxPdf(players, log, teamName, game) {
   openReportWindow(html, gameSlug(game) + '.html')
 }
 
-export function exportSeasonPdf(roster, games, teamName) {
+// Free play games are just practice reps, not part of the season record —
+// excluded here so a coach's per-game averages aren't diluted by scrimmages.
+export function exportSeasonPdf(roster, allGames, teamName) {
+  const games = allGames.filter((g) => g.type !== 'practice')
   const log = games.flatMap((g) => g.log)
   const head = ['#', 'Player', 'GP', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
   const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
