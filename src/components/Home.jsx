@@ -5,6 +5,7 @@ import { COND } from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
+import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
@@ -27,6 +28,15 @@ export default function Home() {
   // capture that and never reconsider once the real data arrives.
   const [showBackupReminder, setShowBackupReminder] = useState(false)
   useEffect(() => { setShowBackupReminder(shouldShowBackupReminder(hasData)) }, [hasData])
+
+  // `beforeinstallprompt` can fire at any point after mount (or never, on
+  // Safari) — subscribe rather than checking once, so the hint appears the
+  // moment the browser decides the app is installable.
+  const [showInstallHint, setShowInstallHint] = useState(false)
+  useEffect(() => {
+    setShowInstallHint(shouldShowInstallHint())
+    return subscribeInstallPrompt(() => setShowInstallHint(shouldShowInstallHint()))
+  }, [])
 
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
@@ -58,6 +68,31 @@ export default function Home() {
               style={{ flex: 'none', padding: '7px 9px', borderRadius: 8, color: 'rgba(255,255,255,.5)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
             >
               Not now
+            </div>
+          </div>
+        )}
+
+        {showInstallHint && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
+            <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>📲</div>
+            <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
+              {canPromptInstall()
+                ? 'Install this app for quicker access from your home screen.'
+                : <>Add this app to your home screen: tap <b>Share</b>, then <b>Add to Home Screen</b>.</>}
+            </div>
+            {canPromptInstall() && (
+              <div
+                onClick={() => promptInstall()}
+                style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Install
+              </div>
+            )}
+            <div
+              onClick={() => { snoozeInstallHint(); setShowInstallHint(false) }}
+              style={{ flex: 'none', padding: '7px 9px', borderRadius: 8, color: 'rgba(255,255,255,.5)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}
+            >
+              {canPromptInstall() ? 'Not now' : 'Got it'}
             </div>
           </div>
         )}

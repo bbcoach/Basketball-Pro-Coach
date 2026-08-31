@@ -11,6 +11,9 @@ import '@fontsource/barlow-condensed/800-italic.css'
 import './index.css'
 import App from './App.jsx'
 import { registerSW } from 'virtual:pwa-register'
+// Side-effect import: attaches the `beforeinstallprompt` listener as early
+// as possible, before React even mounts, so the event isn't missed.
+import './lib/installPrompt'
 
 // iOS keeps a standalone (Home Screen) PWA's process suspended instead of
 // reloading it when it's reopened, so the browser's normal "a fresh page
