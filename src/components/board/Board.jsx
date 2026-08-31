@@ -200,21 +200,31 @@ function FullScreenControls() {
 
 function FullScreenTools() {
   const { state, setTool } = useApp()
+  const landscape = useLandscape()
   const tools = TOOLS.filter(([id]) => FULLSCREEN_TOOL_IDS.includes(id))
+  // In landscape the rotated court doesn't fill the screen edge to edge —
+  // it leaves an empty strip on the right, the same one the exit and play
+  // buttons already sit in, so the tools stack there too instead of sitting
+  // on top of the court. Portrait has no such margin, so they stay as a
+  // row near the top there.
+  const wrapStyle = landscape
+    ? { position: 'absolute', top: 'calc(64px + env(safe-area-inset-top, 0px))', bottom: 'calc(74px + env(safe-area-inset-bottom, 0px))', right: 16, zIndex: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'stretch', gap: 6, overflowY: 'auto' }
+    : { position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, right: 16, zIndex: 60, display: 'flex', gap: 6, justifyContent: 'center' }
   return (
-    <div style={{ position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, right: 16, zIndex: 60, display: 'flex', gap: 6, justifyContent: 'center' }}>
+    <div style={wrapStyle}>
       {tools.map(([id, icon, label]) => {
         const active = state.tool === id
         return (
           <div
             key={id} onClick={() => setTool(id)}
             style={{
-              flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: '7px 11px', borderRadius: 11, cursor: 'pointer',
+              flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 6 : 2,
+              padding: landscape ? '8px 12px' : '7px 11px', borderRadius: 11, cursor: 'pointer',
               background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
             }}
           >
             <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ fontSize: landscape ? 11 : 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
