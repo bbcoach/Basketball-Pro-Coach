@@ -277,21 +277,49 @@ export function exportPlayStepsPdf(play) {
   const vb = play.view === 'full' ? FULL : HALF
   const [, , vbW, vbH] = vb.split(' ').map(Number)
   const padTop = ((vbH / vbW) * 100).toFixed(3) + '%'
-  const tilesHtml = svgs.map((svg, i) => `<div class="tile"><div class="tile-head">Step ${i + 1}</div><div class="tile-court-wrap" style="padding-top:${padTop}"><div class="tile-court">${svg}</div></div></div>`).join('')
+  const tileHtml = (svg, i) => `<div class="tile"><div class="tile-head">Step ${i + 1}</div><div class="tile-court-wrap" style="padding-top:${padTop}"><div class="tile-court">${svg}</div></div></div>`
+
+  // A DIN A4 sheet only has room for so much — rather than let the browser's
+  // print engine reflow tiles across pages on its own (which is what used
+  // to happen here, and which print/PDF pipelines have proven unreliable
+  // about, especially on mobile), lay out fixed 3×3 pages of tiles
+  // ourselves and force a hard page break between them. Every page then
+  // prints as one predictable A4 sheet instead of an arbitrary, engine-
+  // dependent split.
+  const COLS = 3
+  // A full-court tile is roughly twice as tall as a half-court one (the
+  // court itself is twice as long), so 3 rows of them doesn't actually fit
+  // on one A4 sheet the way 3 rows of half-court tiles does — cap it at 2
+  // rows instead so a full-court page still comes out as one clean sheet.
+  const ROWS_PER_PAGE = play.view === 'full' ? 2 : 3
+  const PAGE_SIZE = COLS * ROWS_PER_PAGE
+  const pages = []
+  for (let i = 0; i < svgs.length; i += PAGE_SIZE) pages.push(svgs.slice(i, i + PAGE_SIZE))
+  const pagesHtml = pages.map((pageSvgs, p) => {
+    const offset = p * PAGE_SIZE
+    // Only non-last pages force a break — the footer follows right after
+    // this markup as a sibling, not inside the last .page div, so a plain
+    // `.page:last-child` selector would never match (the footer is always
+    // the actual last child) and every page would break, leaving a stray
+    // blank page at the end.
+    const cls = p < pages.length - 1 ? 'page page-break' : 'page'
+    return `<div class="${cls}"><div class="tiles">${pageSvgs.map((svg, i) => tileHtml(svg, offset + i)).join('')}</div></div>`
+  }).join('')
 
   const now = new Date()
   const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
   const html = `<!doctype html><html><head>${reportHead(play.name || 'Play')}<style>
       ${reportStyles('A4 portrait')}
-      .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+      .page-break{page-break-after:always}
+      .tiles{display:grid;grid-template-columns:repeat(${COLS},1fr);gap:14px}
       .tile{border:1px solid #eee;border-radius:10px;overflow:hidden;break-inside:avoid}
       .tile-head{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:${ACCENT};padding:5px 9px}
       .tile-court-wrap{position:relative;width:100%}
       .tile-court{position:absolute;inset:0;background:#8a5e34}
     </style></head><body>
     ${reportHeader({ title: play.name || 'Untitled play', subtitle: 'Play — step by step', metaLines: [generatedDate, svgs.length + ' step' + (svgs.length === 1 ? '' : 's')] })}
-    <div class="tiles">${tilesHtml}</div>
+    ${pagesHtml}
     ${reportFooter()}
     </body></html>`
 
