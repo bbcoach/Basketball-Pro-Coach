@@ -182,7 +182,7 @@ function FooterButtons() {
 // to step through the play; these mirror the step controls from StepBar in
 // a compact, presentation-friendly form.
 function FullScreenControls() {
-  const { state, gotoStep, nSteps } = useApp()
+  const { state, gotoStep, addStep, nSteps } = useApp()
   const { step, playing, t } = state
   const n = nSteps()
   const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
@@ -195,6 +195,7 @@ function FullScreenControls() {
       <div onClick={() => editStep > 1 && gotoStep(editStep - 1)} style={circleBtn(editStep <= 1)}>‹</div>
       <div style={{ padding: '8px 4px', borderRadius: 99, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
       <div onClick={() => editStep < n && gotoStep(editStep + 1)} style={circleBtn(editStep >= n)}>›</div>
+      <div onClick={addStep} style={{ ...circleBtn(false), width: 38, height: 38, fontSize: 17 }}>＋</div>
     </div>
   )
 }
