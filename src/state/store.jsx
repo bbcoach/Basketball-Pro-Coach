@@ -5,6 +5,7 @@ import {
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
+import { playDrillAlert, unlockDrillAlert } from '../lib/drillAlert'
 
 const LS = {
   plays: 'tb.plays.v1',
@@ -910,10 +911,14 @@ export function AppProvider({ children }) {
     const plan = stateRef.current.plans.find((p) => p.id === planId)
     const list = planDrills(plan)
     if (!list.length) return
+    unlockDrillAlert()
     clearInterval(runTimerRef.current)
     set({ runPlanId: planId, runIdx: 0, runLeft: (list[0].min || 5) * 60, runPaused: false })
     runTimerRef.current = setInterval(() => {
       if (stateRef.current.runPaused) return
+      // Fires exactly once, on the tick that counts down to zero — a coach
+      // mid-explanation needs the buzzer, not a slowly reddening number.
+      if (stateRef.current.runLeft === 1) playDrillAlert()
       set((s) => ({ runLeft: Math.max(0, s.runLeft - 1) }))
     }, 1000)
   }
