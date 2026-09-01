@@ -45,7 +45,7 @@ export default function PlayPreview({ play }) {
         const ty = act.type
         rts.push({
           key: ent.id + '-' + act.step, d: ty === 'dribble' ? wavy(pts) : poly(pts),
-          dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : 'none',
+          dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : ty === 'handoff' ? '2 12 22 12' : 'none',
           marker: ty === 'screen' ? 'none' : 'url(#pv-arw)',
         })
         if (ty === 'screen') {

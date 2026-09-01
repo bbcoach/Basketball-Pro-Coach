@@ -233,7 +233,7 @@ export function AppProvider({ children }) {
     if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
     const k = s.step
     const t0 = (k - 1) / nSteps()
-    if (tool === 'pass' || tool === 'shot') {
+    if (tool === 'pass' || tool === 'shot' || tool === 'handoff') {
       snapshot()
       drag.current = { id: 'ball', draw: tool, step: k }
       set((st) => ({ ball: setAct(st.ball, k, tool, p), sel: 'ball', playing: false, t: t0 }))

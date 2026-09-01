@@ -21,6 +21,7 @@ const TOOLS = [
   ['dribble', '∿︎', 'Dribble'],
   ['screen', '⊤︎', 'Screen'],
   ['pass', '⇢︎', 'Pass'],
+  ['handoff', '⇄︎', 'Handoff'],
   ['shot', '◎︎', 'Shot'],
   ['addOff', '＋︎', 'Offense'],
   ['addDef', '✕︎', 'Defense'],
@@ -30,7 +31,7 @@ const TOOLS = [
 // Full screen is otherwise read-only (step through, play/pause) — these are
 // the drawing tools a coach still needs to sketch an adjustment on the spot
 // while the team is watching the big screen, without the full toolbar.
-const FULLSCREEN_TOOL_IDS = ['move', 'cut', 'dribble', 'screen', 'pass']
+const FULLSCREEN_TOOL_IDS = ['move', 'cut', 'dribble', 'screen', 'pass', 'handoff']
 
 function Header({ compact }) {
   const { state, setView, goHome } = useApp()
