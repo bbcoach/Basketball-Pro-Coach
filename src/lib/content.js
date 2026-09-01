@@ -34,6 +34,7 @@ export const HINTS = {
   dribble: 'Drag from a player to draw a dribble',
   screen: 'Drag a path — ends with a screen bar',
   pass: 'Drag from the ball to a team-mate — he then carries it',
+  handoff: 'Drag from the carrier to a team-mate — the ball goes with them',
   shot: 'Drag from the ball to the rim — the shot releases the ball',
   addOff: 'Tap the court to add an offensive player',
   addDef: 'Tap the court to add a defender',
