@@ -63,17 +63,51 @@ function reportFooter() {
   return '<footer><span><b>Basketball Pro Coach</b></span><span>basketballprocoach.com</span></footer>'
 }
 
+// Printing used to open the report in a new window/tab via window.open() —
+// on a phone (and worse, inside the installed PWA/TWA build) that new
+// window can come up with no visible back button or address bar at all,
+// leaving a coach stuck on the print preview with no way back into the app.
+// A hidden iframe sidesteps the problem entirely: the report is printed
+// straight out of an off-screen frame in the *current* document, so nothing
+// ever navigates away in the first place — there's nothing to "get back"
+// from once the native print/share sheet closes.
 function openReportWindow(html, fallbackName) {
-  const w = window.open('', '_blank')
-  if (w) {
-    w.document.open(); w.document.write(html); w.document.close()
-    const doPrint = () => { try { w.focus(); w.print() } catch { /* ignore */ } }
-    if (w.document.fonts && w.document.fonts.ready) {
-      w.document.fonts.ready.then(doPrint).catch(doPrint)
+  try {
+    const iframe = document.createElement('iframe')
+    iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:0'
+    document.body.appendChild(iframe)
+    const doc = iframe.contentDocument
+    doc.open(); doc.write(html); doc.close()
+
+    let cleaned = false
+    const cleanup = () => {
+      if (cleaned) return
+      cleaned = true
+      iframe.remove()
+    }
+    // `afterprint` fires reliably on desktop once the dialog closes; mobile
+    // share sheets don't always fire it, so a generous fallback timer
+    // guarantees the iframe doesn't linger forever either way.
+    iframe.contentWindow.addEventListener('afterprint', cleanup)
+    setTimeout(cleanup, 120000)
+
+    const doPrint = () => {
+      try {
+        iframe.contentWindow.focus()
+        iframe.contentWindow.print()
+      } catch {
+        // Printing failed outright — fall back to a plain download so the
+        // export still goes somewhere instead of a dead end.
+        download(new Blob([html], { type: 'text/html' }), fallbackName)
+        cleanup()
+      }
+    }
+    if (doc.fonts && doc.fonts.ready) {
+      doc.fonts.ready.then(doPrint).catch(doPrint)
     } else {
       setTimeout(doPrint, 500)
     }
-  } else {
+  } catch {
     download(new Blob([html], { type: 'text/html' }), fallbackName)
   }
 }
