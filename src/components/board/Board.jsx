@@ -210,6 +210,18 @@ function loadToolBarPos(key) {
   }
 }
 
+// The grip alone is easy to miss on a busy court background, so the bar also
+// says so in words — once. Shown until a coach has actually moved it, then
+// never again.
+const HINT_KEY = 'tb.fsToolsHint.v1'
+function loadToolBarHintSeen() {
+  try {
+    return localStorage.getItem(HINT_KEY) === '1'
+  } catch {
+    return true
+  }
+}
+
 // The default (undragged) placement — a row near the top in portrait, a
 // column in the landscape side margin — same spot as before this became
 // draggable.
@@ -221,10 +233,11 @@ function defaultToolBarStyle(landscape) {
 
 // A coach may want the tool bar somewhere the default spot doesn't suit —
 // off to one side, closer to the players, out of the way of a specific
-// play. Dragging the grip handle repositions the whole bar freely; the
-// chosen spot is remembered per orientation (portrait/landscape lay out
-// completely differently, so a spot picked in one rarely makes sense in
-// the other) and restored next time full screen opens.
+// play. Either the grip handle or a press-and-hold anywhere on the bar
+// picks it up; the chosen spot is remembered per orientation (portrait/
+// landscape lay out completely differently, so a spot picked in one rarely
+// makes sense in the other) and restored next time full screen opens.
+const HOLD_MS = 300
 function FullScreenTools() {
   const { state, setTool, undo } = useApp()
   const landscape = useLandscape()
@@ -232,17 +245,23 @@ function FullScreenTools() {
   const storageKey = 'tb.fsToolsPos.' + (landscape ? 'landscape' : 'portrait') + '.v1'
   const barRef = useRef(null)
   const dragRef = useRef(null)
+  const holdRef = useRef(null)
+  const pressRef = useRef(null)
+  // Set once a drag has happened, so the click that lands right after it
+  // doesn't also switch tools; cleared on the next press.
+  const draggedRef = useRef(false)
   const [pos, setPos] = useState(() => loadToolBarPos(storageKey))
   const [dragging, setDragging] = useState(false)
+  const [hintSeen, setHintSeen] = useState(() => loadToolBarHintSeen())
 
   useEffect(() => { setPos(loadToolBarPos(storageKey)) }, [storageKey])
 
-  const onHandleDown = (e) => {
-    e.preventDefault()
+  const beginDrag = (clientX, clientY) => {
     const bar = barRef.current
     if (!bar) return
     const rect = bar.getBoundingClientRect()
-    dragRef.current = { startX: e.clientX, startY: e.clientY, originX: rect.left, originY: rect.top }
+    dragRef.current = { startX: clientX, startY: clientY, originX: rect.left, originY: rect.top }
+    draggedRef.current = true
     setDragging(true)
 
     const onMove = (ev) => {
@@ -259,6 +278,8 @@ function FullScreenTools() {
       window.removeEventListener('pointerup', onUp)
       dragRef.current = null
       setDragging(false)
+      setHintSeen(true)
+      try { localStorage.setItem(HINT_KEY, '1') } catch { /* ignore quota errors */ }
       setPos((p) => {
         try { localStorage.setItem(storageKey, JSON.stringify(p)) } catch { /* ignore quota errors */ }
         return p
@@ -268,28 +289,83 @@ function FullScreenTools() {
     window.addEventListener('pointerup', onUp)
   }
 
+  const clearHold = () => {
+    if (holdRef.current) { clearTimeout(holdRef.current); holdRef.current = null }
+    pressRef.current = null
+  }
+
+  const onHandleDown = (e) => {
+    e.preventDefault()
+    // The grip is the explicit affordance — no hold needed, and the bar's
+    // own press-and-hold shouldn't arm on top of it.
+    e.stopPropagation()
+    beginDrag(e.clientX, e.clientY)
+  }
+
+  // Press and hold anywhere on the bar picks it up too, so the natural
+  // "just grab the thing" instinct works without having to spot the grip.
+  // A short tap still selects a tool, and sliding a finger before the hold
+  // completes cancels it (that's a scroll, not a deliberate hold).
+  const onBarDown = (e) => {
+    draggedRef.current = false
+    if (dragRef.current) return
+    pressRef.current = { x: e.clientX, y: e.clientY }
+    holdRef.current = setTimeout(() => {
+      holdRef.current = null
+      const p = pressRef.current
+      if (!p) return
+      if (navigator.vibrate) navigator.vibrate(20)
+      beginDrag(p.x, p.y)
+    }, HOLD_MS)
+  }
+  const onBarMove = (e) => {
+    const p = pressRef.current
+    if (!holdRef.current || !p) return
+    if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 8) clearHold()
+  }
+
+  const onToolClick = (fn) => {
+    if (draggedRef.current) { draggedRef.current = false; return }
+    fn()
+  }
+
+  const showHint = !hintSeen && !pos
+
   const wrapStyle = {
     position: 'absolute', zIndex: 60, display: 'flex', gap: 4, overflowY: 'auto', overflowX: 'auto',
     ...defaultToolBarStyle(landscape),
     ...(pos ? { top: pos.y, left: pos.x, right: 'auto', bottom: 'auto', flexDirection: landscape ? 'column' : 'row' } : null),
     alignItems: landscape && !pos ? 'stretch' : 'center', justifyContent: 'center',
     opacity: dragging ? 0.85 : 1,
+    // A press-and-hold would otherwise raise the text-selection callout on
+    // touch, and scrolling would fight the drag once it has started.
+    touchAction: dragging ? 'none' : 'pan-x',
+    userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
   }
 
   return (
-    <div ref={barRef} style={wrapStyle}>
+    <div
+      ref={barRef} style={wrapStyle}
+      onPointerDown={onBarDown} onPointerMove={onBarMove}
+      onPointerUp={clearHold} onPointerCancel={clearHold} onPointerLeave={clearHold}
+    >
       <div
         onPointerDown={onHandleDown}
         style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
         ⠿
       </div>
+      {showHint && (
+        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 7, background: ACCENT, color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
+          Hold to move
+        </div>
+      )}
       {tools.map(([id, icon, label]) => {
         const active = state.tool === id
         const row = landscape
         return (
           <div
-            key={id} onClick={() => setTool(id)}
+            key={id} onClick={() => onToolClick(() => setTool(id))}
             style={{
               flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 5 : 1,
               padding: row ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
@@ -302,7 +378,7 @@ function FullScreenTools() {
         )
       })}
       <div
-        onClick={undo}
+        onClick={() => onToolClick(undo)}
         style={{
           flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
           padding: landscape ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
