@@ -80,7 +80,24 @@ export function carrierMap(players, ball, n) {
   for (let k = 1; k <= n; k++) {
     out[k] = c
     const act = actsOf(ball).find((a) => a.step === k && a.pts.length)
-    if (act) c = act.type === 'shot' ? null : nearestPlayer(players, act.pts[act.pts.length - 1], k + 1, 300)
+    if (act) {
+      c = act.type === 'shot' ? null : nearestPlayer(players, act.pts[act.pts.length - 1], k + 1, 300)
+      continue
+    }
+    // A handoff is drawn on the carrier itself, not the ball — the carrier
+    // physically walks the ball over (it rides along for free, the same way
+    // it already does during a dribble), and possession passes to whoever's
+    // nearest where that route ends, same as a pass would. The carrier is
+    // excluded from that search: they end up sitting right on top of their
+    // own route's endpoint, and without this they'd always be "nearest" to
+    // themselves — never handing off to anyone.
+    if (c) {
+      const handoff = actsOf(c).find((a) => a.step === k && a.type === 'handoff' && a.pts.length)
+      if (handoff) {
+        const others = players.filter((p) => p.id !== c.id)
+        c = nearestPlayer(others, handoff.pts[handoff.pts.length - 1], k + 1, 300)
+      }
+    }
   }
   return out
 }
