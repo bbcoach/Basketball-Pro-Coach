@@ -60,7 +60,7 @@ function stepSvg(play, board, cmap, stepIndex) {
       const ty = act.type
       routes.push({
         d: ty === 'dribble' ? wavy(pts) : smoothPoly(pts),
-        dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : 'none',
+        dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : ty === 'handoff' ? '2 12 22 12' : 'none',
         marker: ty === 'screen' ? 'none' : 'url(#step-arw)',
       })
       if (ty === 'screen') {
