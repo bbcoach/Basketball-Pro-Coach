@@ -269,7 +269,7 @@ function FullScreenTools() {
   }
 
   const wrapStyle = {
-    position: 'absolute', zIndex: 60, display: 'flex', gap: 6, overflowY: 'auto',
+    position: 'absolute', zIndex: 60, display: 'flex', gap: 4, overflowY: 'auto', overflowX: 'auto',
     ...defaultToolBarStyle(landscape),
     ...(pos ? { top: pos.y, left: pos.x, right: 'auto', bottom: 'auto', flexDirection: landscape ? 'column' : 'row' } : null),
     alignItems: landscape && !pos ? 'stretch' : 'center', justifyContent: 'center',
@@ -280,7 +280,7 @@ function FullScreenTools() {
     <div ref={barRef} style={wrapStyle}>
       <div
         onPointerDown={onHandleDown}
-        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 14, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
         ⠿
       </div>
@@ -291,26 +291,26 @@ function FullScreenTools() {
           <div
             key={id} onClick={() => setTool(id)}
             style={{
-              flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 6 : 2,
-              padding: row ? '8px 12px' : '7px 11px', borderRadius: 11, cursor: 'pointer',
+              flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 5 : 1,
+              padding: row ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
               background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
             }}
           >
-            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: row ? 11 : 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>{icon}</div>
+            <div style={{ fontSize: row ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
       <div
         onClick={undo}
         style={{
-          flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 6 : 2,
-          padding: landscape ? '8px 12px' : '7px 11px', borderRadius: 11, cursor: 'pointer',
+          flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
+          padding: landscape ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
           background: 'rgba(255,255,255,.16)', color: '#fff',
         }}
       >
-        <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>↺︎</div>
-        <div style={{ fontSize: landscape ? 11 : 10, lineHeight: '12px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>Undo</div>
+        <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>↺︎</div>
+        <div style={{ fontSize: landscape ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>Undo</div>
       </div>
     </div>
   )
