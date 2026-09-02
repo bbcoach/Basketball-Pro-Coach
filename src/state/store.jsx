@@ -622,6 +622,26 @@ export function AppProvider({ children }) {
     set({ nameIn: '', numIn: '', editId: null })
     showToast(s.editId ? 'Player updated' : 'Player added')
   }
+  // Bulk add from a CSV import. Players without a number in the file get the
+  // next free one rather than clashing with somebody already on the roster.
+  const importRosterPlayers = (list) => {
+    const existing = stateRef.current.roster
+    const used = new Set(existing.map((p) => String(p.num)))
+    let next = existing.length + 1
+    const stamp = Date.now()
+    const add = list.map((p, i) => {
+      let num = String(p.num || '').trim()
+      if (!num || used.has(num)) {
+        while (used.has(String(next))) next++
+        num = String(next)
+      }
+      used.add(num)
+      return { id: 'rp' + stamp + '-' + i, name: p.name, num }
+    })
+    if (!add.length) return
+    persistRoster((r) => r.concat(add))
+    showToast(add.length + (add.length === 1 ? ' player imported' : ' players imported'))
+  }
   const editPlayer = (p) => set({ editId: p.id, nameIn: p.name, numIn: p.num })
   const cancelEditPlayer = () => set({ editId: null, nameIn: '', numIn: '' })
   const removePlayer = (p) => {
@@ -955,7 +975,7 @@ export function AppProvider({ children }) {
     askConfirm, closeConfirm, runConfirm, showToast,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, selectStatPlayer, logStat, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, selectStatPlayer, logStat, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,
