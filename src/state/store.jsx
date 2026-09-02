@@ -5,6 +5,7 @@ import {
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
+import { kindOf } from '../lib/playKind'
 import { playDrillAlert, unlockDrillAlert } from '../lib/drillAlert'
 
 const LS = {
@@ -45,7 +46,7 @@ function initialState() {
     hint: 'Step 1 — drag players, pick a tool, draw the path',
     autoDef: true, fullScreen: false,
     currentId: null, playName: 'Untitled play',
-    sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '',
+    sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     formOpen: false, shareOpen: false,
     shareStatus: 'Sends the current play to your team',
     plays: [],
@@ -383,29 +384,32 @@ export function AppProvider({ children }) {
   // ── plays (save / load) ────────────────────────────────────
   const fileBase = () => (stateRef.current.playName || 'play').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
 
-  const openSave = () => set((s) => ({ saveOpen: true, renameId: null, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName }))
+  const openSave = () => set((s) => ({ saveOpen: true, renameId: null, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName, kindDraft: kindOf(s.plays.find((p) => p.id === s.currentId)) }))
   const closeSave = () => set({ saveOpen: false, renameId: null })
-  const openSheet = () => set((s) => ({ sheetOpen: true, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName }))
+  const openSheet = () => set((s) => ({ sheetOpen: true, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName, kindDraft: kindOf(s.plays.find((p) => p.id === s.currentId)) }))
   const closeSheet = () => set({ sheetOpen: false })
-  const renamePlay = (p) => set({ saveOpen: true, sheetOpen: false, renameId: p.id, nameDraft: p.name })
+  const renamePlay = (p) => set({ saveOpen: true, sheetOpen: false, renameId: p.id, nameDraft: p.name, kindDraft: kindOf(p) })
 
   const savePlay = () => {
     const s = stateRef.current
-    const name = (s.nameDraft || '').trim() || ('Play ' + (s.plays.length + 1))
+    const kind = s.kindDraft === 'drill' ? 'drill' : 'play'
+    const label = kind === 'drill' ? 'Drill' : 'Play'
+    const name = (s.nameDraft || '').trim() || (label + ' ' + (s.plays.length + 1))
     if (s.renameId) {
-      persistPlays((ps) => ps.map((x) => (x.id === s.renameId ? { ...x, name } : x)))
+      // Renaming is also where an existing entry can be re-categorized.
+      persistPlays((ps) => ps.map((x) => (x.id === s.renameId ? { ...x, name, kind } : x)))
       set((st) => ({ saveOpen: false, renameId: null, playName: st.currentId === s.renameId ? name : st.playName }))
-      showToast('Play renamed')
+      showToast(label + ' renamed')
       return
     }
     const n = nSteps()
     const snap = { view: s.view, steps: n, players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))) }
     const existing = s.plays.find((p) => p.name.toLowerCase() === name.toLowerCase())
     const id = existing ? existing.id : 'pl' + Date.now()
-    const entry = { id, name, ts: Date.now(), ...snap }
+    const entry = { id, name, kind, ts: Date.now(), ...snap }
     persistPlays((ps) => (ps.some((x) => x.id === id) ? ps.map((x) => (x.id === id ? entry : x)) : [entry].concat(ps)))
     set({ currentId: id, playName: name, sheetOpen: false, saveOpen: false, renameId: null, hint: 'Saved as “' + name + '”' })
-    showToast('Play saved')
+    showToast(label + ' saved')
   }
   // "open" — from the home screen's Load list: fresh board, undo history cleared.
   const openPlayFromHome = (p) => {
@@ -468,9 +472,9 @@ export function AppProvider({ children }) {
       return
     }
     if (decoded.kind === 'play') {
-      const { name, view, steps, players, ball } = decoded.payload
-      persistPlays((ps) => [{ id: 'pl' + Date.now(), name: name || 'Imported play', ts: Date.now(), view, steps, players, ball }].concat(ps))
-      showToast('Play imported')
+      const { name, kind, view, steps, players, ball } = decoded.payload
+      persistPlays((ps) => [{ id: 'pl' + Date.now(), name: name || 'Imported play', kind: kindOf({ kind }), ts: Date.now(), view, steps, players, ball }].concat(ps))
+      showToast(kindOf({ kind }) === 'drill' ? 'Drill imported' : 'Play imported')
     } else {
       const { name, min, desc, category, play } = decoded.payload
       let playId = null

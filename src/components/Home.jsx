@@ -5,6 +5,7 @@ import { COND } from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
+import { kindOf, KIND_LABEL } from '../lib/playKind'
 import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
 
 function playMeta(p) {
@@ -32,6 +33,11 @@ export default function Home() {
   // `beforeinstallprompt` can fire at any point after mount (or never, on
   // Safari) — subscribe rather than checking once, so the hint appears the
   // moment the browser decides the app is installable.
+  const [homeFilter, setHomeFilter] = useState('all')
+  const nPlays = plays.filter((p) => kindOf(p) === 'play').length
+  const nDrills = plays.filter((p) => kindOf(p) === 'drill').length
+  const shownPlays = homeFilter === 'all' ? plays : plays.filter((p) => kindOf(p) === homeFilter)
+
   const [showInstallHint, setShowInstallHint] = useState(false)
   useEffect(() => {
     setShowInstallHint(shouldShowInstallHint())
@@ -117,25 +123,44 @@ export default function Home() {
             <div onClick={toggleLoad} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', cursor: 'pointer' }}>
               <div style={{ fontSize: 16, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▤</div>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>Load play</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{plays.length ? plays.length + (plays.length === 1 ? ' saved play' : ' saved plays') : 'Nothing saved yet'}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>Load from library</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{plays.length ? nPlays + (nPlays === 1 ? ' play' : ' plays') + ' · ' + nDrills + (nDrills === 1 ? ' drill' : ' drills') : 'Nothing saved yet'}</div>
               </div>
               <div style={{ fontSize: 14, color: 'rgba(255,255,255,.4)' }}>{loadOpen ? '▾' : '▸'}</div>
             </div>
             {loadOpen && (
-              <div style={{ maxHeight: 210, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {plays.map((p) => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                    <div onClick={() => openPlayFromHome(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
-                    </div>
-                    <div onClick={() => askConfirm({ title: 'Delete play', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer' }}>✕</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {plays.length > 0 && (
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,.05)', borderRadius: 9, padding: 3, gap: 2 }}>
+                    {[['all', 'All'], ['play', 'Plays'], ['drill', 'Drills']].map(([id, label]) => (
+                      <div
+                        key={id} onClick={() => setHomeFilter(id)}
+                        style={{ flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: homeFilter === id ? 'rgba(255,255,255,.13)' : 'transparent', color: homeFilter === id ? '#fff' : 'rgba(255,255,255,.5)' }}
+                      >
+                        {label}
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {!plays.length && (
-                  <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No saved plays yet — create one and save it from the board.</div>
                 )}
+                <div style={{ maxHeight: 210, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {shownPlays.map((p) => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+                      <div onClick={() => openPlayFromHome(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                          <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 5, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
+                          <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
+                      </div>
+                      <div onClick={() => askConfirm({ title: 'Delete ' + KIND_LABEL[kindOf(p)].toLowerCase(), message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer' }}>✕</div>
+                    </div>
+                  ))}
+                  {!shownPlays.length && (
+                    <div style={{ padding: '10px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
+                      {plays.length ? `Nothing filed under ${homeFilter === 'drill' ? 'Drills' : 'Plays'} yet.` : 'Nothing saved yet — create one and save it from the board.'}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

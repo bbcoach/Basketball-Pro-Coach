@@ -13,8 +13,12 @@ function b64DecodeUtf8(str) {
   return decodeURIComponent(escape(atob(str)))
 }
 
+// Note the two senses of "drill" here: the `:play:`/`:drill:` tag says which
+// kind of *code* this is (a board diagram vs. a practice drill with a
+// duration), while `payload.kind` inside a play code says whether that
+// diagram is filed under Plays or Drills in the board library.
 export function encodePlayShare(play) {
-  const payload = { name: play.name, view: play.view, steps: play.steps, players: play.players, ball: play.ball }
+  const payload = { name: play.name, kind: play.kind, view: play.view, steps: play.steps, players: play.players, ball: play.ball }
   return `${TAG}:play:${b64EncodeUtf8(JSON.stringify(payload))}`
 }
 
