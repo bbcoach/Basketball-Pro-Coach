@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy } from '../../lib/board-geometry'
+import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 
 const COURT_W = 1500
@@ -34,7 +34,7 @@ export default function Court() {
       })
     })
     const bp = board.ballPos(t)
-    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.45)', sw: 5, tc: '#7a3a10', label: '' })
+    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
 
     const rts = []
     const cps = []
@@ -165,6 +165,7 @@ export default function Court() {
           <g key={tk.key}>
             <circle cx={tk.x} cy={tk.y} r={tk.rHalo} fill="rgba(0,0,0,.28)" />
             <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
+            {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
           </g>
         ))}
         <g pointerEvents="none">

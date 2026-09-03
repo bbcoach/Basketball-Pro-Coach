@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
-  HALF, FULL, actsOf, baseAt, dist, makeBoard, poly, wavy,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, poly, wavy,
 } from '../../lib/board-geometry'
 
 // Static, read-only diagram of a saved play — start positions plus every
@@ -30,7 +30,7 @@ export default function PlayPreview({ play }) {
       })
     })
     const bp = board.ballPos(0)
-    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.45)', tc: '', label: '' })
+    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
 
     const rts = []
     const cps = []
@@ -90,7 +90,8 @@ export default function PlayPreview({ play }) {
       ))}
       {tokens.map((tk) => (
         <g key={tk.key}>
-          <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth="6" />
+          <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.ball ? 4 : 6} />
+          {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth="3.2" strokeLinecap="round" />}
           {tk.label && <text x={tk.x} y={tk.y} dominantBaseline="central" textAnchor="middle" fill={tk.tc} fontSize={tk.r * 0.96} fontWeight="700" fontFamily="'Barlow Condensed', sans-serif">{tk.label}</text>}
         </g>
       ))}

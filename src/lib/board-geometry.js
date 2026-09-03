@@ -121,6 +121,19 @@ export function posAtTime(ent, t, n) {
   return ptAt([base].concat(a.pts), e)
 }
 
+// The classic basketball seams for a ball of radius r centred on (cx, cy):
+// the equator and meridian, plus the two side seams curving in towards the
+// middle. Shared so the live board, the thumbnails and the PDF export all
+// draw the same ball.
+export function ballSeams(cx, cy, r) {
+  const q = r * 0.72
+  const n = (v) => v.toFixed(1)
+  return `M${n(cx - r)} ${n(cy)} H${n(cx + r)}`
+    + ` M${n(cx)} ${n(cy - r)} V${n(cy + r)}`
+    + ` M${n(cx - q)} ${n(cy - q)} Q${n(cx)} ${n(cy)} ${n(cx - q)} ${n(cy + q)}`
+    + ` M${n(cx + q)} ${n(cy - q)} Q${n(cx)} ${n(cy)} ${n(cx + q)} ${n(cy + q)}`
+}
+
 export function poly(pts) {
   return pts.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
 }
