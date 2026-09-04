@@ -85,7 +85,7 @@ export default function Court() {
   // The light should always come from the same corner of the *screen*. In
   // landscape the whole court is drawn rotated, so the offset has to be
   // rotated with it to end up pointing the same way for the viewer.
-  const shadow = landscape ? { dx: -0.2, dy: 0.2 } : { dx: 0.2, dy: 0.2 }
+  const shadow = landscape ? { dx: -0.12, dy: 0.12 } : { dx: 0.12, dy: 0.12 }
 
   return (
     <svg
