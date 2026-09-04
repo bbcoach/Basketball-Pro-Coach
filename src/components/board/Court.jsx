@@ -82,6 +82,10 @@ export default function Court() {
   // Text glyphs need to be counter-rotated back upright — everything else
   // (paths, arrows, tokens) should rotate with the field.
   const labelRotate = (x, y) => (landscape ? 'rotate(90 ' + x + ' ' + y + ')' : undefined)
+  // The light should always come from the same corner of the *screen*. In
+  // landscape the whole court is drawn rotated, so the offset has to be
+  // rotated with it to end up pointing the same way for the viewer.
+  const shadow = landscape ? { dx: -0.2, dy: 0.2 } : { dx: 0.2, dy: 0.2 }
 
   return (
     <svg
@@ -114,6 +118,14 @@ export default function Court() {
         <marker id="arw" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
           <path d="M1 1 L11 6 L1 11 z" fill="#ffffff" />
         </marker>
+        {/* Soft-edged blob used as each token's cast shadow. A gradient
+            rather than an SVG blur filter on purpose: the tokens are
+            re-rendered on every animation frame during playback, and a
+            filter would be re-rasterized each time. */}
+        <radialGradient id="tokshadow">
+          <stop offset="62%" stopColor="#000" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       <g ref={contentRef} transform={rotate}>
@@ -163,7 +175,7 @@ export default function Court() {
 
         {tokens.map((tk) => (
           <g key={tk.key}>
-            <circle cx={tk.x} cy={tk.y} r={tk.rHalo} fill="rgba(0,0,0,.28)" />
+            <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.5} fill="url(#tokshadow)" />
             <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
             {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
           </g>
