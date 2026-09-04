@@ -85,7 +85,7 @@ export default function Court() {
   // The light should always come from the same corner of the *screen*. In
   // landscape the whole court is drawn rotated, so the offset has to be
   // rotated with it to end up pointing the same way for the viewer.
-  const shadow = landscape ? { dx: -0.2, dy: 0.2 } : { dx: 0.2, dy: 0.2 }
+  const shadow = landscape ? { dx: -0.12, dy: 0.12 } : { dx: 0.12, dy: 0.12 }
 
   return (
     <svg
@@ -123,7 +123,7 @@ export default function Court() {
             re-rendered on every animation frame during playback, and a
             filter would be re-rasterized each time. */}
         <radialGradient id="tokshadow">
-          <stop offset="62%" stopColor="#000" stopOpacity="0.45" />
+          <stop offset="62%" stopColor="#000" stopOpacity="0.34" />
           <stop offset="100%" stopColor="#000" stopOpacity="0" />
         </radialGradient>
       </defs>
@@ -175,7 +175,7 @@ export default function Court() {
 
         {tokens.map((tk) => (
           <g key={tk.key}>
-            <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.5} fill="url(#tokshadow)" />
+            <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.34} fill="url(#tokshadow)" />
             <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
             {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
           </g>
