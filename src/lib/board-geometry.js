@@ -84,20 +84,36 @@ export function carrierMap(players, ball, n) {
       c = act.type === 'shot' ? null : nearestPlayer(players, act.pts[act.pts.length - 1], k + 1, 300)
       continue
     }
-    // A handoff is drawn on the carrier itself, not the ball — the carrier
-    // physically walks the ball over (it rides along for free, the same way
-    // it already does during a dribble), and possession passes to whoever's
-    // nearest where that route ends, same as a pass would. The carrier is
-    // excluded from that search: they end up sitting right on top of their
-    // own route's endpoint, and without this they'd always be "nearest" to
-    // themselves — never handing off to anyone.
-    if (c) {
-      const handoff = actsOf(c).find((a) => a.step === k && a.type === 'handoff' && a.pts.length)
-      if (handoff) {
-        const others = players.filter((p) => p.id !== c.id)
-        c = nearestPlayer(others, handoff.pts[handoff.pts.length - 1], k + 1, 300)
-      }
+    if (!c) continue
+    // A handoff is drawn on a player, not the ball, and works in either
+    // direction — whoever moves is the one it's drawn on.
+    //
+    // Carrier hands it over: they physically walk the ball across (it rides
+    // along for free, the same way it does during a dribble) and possession
+    // passes to whoever's nearest where that route ends. The carrier is
+    // excluded from that search — they end up sitting right on top of their
+    // own endpoint, so without this they'd always be "nearest" to themselves
+    // and never hand off to anyone.
+    const given = actsOf(c).find((a) => a.step === k && a.type === 'handoff' && a.pts.length)
+    if (given) {
+      const others = players.filter((p) => p.id !== c.id)
+      c = nearestPlayer(others, given.pts[given.pts.length - 1], k + 1, 300)
+      continue
     }
+    // Team-mate collects it: they run at the carrier and take the ball off
+    // them. Their route has to actually finish near where the carrier ends
+    // up this step, and if several run at the carrier the closest one gets it.
+    const carrierAt = baseAt(c, k + 1)
+    let taker = null
+    let bestD = 300
+    players.forEach((p) => {
+      if (p.id === c.id) return
+      const a = actsOf(p).find((z) => z.step === k && z.type === 'handoff' && z.pts.length)
+      if (!a) return
+      const d = dist(a.pts[a.pts.length - 1], carrierAt)
+      if (d < bestD) { bestD = d; taker = p }
+    })
+    if (taker) c = taker
   }
   return out
 }
