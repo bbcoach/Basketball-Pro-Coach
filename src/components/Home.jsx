@@ -7,10 +7,11 @@ import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 import { kindOf, KIND_LABEL } from '../lib/playKind'
 import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
+import { plural } from '../lib/dates'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
-  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + p.players.length + ' players · ' + (steps === 1 ? '1 step' : steps + ' steps')
+  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + plural(p.players.length, 'player') + ' · ' + (steps === 1 ? '1 step' : steps + ' steps')
 }
 
 export default function Home() {
@@ -188,7 +189,7 @@ export default function Home() {
           <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▥</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Track stats</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') + ' tracked' : 'Set up your roster, then track a game'}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? plural(roster.length, 'player') + ' · ' + plural(games.length, 'game') + ' tracked' : 'Set up your roster, then track a game'}</div>
           </div>
         </div>
 

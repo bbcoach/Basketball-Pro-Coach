@@ -3,10 +3,11 @@ import { ACCENT } from '../../../state/config'
 import { COND } from '../../../theme'
 import { maxStepOf } from '../../../lib/board-geometry'
 import { kindOf, KIND_LABEL } from '../../../lib/playKind'
+import { plural } from '../../../lib/dates'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
-  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + p.players.length + ' players · ' + (steps === 1 ? '1 step' : steps + ' steps')
+  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + plural(p.players.length, 'player') + ' · ' + (steps === 1 ? '1 step' : steps + ' steps')
 }
 
 export default function PlaysSheet() {

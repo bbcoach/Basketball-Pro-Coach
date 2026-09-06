@@ -228,7 +228,7 @@ export default function Attendance() {
   const { state, set, closeAttend } = useApp()
   const { attendTab, openSession, roster, sessions, teams, activeTeamId } = state
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
-  const line = (teamName ? teamName + ' · ' : '') + roster.length + ' players · ' + sessions.length + ' sessions'
+  const line = (teamName ? teamName + ' · ' : '') + plural(roster.length, 'player') + ' · ' + plural(sessions.length, 'session')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>

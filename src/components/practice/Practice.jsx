@@ -5,6 +5,7 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import PlayPreview from './PlayPreview'
+import { plural } from '../../lib/dates'
 
 function planMeta(app, p) {
   const list = app.planDrills(p)
@@ -229,7 +230,7 @@ function DrillsTab() {
 export default function Practice() {
   const { state, set, closePractice } = useApp()
   const { practiceTab, openPlan: openId, drills, plans } = state
-  const line = drills.length + ' drills · ' + plans.length + ' session plans'
+  const line = plural(drills.length, 'drill') + ' · ' + plural(plans.length, 'session plan')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
