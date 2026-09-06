@@ -99,12 +99,12 @@ function TwoTeamToggle({ game }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
       <div
         onClick={toggleTwoTeam}
-        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: game.twoTeam ? ACCENT : 'rgba(255,255,255,.06)', color: game.twoTeam ? '#101012' : 'rgba(255,255,255,.6)' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: game.twoTeam ? ACCENT : 'rgba(255,255,255,.06)', color: game.twoTeam ? '#101012' : 'rgba(255,255,255,.6)' }}
       >
         <span style={{ fontSize: 12 }}>{game.twoTeam ? '☑' : '☐'}</span> Track two teams
       </div>
       {game.twoTeam && (
-        <div onClick={() => set({ twoTeamModalOpen: true })} style={{ padding: '7px 11px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' }}>
+        <div onClick={() => set({ twoTeamModalOpen: true })} style={{ padding: '7px 11px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)' }}>
           Manage teams →
         </div>
       )}
@@ -138,16 +138,16 @@ function GameMetaEditor({ game }) {
       <div style={{ display: 'flex', gap: 6 }}>
         <input
           type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
-          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <input
           type="time" value={game.time || ''} onChange={(e) => setGameTime(e.target.value)}
-          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         {isGame ? (
           <input
             type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
           />
         ) : (
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
@@ -157,19 +157,19 @@ function GameMetaEditor({ game }) {
         <div style={{ display: 'flex', gap: 6 }}>
           <div
             onClick={() => setGameHome(game.home === 'home' ? '' : 'home')}
-            style={{ flex: 'none', padding: '8px 11px', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+            style={{ flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
           >
             Home
           </div>
           <div
             onClick={() => setGameHome(game.home === 'away' ? '' : 'away')}
-            style={{ flex: 'none', padding: '8px 11px', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+            style={{ flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
           >
             Away
           </div>
           <input
             type="text" value={game.location || ''} onChange={(e) => setGameLocation(e.target.value)} placeholder="Location (optional)"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
           />
         </div>
       )}
@@ -185,7 +185,7 @@ function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, 
   return (
     <div
       onClick={() => selectStatPlayer(p)}
-      style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: compact ? '7px 9px' : '8px 10px', borderRadius: 11, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
+      style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: compact ? '7px 9px' : '8px 10px', borderRadius: 12, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
     >
       <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num}</div>
       {/* The full "PTS · REB · AST" line is dropped here rather than shrunk,
@@ -217,7 +217,7 @@ function PlayerColumn({ title, players, onCourt, style, ...rowProps }) {
 
 function PromptHint({ text }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
       <div style={{ fontSize: 13, lineHeight: 1 }}>☝</div>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{text}</div>
     </div>
@@ -251,7 +251,7 @@ function LastActionBar({ lastAction, selPlayer, undoStat }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: selPlayer ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.75)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastAction}</div>
-      <div onClick={undoStat} style={{ padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Undo</div>
+      <div onClick={undoStat} style={{ padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Undo</div>
     </div>
   )
 }
@@ -310,7 +310,7 @@ function LiveTab({ game }) {
               {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', overflow: 'hidden' }}>{lastAction}</div>}
             </div>
             <StatPad {...padProps} columns={4} />
-            <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Undo</div>
+            <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Undo</div>
           </div>
         </div>
       </div>
@@ -383,7 +383,7 @@ function BoxTable({ players, log, title }) {
           ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
           : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
             <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
               <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
@@ -427,9 +427,9 @@ function BoxTab({ game }) {
         <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
       )}
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => { exportBoxPdf(players, log, TEAM_NAME, game); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
-        <div onClick={() => { exportBoxCsv(players, log, game); showToast('CSV downloaded') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
-        <div onClick={askReset} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Reset</div>
+        <div onClick={() => { exportBoxPdf(players, log, TEAM_NAME, game); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => { exportBoxCsv(players, log, game); showToast('CSV downloaded') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>CSV</div>
+        <div onClick={askReset} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Reset</div>
       </div>
     </div>
   )
@@ -459,7 +459,7 @@ function SeasonTable({ rows }) {
           ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
           : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 9, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
             <div style={{ width: 176, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
               <div style={{ width: 16, flex: 'none', fontWeight: 700, color: 'rgba(255,255,255,.3)' }}>{i + 1}</div>
               <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
@@ -504,7 +504,7 @@ function SeasonTab() {
         <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
       )}
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 10, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
       </div>
     </div>
   )
@@ -521,9 +521,9 @@ function ResetModal() {
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Reset game</div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 14px', lineHeight: 1.5 }}>{logLen} logged actions for {state.roster.length} players. This cannot be undone.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div onClick={resetGame} style={{ padding: 11, borderRadius: 11, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Clear all stats</div>
-          <div onClick={resetRoster} style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Clear stats and roster</div>
-          <div onClick={closeReset} style={{ padding: 10, borderRadius: 11, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+          <div onClick={resetGame} style={{ padding: 11, borderRadius: 12, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Clear all stats</div>
+          <div onClick={resetRoster} style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Clear stats and roster</div>
+          <div onClick={closeReset} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
         </div>
       </div>
     </div>
@@ -545,7 +545,7 @@ function TwoTeamModal() {
   const sidePill = (p, side) => (
     <div
       key={side} onClick={() => setPlayerSide(p.id, side)}
-      style={{ padding: '5px 9px', borderRadius: 7, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: p.side === side ? ACCENT : 'rgba(255,255,255,.06)', color: p.side === side ? '#101012' : 'rgba(255,255,255,.55)' }}
+      style={{ padding: '5px 9px', borderRadius: 8, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', background: p.side === side ? ACCENT : 'rgba(255,255,255,.06)', color: p.side === side ? '#101012' : 'rgba(255,255,255,.55)' }}
     >
       {side}
     </div>
@@ -555,22 +555,22 @@ function TwoTeamModal() {
     <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.9)', display: 'flex', flexDirection: 'column', padding: '60px 20px 34px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 14 }}>
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Two teams</div>
-        <div onClick={() => set({ twoTeamModalOpen: false, importSheetOpen: false })} style={{ padding: '7px 13px', borderRadius: 9, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
+        <div onClick={() => set({ twoTeamModalOpen: false, importSheetOpen: false })} style={{ padding: '7px 13px', borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             type="text" value={game.teamAName || ''} onChange={(e) => setTeamAName(e.target.value)} placeholder={activeTeamName || 'Team A'}
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
           />
           <input
             type="text" value={game.teamBName || ''} onChange={(e) => setTeamBName(e.target.value)} placeholder="Opponent"
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
           />
         </div>
 
         <div>
-          <div onClick={openImportSheet} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
+          <div onClick={openImportSheet} style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
             ⇩ Import another team's roster
           </div>
           {importSheetOpen && (
@@ -578,7 +578,7 @@ function TwoTeamModal() {
               {otherTeams.map((t) => (
                 <div
                   key={t.id} onClick={() => importTeamRoster(t.id)}
-                  style={{ padding: '9px 11px', borderRadius: 9, background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '9px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}
                 >
                   {t.name} · {t.roster.length} players
                 </div>
@@ -592,7 +592,7 @@ function TwoTeamModal() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Assign players</div>
           {players.map((p) => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{p.imported ? <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 500 }}> · imported</span> : ''}</div>
               {sidePill(p, 'A')}
@@ -600,7 +600,7 @@ function TwoTeamModal() {
               {p.imported && (
                 <div
                   onClick={() => askConfirm({ title: 'Remove player', message: `Remove ${p.name} from this game?`, onConfirm: () => removeImportedPlayer(p.id) })}
-                  style={{ padding: '5px 8px', borderRadius: 7, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 11, cursor: 'pointer' }}
+                  style={{ padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 11, cursor: 'pointer' }}
                 >
                   ✕
                 </div>

@@ -45,7 +45,7 @@ export default function Home() {
     return subscribeInstallPrompt(() => setShowInstallHint(shouldShowInstallHint()))
   }, [])
 
-  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
+  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
@@ -59,7 +59,7 @@ export default function Home() {
         </div>
 
         {showBackupReminder && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>💾</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
               Everything lives only on this device. Worth a quick backup?
@@ -80,7 +80,7 @@ export default function Home() {
         )}
 
         {showInstallHint && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>📲</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
               {canPromptInstall()
@@ -116,7 +116,7 @@ export default function Home() {
         </div>
 
         {boardMenu && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 18, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
             <div onClick={startNewPlay} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, background: ACCENT, color: '#101012', cursor: 'pointer' }}>
               <div style={{ fontSize: 19, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>＋</div>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>Create new play</div>
@@ -132,11 +132,11 @@ export default function Home() {
             {loadOpen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {plays.length > 0 && (
-                  <div style={{ display: 'flex', background: 'rgba(255,255,255,.05)', borderRadius: 9, padding: 3, gap: 2 }}>
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,.05)', borderRadius: 12, padding: 3, gap: 2 }}>
                     {[['all', 'All'], ['play', 'Plays'], ['drill', 'Drills']].map(([id, label]) => (
                       <div
                         key={id} onClick={() => setHomeFilter(id)}
-                        style={{ flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: homeFilter === id ? 'rgba(255,255,255,.13)' : 'transparent', color: homeFilter === id ? '#fff' : 'rgba(255,255,255,.5)' }}
+                        style={{ flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: homeFilter === id ? 'rgba(255,255,255,.13)' : 'transparent', color: homeFilter === id ? '#fff' : 'rgba(255,255,255,.5)' }}
                       >
                         {label}
                       </div>
@@ -148,7 +148,7 @@ export default function Home() {
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                       <div onClick={() => openPlayFromHome(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                          <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 5, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
+                          <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
                           <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                         </div>
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>

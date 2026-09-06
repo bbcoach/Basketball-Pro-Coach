@@ -79,16 +79,16 @@ function SessionOpen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
         <input
           type="date" value={session.date} onChange={(e) => setSessionDate(e.target.value)}
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <input
           type="time" value={session.time || ''} onChange={(e) => setSessionTime(e.target.value)}
-          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
-        <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
+        <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
       {isPast && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 10, borderRadius: 10, background: locked ? 'rgba(217,132,60,.12)' : 'rgba(91,191,114,.12)', border: '1px solid ' + (locked ? 'rgba(217,132,60,.3)' : 'rgba(91,191,114,.3)') }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', marginBottom: 10, borderRadius: 12, background: locked ? 'rgba(217,132,60,.12)' : 'rgba(91,191,114,.12)', border: '1px solid ' + (locked ? 'rgba(217,132,60,.3)' : 'rgba(91,191,114,.3)') }}>
           <div style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: 600, color: locked ? '#d9843c' : '#5bbf72' }}>{locked ? '🔒 Past session — attendance marks are locked' : 'Unlocked — attendance marks can be edited'}</div>
           {locked && <div onClick={askUnlock} style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Unlock</div>}
         </div>
@@ -100,7 +100,7 @@ function SessionOpen() {
           return (
             <div
               key={pl.id ?? 'none'} onClick={() => setSessionPlan(pl.id)}
-              style={{ flex: 'none', padding: '7px 10px', borderRadius: 9, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? ACCENT : 'rgba(255,255,255,.05)', color: on ? '#101012' : 'rgba(255,255,255,.6)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.09)') }}
+              style={{ flex: 'none', padding: '7px 10px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? ACCENT : 'rgba(255,255,255,.05)', color: on ? '#101012' : 'rgba(255,255,255,.6)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.09)') }}
             >
               {pl.name}
             </div>
@@ -124,7 +124,7 @@ function SessionOpen() {
             </div>
           )
           return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               {opt('in', 'IN', '#5bbf72')}
@@ -149,7 +149,7 @@ function SessionOpen() {
                 </div>
               )
               return (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                   <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                   {opt('in', 'IN', '#5bbf72')}
@@ -184,7 +184,7 @@ function SummaryTab() {
       {!!roster.length && (
         <div
           onClick={() => { exportAttendancePdf(roster, coaches, sessions, teamName); showToast('Opening PDF…') }}
-          style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
+          style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
         >
           Export PDF
         </div>
@@ -192,7 +192,7 @@ function SummaryTab() {
       {ranked.map(({ p, inn, injured, pct }) => {
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
             <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
@@ -208,7 +208,7 @@ function SummaryTab() {
           {coaches.map((c) => {
             const inn = pastSessions.filter((s) => (s.coachMarks || {})[c.id] === 'in').length
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 11, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                 <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>

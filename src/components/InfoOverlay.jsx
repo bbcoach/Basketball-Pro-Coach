@@ -16,7 +16,7 @@ export default function InfoOverlay() {
           </div>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.04, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>{info.title}</div>
         </div>
-        <div onClick={closeInfo} style={{ padding: '7px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Close</div>
+        <div onClick={closeInfo} style={{ padding: '7px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Close</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {info.blocks.map((b, i) => (
