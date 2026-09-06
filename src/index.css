@@ -222,3 +222,25 @@ input, button, textarea {
   font-family: inherit;
   font-variant-numeric: inherit;
 }
+
+/* Focus ring. 25 of the app's 27 inputs carry an inline `outline: none` and
+   nothing ever replaced it, so nothing marked which field was active — on a
+   phone only the caret gave it away, and on a desktop tabbing through a form
+   was completely invisible. The inline style is why this needs !important;
+   it is the one place in this stylesheet that does.
+
+   :focus-visible rather than :focus so a ring never appears from a plain
+   mouse click on a button — text fields still get one either way, because
+   browsers always treat typing targets as focus-visible.
+
+   Note this only reaches real form controls. The app's buttons are <div>s
+   with an onClick and no tabindex, so the keyboard cannot land on them at
+   all; giving those a ring is a keyboard-navigation job, not a paint job. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid rgba(232, 177, 60, 0.85) !important;
+  outline-offset: 2px;
+  border-color: rgba(232, 177, 60, 0.5) !important;
+}
