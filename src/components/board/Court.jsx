@@ -86,6 +86,14 @@ export default function Court() {
   // landscape the whole court is drawn rotated, so the offset has to be
   // rotated with it to end up pointing the same way for the viewer.
   const shadow = landscape ? { dx: -0.12, dy: 0.12 } : { dx: 0.12, dy: 0.12 }
+  // The tokens were flat discs sitting under a cast shadow, which is the one
+  // combination that reads as "sticker", not "object". A single sheen laid
+  // over the fill turns them into pieces lying on the floor. Its centre is
+  // derived from the shadow vector rather than hard-coded, so the highlight
+  // is always on the side the light comes from — including in landscape,
+  // where the whole court is drawn rotated and a fixed top-left highlight
+  // would end up lit from a different corner than the shadows.
+  const light = { cx: 0.5 - shadow.dx * 1.45, cy: 0.5 - shadow.dy * 1.45 }
 
   return (
     <svg
@@ -125,6 +133,16 @@ export default function Court() {
         <radialGradient id="tokshadow">
           <stop offset="62%" stopColor="#000" stopOpacity="0.34" />
           <stop offset="100%" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+        {/* Laid over every token's own fill, so one definition works for the
+            yellow attackers, the near-black defenders and the orange ball
+            alike — it only lightens one side and deepens the other. Like the
+            shadow above, a gradient rather than a filter: tokens re-render on
+            every animation frame. */}
+        <radialGradient id="toklight" cx={light.cx} cy={light.cy} r="0.75">
+          <stop offset="0%" stopColor="#fff" stopOpacity="0.26" />
+          <stop offset="55%" stopColor="#fff" stopOpacity="0.04" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.20" />
         </radialGradient>
       </defs>
 
@@ -176,7 +194,12 @@ export default function Court() {
         {tokens.map((tk) => (
           <g key={tk.key}>
             <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.34} fill="url(#tokshadow)" />
-            <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} />
+            <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} />
+            {/* Inset by half the stroke so the sheen stops at the inner edge
+                of the ring instead of washing over it. Drawn before the ring
+                and the seams so neither gets dimmed by it. */}
+            <circle cx={tk.x} cy={tk.y} r={tk.r - tk.sw / 2} fill="url(#toklight)" />
+            <circle cx={tk.x} cy={tk.y} r={tk.r} fill="none" stroke={tk.stroke} strokeWidth={tk.sw} />
             {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
           </g>
         ))}
