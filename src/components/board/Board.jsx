@@ -156,51 +156,23 @@ function FooterButtons() {
   const { state, goHome, openSave, openSheet, enterFullScreen, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
-  // Ten identically-weighted grey pills gave the eye nothing to hold on to.
-  // Three tiers instead: the things you reach for while drawing lead, the
-  // occasional ones sit at normal weight, and the two irreversible ones are
-  // recessed to an outline so they read as "careful" rather than as just
-  // another button. Order is unchanged — this is about weight, not about
-  // moving controls out from under anyone's thumb.
-  const WEIGHT = {
-    lead: { background: 'rgba(255,255,255,.14)', color: '#fff', border: '1px solid transparent' },
-    normal: { background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.8)', border: '1px solid transparent' },
-    quiet: { background: 'transparent', color: 'rgba(255,255,255,.45)', border: '1px solid rgba(255,255,255,.12)' },
-  }
-  const btn = (label, onClick, weight = 'normal', active) => (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '6px 9px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-        ...(active ? { background: ACCENT, color: '#101012', border: '1px solid transparent' } : WEIGHT[weight]),
-      }}
-    >
-      {label}
-    </div>
+  const btn = (label, onClick, active) => (
+    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT : 'rgba(255,255,255,.07)', color: active ? '#101012' : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
   )
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 14px 0' }}>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.42)', letterSpacing: '.2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{state.hint}</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', flex: '0 1 auto' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', flex: '0 1 auto' }}>
         {btn('Menu', goHome)}
-        {btn('Save', openSave, 'lead')}
-        {btn('Plays', openSheet, 'lead')}
-        {btn('Full screen', enterFullScreen, 'lead')}
-        {btn('D follows', toggleAutoDef, 'normal', state.autoDef)}
+        {btn('Save', openSave)}
+        <div onClick={openSheet} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Plays</div>
+        {btn('Full screen', enterFullScreen)}
+        {btn('D follows', toggleAutoDef, state.autoDef)}
         {btn('Setup', openFormations)}
         {btn('Share', openShare)}
-        {btn('Undo', undo, 'lead')}
-        {/* The two irreversible ones live in their own box rather than being
-            separated by a divider rule: the row wraps on narrow screens, and
-            a rule would wrap with it and end up as a stray tick at the edge
-            of a line (visibly so at 320px). Grouping survives every width —
-            they stay together and stay last, and never come to sit directly
-            beside Undo, which is the neighbour that actually matters: one
-            steps back a single action, the other wipes the whole play. */}
-        <div style={{ display: 'flex', gap: 6, marginLeft: 4 }}>
-          {btn('Clear paths', askClearRoutes, 'quiet')}
-          {btn('Reset', askResetAll, 'quiet')}
-        </div>
+        {btn('Undo', undo)}
+        {btn('Clear paths', askClearRoutes)}
+        {btn('Reset', askResetAll)}
       </div>
     </div>
   )
