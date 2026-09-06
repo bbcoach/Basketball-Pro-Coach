@@ -23,7 +23,7 @@ function reportStyles(pageSize) {
   return `
     @page{size:${pageSize};margin:18mm 16mm}
     *{box-sizing:border-box}
-    body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-variant-numeric:tabular-nums}
     .topbar{height:5px;background:${ACCENT};border-radius:99px;margin:0 0 20px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
     .logo{width:38px;height:38px;flex:none;border-radius:11px;border:1.5px solid ${ACCENT};display:flex;align-items:center;justify-content:center}

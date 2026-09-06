@@ -8,6 +8,15 @@ html, body {
   font-family: Barlow, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  /* Fixed-width (tabular) figures everywhere. Barlow's default figures are
+     proportional and very uneven — a "1" is 353 units wide against a "4" at
+     585 — so any number that changes while you are looking at it drags the
+     text around it along: box-score columns wobble as the tally goes up,
+     and the drill clock, centred at 74px, visibly jumps left and right on
+     every tick. Both Barlow and Barlow Condensed ship a `tnum` feature, so
+     this costs nothing but the flag. Inherited, so it reaches SVG <text>
+     (the jersey numbers on the board) too. */
+  font-variant-numeric: tabular-nums;
 }
 
 #root {
@@ -205,6 +214,11 @@ input[type="range"]::-webkit-slider-thumb {
   100% { opacity: 0; }
 }
 
+/* Form controls don't inherit font properties from the page by default, so
+   the date/time/number fields need the figure setting handed to them
+   explicitly — otherwise they'd be the only digits in the app still
+   shifting. */
 input, button, textarea {
   font-family: inherit;
+  font-variant-numeric: inherit;
 }
