@@ -220,6 +220,28 @@ input[type="range"]::-webkit-slider-thumb {
   .rl-comic-text-1, .rl-comic-text-2, .rl-sparkle { animation: none; }
 }
 
+/* The tally that just changed, in the live game list. Highlighted with a
+   background and a ring rather than a colour change, because each of these
+   rows sets its own colour inline and animating away from it would snap back
+   at the end. box-shadow rather than padding for the same reason a transform
+   is used for the scale: neither touches layout, so a dozen rows can't shift
+   while a coach is tapping. */
+.stat-bump {
+  border-radius: 6px;
+  animation: statBump 700ms ease-out 1;
+}
+@keyframes statBump {
+  0%   { background: rgba(232, 177, 60, .45); box-shadow: 0 0 0 4px rgba(232, 177, 60, .45); transform: scale(1.08); }
+  70%  { background: rgba(232, 177, 60, .12); box-shadow: 0 0 0 4px rgba(232, 177, 60, .12); }
+  100% { background: rgba(232, 177, 60, 0); box-shadow: 0 0 0 4px rgba(232, 177, 60, 0); transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes statBump {
+    0%   { background: rgba(232, 177, 60, .45); box-shadow: 0 0 0 4px rgba(232, 177, 60, .45); }
+    100% { background: rgba(232, 177, 60, 0); box-shadow: 0 0 0 4px rgba(232, 177, 60, 0); }
+  }
+}
+
 /* Brief confirmation toast: settles in, holds, then fades — timed against
    the ~2.2s the store keeps it mounted, not looped. */
 .toast-pop { animation: toastPop 2.2s ease-out 1; }

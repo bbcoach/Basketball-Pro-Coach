@@ -178,10 +178,29 @@ function GameMetaEditor({ game }) {
   )
 }
 
+// Logging a stat changes a number somewhere in a list of a dozen rows, and
+// during a game nobody is looking at the list — they are looking at the
+// court. A brief highlight on the tally that just moved is the confirmation
+// that the tap landed on the right player.
+//
+// The animation is restarted by giving the element a key that changes only
+// when *this* player gets a new entry, so a stat logged for someone else
+// re-renders the row without re-triggering it. The recency check is for
+// mounts that aren't a new stat at all — switching back to the Live tab
+// would otherwise flash whoever was last logged, minutes ago.
+const BUMP_MS = 1500
+function bumpKey(log, id) {
+  for (let i = log.length - 1; i >= 0; i--) {
+    if (log[i].p === id) return { key: i + ':' + (log[i].ts || 0), fresh: Date.now() - (log[i].ts || 0) < BUMP_MS }
+  }
+  return { key: 'none', fresh: false }
+}
+
 function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, compact }) {
   const t = tallyFor(log, p.id)
   const on = selPlayer === p.id
   const court = onCourt.indexOf(p.id) >= 0
+  const bump = bumpKey(log, p.id)
   return (
     <div
       onClick={() => selectStatPlayer(p)}
@@ -194,11 +213,11 @@ function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, 
           truncated in the two-column landscape layout this is used for. */}
       <div style={{ flex: 1, minWidth: 0, fontSize: compact ? 12.5 : 13, fontWeight: 600, color: court ? '#fff' : 'rgba(255,255,255,.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
       {compact
-        ? <div style={{ fontSize: 11, fontWeight: 700, color: ACCENT, flex: 'none' }}>{t.pts}</div>
-        : <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>}
+        ? <div key={bump.key} className={bump.fresh ? 'stat-bump' : undefined} style={{ fontSize: 11, fontWeight: 700, color: ACCENT, flex: 'none' }}>{t.pts}</div>
+        : <div key={bump.key} className={bump.fresh ? 'stat-bump' : undefined} style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', flex: 'none' }}>{t.pts} PTS · {t.reb} REB · {t.ast} AST</div>}
       <div
         onClick={(e) => { e.stopPropagation(); toggleCourt(p) }}
-        style={{ padding: compact ? '4px 7px' : '5px 8px', borderRadius: 7, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
+        style={{ padding: compact ? '4px 7px' : '5px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700, letterSpacing: '.4px', cursor: 'pointer', flex: 'none', background: court ? '#5bbf72' : 'rgba(255,255,255,.05)', color: court ? '#101012' : 'rgba(255,255,255,.5)', border: '1px solid ' + (court ? '#5bbf72' : 'rgba(255,255,255,.1)') }}
       >
         {court ? 'ON' : 'OFF'}
       </div>
