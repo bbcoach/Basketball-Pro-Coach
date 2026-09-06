@@ -11,7 +11,7 @@ export default function FormationsModal() {
       <div style={{ width: '100%', maxWidth: 340, maxHeight: '100%', overflowY: 'auto', background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 16, boxShadow: '0 24px 60px rgba(0,0,0,.6)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Formations</div>
-          <div onClick={closeFormations} style={{ padding: '6px 11px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Close</div>
+          <div onClick={closeFormations} style={{ padding: '6px 11px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Close</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {FORMATIONS.map((fm) => (

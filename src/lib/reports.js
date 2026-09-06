@@ -26,7 +26,7 @@ function reportStyles(pageSize) {
     body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-variant-numeric:tabular-nums}
     .topbar{height:5px;background:${ACCENT};border-radius:99px;margin:0 0 20px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-    .logo{width:38px;height:38px;flex:none;border-radius:11px;border:1.5px solid ${ACCENT};display:flex;align-items:center;justify-content:center}
+    .logo{width:38px;height:38px;flex:none;border-radius:12px;border:1.5px solid ${ACCENT};display:flex;align-items:center;justify-content:center}
     h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:23px;letter-spacing:.3px;text-transform:uppercase;margin:0;line-height:1.05}
     h2{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;color:${ACCENT};margin:1px 0 0}
     .meta{margin-left:auto;text-align:right;font-size:11px;color:#888;line-height:1.6}
@@ -350,7 +350,7 @@ export function exportPlayStepsPdf(play) {
       ${reportStyles('A4 portrait')}
       .page-break{page-break-after:always}
       .tiles{display:grid;grid-template-columns:repeat(${COLS},1fr);gap:14px}
-      .tile{border:1px solid #eee;border-radius:10px;overflow:hidden;break-inside:avoid}
+      .tile{border:1px solid #eee;border-radius:12px;overflow:hidden;break-inside:avoid}
       .tile-head{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#fff;background:${ACCENT};padding:5px 9px}
       .tile-court-wrap{position:relative;width:100%}
       .tile-court{position:absolute;inset:0;background:#8a5e34}

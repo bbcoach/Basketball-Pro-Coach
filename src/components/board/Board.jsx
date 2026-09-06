@@ -9,6 +9,7 @@ import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
 import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
+import ScrollX from '../ScrollX'
 
 // The ︎ (text variation selector) after each icon forces plain
 // glyph rendering instead of a platform color-emoji fallback — without it,
@@ -60,7 +61,7 @@ function Header({ compact }) {
             Tactics Board
           </div>
         </div>
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 9, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3, gap: 2 }}>
           {seg(view === 'half', 'Halfcourt', () => setView('half'))}
           {seg(view === 'full', 'Fullcourt', () => setView('full'))}
         </div>
@@ -80,7 +81,7 @@ function Header({ compact }) {
           <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 10, padding: 3, gap: 2, flex: 'none' }}>
+      <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3, gap: 2, flex: 'none' }}>
         {seg(view === 'half', 'Halfcourt', () => setView('half'))}
         {seg(view === 'full', 'Fullcourt', () => setView('full'))}
       </div>
@@ -134,20 +135,20 @@ function StepBar() {
 function ToolsRow() {
   const { state, setTool } = useApp()
   return (
-    <div className="scrollx" style={{ display: 'flex', gap: 6, overflowX: 'auto', touchAction: 'pan-x', padding: '4px 12px 8px' }}>
+    <ScrollX style={{ display: 'flex', gap: 6, overflowX: 'auto', touchAction: 'pan-x', padding: '4px 12px 8px' }}>
       {TOOLS.map(([id, icon, label]) => {
         const active = state.tool === id
         return (
           <div
             key={id} onClick={() => setTool(id)}
-            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 11, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
+            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
           >
             <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
             <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
-    </div>
+    </ScrollX>
   )
 }
 
@@ -356,7 +357,7 @@ function FullScreenTools() {
         ⠿
       </div>
       {showHint && (
-        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 7, background: ACCENT, color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
+        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
           Hold to move
         </div>
       )}
@@ -368,7 +369,7 @@ function FullScreenTools() {
             key={id} onClick={() => onToolClick(() => setTool(id))}
             style={{
               flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 5 : 1,
-              padding: row ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
+              padding: row ? '6px 9px' : '5px 6px', borderRadius: 12, cursor: 'pointer',
               background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
             }}
           >
@@ -381,7 +382,7 @@ function FullScreenTools() {
         onClick={() => onToolClick(undo)}
         style={{
           flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
-          padding: landscape ? '6px 9px' : '5px 6px', borderRadius: 9, cursor: 'pointer',
+          padding: landscape ? '6px 9px' : '5px 6px', borderRadius: 12, cursor: 'pointer',
           background: 'rgba(255,255,255,.16)', color: '#fff',
         }}
       >
@@ -401,7 +402,7 @@ export default function Board() {
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
       {fullScreen && (
         <>
-          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 10, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
+          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
           <FullScreenTools />
           <FullScreenControls />
           <div

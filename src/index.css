@@ -79,6 +79,22 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .scrollx::-webkit-scrollbar { display: none; }
 
+/* Stand-in for the scrollbar hidden above: a soft fade on whichever edge
+   still has content beyond it. ScrollX.jsx measures that and sets data-more;
+   with no JS (or nothing to scroll) there is no attribute and no mask, so
+   the default stays exactly as it was. The mask is on the scrolling element
+   itself, which means it is painted over its padding box and stays at the
+   edge while the content moves underneath. */
+.scrollx[data-more="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+}
+.scrollx[data-more="left"] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent);
+}
+.scrollx[data-more="both"] {
+  mask-image: linear-gradient(to right, transparent, #000 34px, #000 calc(100% - 34px), transparent);
+}
+
 /* The app is a single fixed-width portrait column — on a rotated phone
    (short viewport height) content gets clipped instead of reflowing, so
    show a rotate prompt rather than a half-broken layout. Tablets in
@@ -204,6 +220,28 @@ input[type="range"]::-webkit-slider-thumb {
   .rl-comic-text-1, .rl-comic-text-2, .rl-sparkle { animation: none; }
 }
 
+/* The tally that just changed, in the live game list. Highlighted with a
+   background and a ring rather than a colour change, because each of these
+   rows sets its own colour inline and animating away from it would snap back
+   at the end. box-shadow rather than padding for the same reason a transform
+   is used for the scale: neither touches layout, so a dozen rows can't shift
+   while a coach is tapping. */
+.stat-bump {
+  border-radius: 6px;
+  animation: statBump 700ms ease-out 1;
+}
+@keyframes statBump {
+  0%   { background: rgba(232, 177, 60, .45); box-shadow: 0 0 0 4px rgba(232, 177, 60, .45); transform: scale(1.08); }
+  70%  { background: rgba(232, 177, 60, .12); box-shadow: 0 0 0 4px rgba(232, 177, 60, .12); }
+  100% { background: rgba(232, 177, 60, 0); box-shadow: 0 0 0 4px rgba(232, 177, 60, 0); transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes statBump {
+    0%   { background: rgba(232, 177, 60, .45); box-shadow: 0 0 0 4px rgba(232, 177, 60, .45); }
+    100% { background: rgba(232, 177, 60, 0); box-shadow: 0 0 0 4px rgba(232, 177, 60, 0); }
+  }
+}
+
 /* Brief confirmation toast: settles in, holds, then fades — timed against
    the ~2.2s the store keeps it mounted, not looped. */
 .toast-pop { animation: toastPop 2.2s ease-out 1; }
@@ -221,4 +259,26 @@ input[type="range"]::-webkit-slider-thumb {
 input, button, textarea {
   font-family: inherit;
   font-variant-numeric: inherit;
+}
+
+/* Focus ring. 25 of the app's 27 inputs carry an inline `outline: none` and
+   nothing ever replaced it, so nothing marked which field was active — on a
+   phone only the caret gave it away, and on a desktop tabbing through a form
+   was completely invisible. The inline style is why this needs !important;
+   it is the one place in this stylesheet that does.
+
+   :focus-visible rather than :focus so a ring never appears from a plain
+   mouse click on a button — text fields still get one either way, because
+   browsers always treat typing targets as focus-visible.
+
+   Note this only reaches real form controls. The app's buttons are <div>s
+   with an onClick and no tabindex, so the keyboard cannot land on them at
+   all; giving those a ring is a keyboard-navigation job, not a paint job. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid rgba(232, 177, 60, 0.85) !important;
+  outline-offset: 2px;
+  border-color: rgba(232, 177, 60, 0.5) !important;
 }

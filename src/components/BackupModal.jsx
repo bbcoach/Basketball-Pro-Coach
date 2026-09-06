@@ -54,8 +54,8 @@ export default function BackupModal() {
               This replaces everything currently on this device — it can't be undone.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div onClick={confirmRestore} style={{ padding: 11, borderRadius: 11, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Replace everything</div>
-              <div onClick={() => setPending(null)} style={{ padding: 10, borderRadius: 11, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+              <div onClick={confirmRestore} style={{ padding: 11, borderRadius: 12, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Replace everything</div>
+              <div onClick={() => setPending(null)} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
             </div>
           </>
         ) : (
@@ -64,11 +64,11 @@ export default function BackupModal() {
               Everything lives only on this device. Save a backup file now and then, so a lost phone or a cleared browser doesn't mean starting over.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div onClick={doExport} style={{ padding: 11, borderRadius: 11, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Save backup file</div>
-              <div onClick={pickFile} style={{ padding: 11, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Restore from file…</div>
+              <div onClick={doExport} style={{ padding: 11, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Save backup file</div>
+              <div onClick={pickFile} style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Restore from file…</div>
               <input ref={fileRef} type="file" accept="application/json" onChange={onFile} style={{ display: 'none' }} />
               {status && <div style={{ fontSize: 11.5, color: status.ok ? '#5bbf72' : '#d9843c', textAlign: 'center', lineHeight: 1.4, padding: '2px 4px' }}>{status.text}</div>}
-              <div onClick={close} style={{ padding: 10, borderRadius: 11, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Close</div>
+              <div onClick={close} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Close</div>
             </div>
           </>
         )}

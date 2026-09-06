@@ -15,7 +15,7 @@ export default function ScreenHeader({ title, line, onClose, closeLabel = 'Menu'
           {line && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{line}</div>}
         </div>
       </div>
-      <div onClick={onClose} style={{ padding: '7px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>{closeLabel}</div>
+      <div onClick={onClose} style={{ padding: '7px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>{closeLabel}</div>
     </div>
   )
 }

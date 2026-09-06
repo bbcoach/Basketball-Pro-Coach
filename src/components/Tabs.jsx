@@ -1,6 +1,6 @@
 export default function Tabs({ tabs, active, onChange }) {
   return (
-    <div style={{ display: 'flex', gap: 2, margin: '0 18px 12px', background: 'rgba(255,255,255,.07)', borderRadius: 10, padding: 3 }}>
+    <div style={{ display: 'flex', gap: 2, margin: '0 18px 12px', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3 }}>
       {tabs.map(([key, label]) => (
         <div
           key={key}

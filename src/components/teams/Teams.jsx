@@ -41,9 +41,9 @@ function TeamDetail() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
         <input
           type="text" value={team.name} onChange={(e) => renameTeam(e.target.value)} placeholder="Team name"
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 9, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
-        <div onClick={backToTeamsList} style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
+        <div onClick={backToTeamsList} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <RosterEditor grow={false} emptyHint="Add every player on this team once — the roster is shared with the stat tracker and attendance for this team." />
@@ -65,8 +65,8 @@ function RemoveTeamModal() {
           “{team.name}” has {team.roster.length} players, {team.games.length} games and {team.sessions.length} attendance sessions. Deleting it removes all of that. This cannot be undone.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div onClick={confirmRemoveTeam} style={{ padding: 11, borderRadius: 11, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Delete team</div>
-          <div onClick={closeRemoveTeam} style={{ padding: 10, borderRadius: 11, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+          <div onClick={confirmRemoveTeam} style={{ padding: 11, borderRadius: 12, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Delete team</div>
+          <div onClick={closeRemoveTeam} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
         </div>
       </div>
     </div>

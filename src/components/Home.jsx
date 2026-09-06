@@ -7,10 +7,11 @@ import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 import { kindOf, KIND_LABEL } from '../lib/playKind'
 import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
+import { plural } from '../lib/dates'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
-  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + p.players.length + ' players · ' + (steps === 1 ? '1 step' : steps + ' steps')
+  return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + plural(p.players.length, 'player') + ' · ' + (steps === 1 ? '1 step' : steps + ' steps')
 }
 
 export default function Home() {
@@ -44,7 +45,7 @@ export default function Home() {
     return subscribeInstallPrompt(() => setShowInstallHint(shouldShowInstallHint()))
   }, [])
 
-  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
+  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
@@ -58,7 +59,7 @@ export default function Home() {
         </div>
 
         {showBackupReminder && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>💾</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
               Everything lives only on this device. Worth a quick backup?
@@ -79,7 +80,7 @@ export default function Home() {
         )}
 
         {showInstallHint && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>📲</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
               {canPromptInstall()
@@ -115,7 +116,7 @@ export default function Home() {
         </div>
 
         {boardMenu && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 14, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 18, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
             <div onClick={startNewPlay} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, background: ACCENT, color: '#101012', cursor: 'pointer' }}>
               <div style={{ fontSize: 19, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>＋</div>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>Create new play</div>
@@ -131,11 +132,11 @@ export default function Home() {
             {loadOpen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {plays.length > 0 && (
-                  <div style={{ display: 'flex', background: 'rgba(255,255,255,.05)', borderRadius: 9, padding: 3, gap: 2 }}>
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,.05)', borderRadius: 12, padding: 3, gap: 2 }}>
                     {[['all', 'All'], ['play', 'Plays'], ['drill', 'Drills']].map(([id, label]) => (
                       <div
                         key={id} onClick={() => setHomeFilter(id)}
-                        style={{ flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: 7, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: homeFilter === id ? 'rgba(255,255,255,.13)' : 'transparent', color: homeFilter === id ? '#fff' : 'rgba(255,255,255,.5)' }}
+                        style={{ flex: 1, textAlign: 'center', padding: '6px 4px', borderRadius: 8, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: homeFilter === id ? 'rgba(255,255,255,.13)' : 'transparent', color: homeFilter === id ? '#fff' : 'rgba(255,255,255,.5)' }}
                       >
                         {label}
                       </div>
@@ -147,7 +148,7 @@ export default function Home() {
                     <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                       <div onClick={() => openPlayFromHome(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                          <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 5, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
+                          <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
                           <div style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                         </div>
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
@@ -188,7 +189,7 @@ export default function Home() {
           <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▥</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Track stats</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') + ' tracked' : 'Set up your roster, then track a game'}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? plural(roster.length, 'player') + ' · ' + plural(games.length, 'game') + ' tracked' : 'Set up your roster, then track a game'}</div>
           </div>
         </div>
 
