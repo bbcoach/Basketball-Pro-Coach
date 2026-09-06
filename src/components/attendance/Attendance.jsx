@@ -17,7 +17,21 @@ function todayStr() {
 function TimingBadge({ date }) {
   const today = todayStr()
   if (date > today) return <div style={{ flex: 'none', padding: '2px 7px', borderRadius: 99, background: 'rgba(127,178,224,.16)', color: '#7fb2e0', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>Upcoming</div>
-  if (date < today) return <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 99, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.45)', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>🔒 Past</div>
+  // The padlock used to be the 🔒 emoji — the only colour glyph in an
+  // otherwise monochrome interface, and rendered differently on every
+  // platform. Drawn as a small inline SVG it simply inherits the badge's own
+  // muted colour, like every other mark in the app.
+  if (date < today) {
+    return (
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 7px', borderRadius: 99, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.45)', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>
+        <svg width="8" height="9" viewBox="0 0 8 9" fill="none" style={{ flex: 'none' }} aria-hidden="true">
+          <path d="M2 4V2.6a2 2 0 0 1 4 0V4" stroke="currentColor" strokeWidth="1.1" />
+          <rect x="0.9" y="4" width="6.2" height="4.4" rx="1" fill="currentColor" />
+        </svg>
+        Past
+      </div>
+    )
+  }
   return <div style={{ flex: 'none', padding: '2px 7px', borderRadius: 99, background: 'rgba(91,191,114,.16)', color: '#5bbf72', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>Today</div>
 }
 
