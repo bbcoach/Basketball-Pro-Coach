@@ -3,12 +3,10 @@ import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import ScreenHeader from './ScreenHeader'
 import { downloadIcs, parseIcs } from '../lib/ics'
+import { fmtDate } from '../lib/dates'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
-}
-function fmtDate(d) {
-  return new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 const KIND_META = {

@@ -9,6 +9,7 @@ import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
+import { fmtDate } from '../../lib/dates'
 
 // Two-team tracking folds the active team's roster and any imported
 // opposing roster into one list, each player tagged with which side they're
@@ -50,10 +51,6 @@ function sortedRoster(roster, onCourt) {
   })
 }
 
-function fmtGameDate(v) {
-  try { return new Date(v + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) } catch { return v }
-}
-
 function gameTitle(g) {
   if (g.type === 'practice') return 'Free play'
   return g.opponent ? 'vs ' + g.opponent : 'New game'
@@ -75,9 +72,9 @@ function GamesTab() {
             <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div onClick={() => openGame(g.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtGameDate(g.date)}{g.time ? ' · ' + g.time : ''} · {t.pts} pts · {g.log.length} logged</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtDate(g.date)}{g.time ? ' · ' + g.time : ''} · {t.pts} pts · {g.log.length} logged</div>
               </div>
-              <div onClick={() => askConfirm({ title: 'Delete game', message: `Delete ${gameTitle(g)} (${fmtGameDate(g.date)})? ${g.log.length} logged actions will be lost.`, onConfirm: () => removeGame(g) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete game', message: `Delete ${gameTitle(g)} (${fmtDate(g.date)})? ${g.log.length} logged actions will be lost.`, onConfirm: () => removeGame(g) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}
@@ -122,7 +119,7 @@ function TwoTeamToggle({ game }) {
 // two-team controls interactive, since those are what landscape is for.
 function GameMetaSummary({ game, score }) {
   const isGame = game.type === 'game'
-  const summary = fmtGameDate(game.date) + (game.time ? ' · ' + game.time : '') +
+  const summary = fmtDate(game.date) + (game.time ? ' · ' + game.time : '') +
     (isGame ? ' · ' + (game.opponent ? 'vs ' + game.opponent : 'Opponent TBD') + (game.home ? ' · ' + (game.home === 'home' ? 'Home' : 'Away') : '') : ' · Free play')
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 10px' }}>
@@ -623,7 +620,7 @@ export default function StatTracker() {
   const game = games.find((g) => g.id === activeGameId)
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
   const gameLine = (teamName ? teamName + ' · ' : '') + (game
-    ? gameTitle(game) + ' · ' + fmtGameDate(game.date)
+    ? gameTitle(game) + ' · ' + fmtDate(game.date)
     : (roster.length ? roster.length + ' players · ' + games.length + (games.length === 1 ? ' game' : ' games') : 'Set up your roster, then track a game'))
   // Landscape is mainly for the Live tab's two-team layout, where every
   // pixel of height matters — the portrait top/bottom padding below is

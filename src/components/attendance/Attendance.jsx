@@ -8,6 +8,7 @@ import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
 import ActionHint from '../ActionHint'
 import { exportAttendancePdf } from '../../lib/reports'
+import { fmtDate, plural } from '../../lib/dates'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -37,12 +38,12 @@ function SessionsTab() {
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: state.openSession === s.id ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (state.openSession === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)') }}>
               <div onClick={() => openSession(s.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label || s.date}{s.time ? ' · ' + s.time : ''}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label || fmtDate(s.date)}{s.time ? ' · ' + s.time : ''}</div>
                   <TimingBadge date={s.date} />
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} present · {out} out{injured ? ' · ' + injured + ' injured' : ''}{plan ? ' · ' + plan.name : ''}</div>
               </div>
-              <div onClick={() => askConfirm({ title: 'Delete session', message: `Delete ${s.label || s.date}? Attendance marks for this session will be lost.`, onConfirm: () => removeSession(s) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+              <div onClick={() => askConfirm({ title: 'Delete session', message: `Delete ${s.label || fmtDate(s.date)}? Attendance marks for this session will be lost.`, onConfirm: () => removeSession(s) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
         })}
