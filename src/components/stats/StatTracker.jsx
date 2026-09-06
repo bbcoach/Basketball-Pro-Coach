@@ -1,4 +1,5 @@
 import { useApp } from '../../state/store'
+import ScrollX from '../ScrollX'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
@@ -413,7 +414,7 @@ function BoxTab({ game }) {
         <ScoreBar teamAName={teamAName} teamBName={teamBName} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 10px' }} />
       )}
       {players.length ? (
-        <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <ScrollX style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           {game.twoTeam ? (
             <>
               <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
@@ -422,7 +423,7 @@ function BoxTab({ game }) {
           ) : (
             <BoxTable players={players} log={log} />
           )}
-        </div>
+        </ScrollX>
       ) : (
         // Not inside the flex:1/overflow:auto region above — that can get
         // squeezed to a sliver on a short screen, clipping this hint.
@@ -497,9 +498,9 @@ function SeasonTab() {
         {games.length} game{games.length === 1 ? '' : 's'} tracked · averages per game played
       </div>
       {roster.length ? (
-        <div className="scrollx" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <ScrollX style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           <SeasonTable rows={rows} />
-        </div>
+        </ScrollX>
       ) : (
         // Not inside the flex:1/overflow:auto region above — that can get
         // squeezed to a sliver on a short screen, clipping this hint.

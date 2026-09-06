@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ScrollX from '../ScrollX'
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
@@ -76,12 +77,12 @@ function PlanOpen() {
       </div>
       <div style={{ flex: 'none', paddingTop: 10 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', paddingBottom: 6 }}>Tap a drill to add it to this session</div>
-        <div className="scrollx" style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
+        <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
           {drills.map((d) => (
-            <div key={d.id} onClick={() => addDrillToPlan(plan.id, d.id)} style={{ flex: 'none', padding: '8px 11px', borderRadius: 9, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>＋ {d.name} · {d.min || 0}′</div>
+            <div key={d.id} onClick={() => addDrillToPlan(plan.id, d.id)} style={{ flex: 'none', padding: '8px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>＋ {d.name} · {d.min || 0}′</div>
           ))}
           {!drills.length && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>Add drills under the “Drills” tab first.</div>}
-        </div>
+        </ScrollX>
       </div>
     </div>
   )
@@ -110,11 +111,11 @@ function DrillPlayPicker() {
     <div style={{ paddingBottom: 8 }}>
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', paddingBottom: 6 }}>Link a play from the Tactics Board (optional)</div>
       {plays.length ? (
-        <div className="scrollx" style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+        <ScrollX style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
           {plays.map((p) => (
-            <div key={p.id} onClick={() => set({ dPlayId: p.id })} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{p.name}</div>
+            <div key={p.id} onClick={() => set({ dPlayId: p.id })} style={{ flex: 'none', padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{p.name}</div>
           ))}
-        </div>
+        </ScrollX>
       ) : (
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)' }}>No saved plays yet — save one from the Tactics Board first.</div>
       )}
@@ -143,10 +144,10 @@ function DrillsTab() {
       </div>
       <input
         type="text" value={dCategory} onChange={(e) => set({ dCategory: e.target.value })} placeholder="Category (optional)"
-        style={{ padding: '10px 11px', marginBottom: categories.length ? 6 : 8, borderRadius: 10, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+        style={{ padding: '10px 11px', marginBottom: categories.length ? 6 : 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
       />
       {!!categories.length && (
-        <div className="scrollx" style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
+        <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
           {categories.map((c) => (
             <div
               key={c} onClick={() => set({ dCategory: c })}
@@ -155,7 +156,7 @@ function DrillsTab() {
               {c}
             </div>
           ))}
-        </div>
+        </ScrollX>
       )}
       <textarea
         value={dDesc} onChange={(e) => set({ dDesc: e.target.value })} placeholder="Description — how it runs, what to watch for (optional)" rows={3}
@@ -163,11 +164,11 @@ function DrillsTab() {
       />
       <DrillPlayPicker />
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
-        <div onClick={addDrill} style={{ flex: 1, textAlign: 'center', padding: 10, borderRadius: 10, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{dEdit ? 'Save drill' : 'Add drill'}</div>
-        {dEdit && <div onClick={cancelDrill} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
+        <div onClick={addDrill} style={{ flex: 1, textAlign: 'center', padding: 10, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{dEdit ? 'Save drill' : 'Add drill'}</div>
+        {dEdit && <div onClick={cancelDrill} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
       </div>
       {(!!categories.length || drills.some((d) => d.fav)) && (
-        <div className="scrollx" style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
+        <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
           <div
             onClick={() => setFilterCat(null)}
             style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === null ? ACCENT : 'rgba(255,255,255,.06)', color: filterCat === null ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
@@ -188,7 +189,7 @@ function DrillsTab() {
           >
             ★ Favorites
           </div>
-        </div>
+        </ScrollX>
       )}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {visibleDrills.map((d) => {

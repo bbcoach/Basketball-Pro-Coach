@@ -79,6 +79,22 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .scrollx::-webkit-scrollbar { display: none; }
 
+/* Stand-in for the scrollbar hidden above: a soft fade on whichever edge
+   still has content beyond it. ScrollX.jsx measures that and sets data-more;
+   with no JS (or nothing to scroll) there is no attribute and no mask, so
+   the default stays exactly as it was. The mask is on the scrolling element
+   itself, which means it is painted over its padding box and stays at the
+   edge while the content moves underneath. */
+.scrollx[data-more="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 34px), transparent);
+}
+.scrollx[data-more="left"] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 34px), transparent);
+}
+.scrollx[data-more="both"] {
+  mask-image: linear-gradient(to right, transparent, #000 34px, #000 calc(100% - 34px), transparent);
+}
+
 /* The app is a single fixed-width portrait column — on a rotated phone
    (short viewport height) content gets clipped instead of reflowing, so
    show a rotate prompt rather than a half-broken layout. Tablets in

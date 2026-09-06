@@ -9,6 +9,7 @@ import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
 import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
+import ScrollX from '../ScrollX'
 
 // The ︎ (text variation selector) after each icon forces plain
 // glyph rendering instead of a platform color-emoji fallback — without it,
@@ -134,7 +135,7 @@ function StepBar() {
 function ToolsRow() {
   const { state, setTool } = useApp()
   return (
-    <div className="scrollx" style={{ display: 'flex', gap: 6, overflowX: 'auto', touchAction: 'pan-x', padding: '4px 12px 8px' }}>
+    <ScrollX style={{ display: 'flex', gap: 6, overflowX: 'auto', touchAction: 'pan-x', padding: '4px 12px 8px' }}>
       {TOOLS.map(([id, icon, label]) => {
         const active = state.tool === id
         return (
@@ -147,7 +148,7 @@ function ToolsRow() {
           </div>
         )
       })}
-    </div>
+    </ScrollX>
   )
 }
 

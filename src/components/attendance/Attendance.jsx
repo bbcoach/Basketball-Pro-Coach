@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ScrollX from '../ScrollX'
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
@@ -91,7 +92,7 @@ function SessionOpen() {
           {locked && <div onClick={askUnlock} style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Unlock</div>}
         </div>
       )}
-      <div className="scrollx" style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 10 }}>
+      <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 10 }}>
         <div style={{ flex: 'none', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', alignSelf: 'center', paddingRight: 2 }}>Trained</div>
         {picks.map((pl) => {
           const on = (session.planId || null) === pl.id
@@ -104,7 +105,7 @@ function SessionOpen() {
             </div>
           )
         })}
-      </div>
+      </ScrollX>
       {/* Rendered outside the flex:1/overflow:auto region below — that region
           can get squeezed to a sliver on a short screen (e.g. Safari's URL
           bar eating viewport height), clipping this hint instead of showing it. */}
