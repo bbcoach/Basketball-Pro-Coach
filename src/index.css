@@ -17,6 +17,32 @@ html, body {
 a { color: #e8b13c; text-decoration: none; }
 a:hover { color: #f3c760; }
 
+/* Press feedback for everything interactive. Nearly all of this app's
+   styling is inline, and an inline style can't express :active — so this
+   keys off the `cursor: pointer` every clickable element already sets.
+   Anything added later gets the feedback for free, and the elements that
+   deliberately use a different cursor (the court's crosshair, the tool
+   bar's drag grip) stay untouched. */
+[style*="cursor: pointer"] {
+  transition: transform 90ms ease, filter 90ms ease;
+  /* Suppress the browser's own grey tap flash — we draw our own now. */
+  -webkit-tap-highlight-color: transparent;
+}
+[style*="cursor: pointer"]:active { filter: brightness(1.14); }
+/* The slight squeeze is kept off SVG elements: inside an <svg> a CSS
+   transform overrides the element's own `transform` attribute, which is
+   what positions it — a press would fling it across the board. Split into
+   its own rule so that, in browsers too old for a complex :not(), only
+   the squeeze is lost and the brightness above still works. */
+[style*="cursor: pointer"]:not(svg *):active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) {
+  [style*="cursor: pointer"]:hover { filter: brightness(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="cursor: pointer"] { transition: none; }
+  [style*="cursor: pointer"]:not(svg *):active { transform: none; }
+}
+
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
