@@ -158,6 +158,24 @@ export default function Court() {
         <rect x="505" y="0" width="490" height="580" fill="rgba(255,255,255,.10)" />
         <rect x="505" y="2220" width="490" height="580" fill="rgba(255,255,255,.10)" />
 
+        {/* A center-court mark, the way a real hardwood floor has one inlaid
+            at half-court — full-court view only, since that's the one place
+            the whole center circle is actually on screen (half-court crops
+            it in half at the baseline, which would look like a rendering
+            bug rather than a logo). Kept to a bare ball-and-seams motif, no
+            flourish, and low opacity: this needs to read as something the
+            floor has always had, not as UI competing with the tokens and
+            routes drawn on top of it a moment later. */}
+        {view === 'full' && (
+          <g transform="translate(750 1400) scale(8.6) translate(-21 -27)" opacity="0.18" stroke={ACCENT} fill="none" strokeWidth="1.7">
+            <circle cx="21" cy="27" r="15" />
+            <path d="M6 27 H36" />
+            <path d="M21 12 V42" />
+            <path d="M10.5 16.5 C17 22 17 32 10.5 37.5" />
+            <path d="M31.5 16.5 C25 22 25 32 31.5 37.5" />
+          </g>
+        )}
+
         <g fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" opacity="0.94">
           <rect x="14" y="14" width="1472" height="2772" rx="8" />
           <path d="M14 1400 H1486" />
