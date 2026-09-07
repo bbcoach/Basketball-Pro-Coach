@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
-import { ACCENT, TEAM_NAME } from '../../state/config'
+import { ACCENT } from '../../state/config'
 import { COND } from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import Logo from '../Logo'
@@ -57,7 +57,7 @@ function Header({ compact }) {
           <div onClick={goHome} style={{ cursor: 'pointer' }}>
             <Logo size={20} iconSize={15} />
           </div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', color: ACCENT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
             Tactics Board
           </div>
         </div>
@@ -75,9 +75,12 @@ function Header({ compact }) {
         <div onClick={goHome} style={{ cursor: 'pointer' }}>
           <Logo size={26} iconSize={19} />
         </div>
+        {/* The board used to carry the app name here too — and, unlike every
+            other screen, in white with the screen title below it in accent,
+            so the two even disagreed about which colour meant "title". Now
+            it matches: name only on the home screen, title white at 26. */}
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TEAM_NAME}</div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>Tactics Board</div>
+          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Tactics Board</div>
           <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
         </div>
       </div>
