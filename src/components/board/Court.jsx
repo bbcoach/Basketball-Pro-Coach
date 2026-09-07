@@ -8,7 +8,7 @@ const COURT_W = 1500
 
 export default function Court() {
   const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
-  const { players, ball, t, step, playing, fullScreen, sel, view } = state
+  const { players, ball, t, step, playing, sel, view } = state
   const landscape = useLandscape()
 
   const board = useMemo(() => makeBoard(state), [state])
@@ -18,7 +18,13 @@ export default function Court() {
     const liveStep = stepAtTime(t, nSteps)
     const editStep = playing ? liveStep : step
     const marks = board.marks()
-    const TR = fullScreen ? 74 : 54
+    // Full screen used to draw tokens 37% larger (74 vs 54) on top of the
+    // court already filling the whole physical screen instead of a small
+    // embedded pane — the two compounded into tokens that felt oversized up
+    // close. One consistent size now; full screen still enlarges everything
+    // relative to a normal phone view simply by giving the court the whole
+    // screen.
+    const TR = 54
 
     const tks = []
     players.forEach((pl) => {
@@ -70,7 +76,7 @@ export default function Court() {
     })
     return { tokens: tks, routes: rts, caps: cps, badges: bdg }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, ball, t, step, playing, fullScreen, sel, nSteps])
+  }, [players, ball, t, step, playing, sel, nSteps])
 
   const courtH = view === 'half' ? 1400 : 2800
   // In landscape the <g> below carries a 90° rotation so the (portrait-authored)
