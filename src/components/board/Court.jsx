@@ -14,7 +14,7 @@ export default function Court() {
   const board = useMemo(() => makeBoard(state), [state])
   const nSteps = board.nSteps()
 
-  const { tokens, routes, caps, badges } = useMemo(() => {
+  const { tokens, routes, caps, badges, trails } = useMemo(() => {
     const liveStep = stepAtTime(t, nSteps)
     const editStep = playing ? liveStep : step
     const marks = board.marks()
@@ -41,6 +41,40 @@ export default function Court() {
     })
     const bp = board.ballPos(t)
     tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
+
+    // Comet trail behind whoever is moving during playback — reading a play
+    // from a single frozen frame tells you where everyone is, not which way
+    // they're headed, and that's the whole point of watching it animate.
+    // Trail-only-while-playing (not while scrubbing the slider) because a
+    // dragged scrub can move backward in time, and a trail sampled "behind"
+    // that would point the wrong way.
+    //
+    // Samples are clamped to the current step's own start (never earlier),
+    // so a trail never reaches back across the loop point into the previous
+    // step's very different positions — it just grows in from nothing over
+    // the first fraction of a second of each step instead, which reads as
+    // the comet forming rather than as a glitch.
+    const trl = []
+    if (playing) {
+      const TRAIL_N = 5
+      const stepDur = 1 / nSteps
+      const stepStart = (editStep - 1) * stepDur
+      const trailSpan = stepDur * 0.5
+      const sample = (id, fill, r, getPos) => {
+        for (let i = 1; i <= TRAIL_N; i++) {
+          const frac = i / TRAIL_N
+          const tt = Math.max(stepStart, t - trailSpan * frac)
+          if (tt >= t) break
+          const k = 1 - frac
+          const p = getPos(tt)
+          trl.push({ key: id + '-trail-' + i, x: p.x, y: p.y, r: r * (0.28 + 0.42 * k), fill, opacity: 0.28 * k })
+        }
+      }
+      players.forEach((pl) => {
+        sample(pl.id, pl.team === 'off' ? ACCENT : '#121316', TR, (tt) => board.entPos(pl, tt, nSteps, marks))
+      })
+      sample('ball', '#e2762b', TR * 0.48, (tt) => board.ballPos(tt))
+    }
 
     const rts = []
     const cps = []
@@ -74,7 +108,7 @@ export default function Court() {
         bdg.push({ key: ent.id + '-' + act.step, x: bx, y: by, n: String(act.step), op })
       })
     })
-    return { tokens: tks, routes: rts, caps: cps, badges: bdg }
+    return { tokens: tks, routes: rts, caps: cps, badges: bdg, trails: trl }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, ball, t, step, playing, sel, nSteps])
 
@@ -215,6 +249,11 @@ export default function Court() {
           ))}
         </g>
 
+        <g pointerEvents="none">
+          {trails.map((tr) => (
+            <circle key={tr.key} cx={tr.x} cy={tr.y} r={tr.r} fill={tr.fill} opacity={tr.opacity} />
+          ))}
+        </g>
         {tokens.map((tk) => (
           <g key={tk.key}>
             <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.34} fill="url(#tokshadow)" />
