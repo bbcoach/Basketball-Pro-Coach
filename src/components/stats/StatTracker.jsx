@@ -9,6 +9,7 @@ import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
+import { useWakeLock } from '../../lib/useWakeLock'
 import { fmtDate } from '../../lib/dates'
 
 // Two-team tracking folds the active team's roster and any imported
@@ -649,6 +650,11 @@ export default function StatTracker() {
   // room on top of this, so the safe-area inset alone is all that's needed
   // here (whichever side actually has the cutout; the other resolves to 0).
   const landscape = useLandscape()
+  // Only the Live tab: that's the one where the device sits on the scorer's
+  // table through a whole quarter, getting tapped a few times a minute at
+  // most. The other tabs are read-and-move-on, and holding the screen awake
+  // for them would just cost battery.
+  useWakeLock(statsTab === 'live' && !!game)
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px env(safe-area-inset-right, 0px) 10px env(safe-area-inset-left, 0px)' : '56px 0 46px' }}>

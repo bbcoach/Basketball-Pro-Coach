@@ -1,11 +1,16 @@
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import { COND } from '../../theme'
+import { useWakeLock } from '../../lib/useWakeLock'
 import PlayPreview from './PlayPreview'
 
 export default function RunScreen() {
   const { state, planDrills, toggleRunPause, gotoDrill, stopRun } = useApp()
   const { plans, plays, runPlanId, runIdx, runLeft, runPaused } = state
+  // A countdown nobody is allowed to touch is the clearest case there is:
+  // paused counts too, since a coach pausing to explain something still
+  // wants the clock visible when they look back at it.
+  useWakeLock(!!runPlanId)
   if (!runPlanId) return null
   const plan = plans.find((x) => x.id === runPlanId)
   const list = planDrills(plan)

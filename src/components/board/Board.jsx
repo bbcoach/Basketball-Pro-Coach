@@ -3,6 +3,7 @@ import { useApp } from '../../state/store'
 import { ACCENT, TEAM_NAME } from '../../state/config'
 import { COND } from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
+import { useWakeLock } from '../../lib/useWakeLock'
 import Logo from '../Logo'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
@@ -397,6 +398,10 @@ export default function Board() {
   const { state, exitFullScreen, togglePlay } = useApp()
   const { fullScreen, playing } = state
   const landscape = useLandscape()
+  // Full screen exists to be propped up and looked at during a timeout —
+  // the one place in the app where nobody is touching the device on
+  // purpose, and the worst possible moment for it to lock itself.
+  useWakeLock(fullScreen)
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
