@@ -23,6 +23,7 @@ export const INFO = {
       ['No data collection', 'This app collects no personal data. There are no accounts, no tracking, no analytics, no ads and nothing is shared with third parties.'],
       ['Everything stays on your device', 'Plays, roster and game stats are stored only locally in your browser (localStorage). They never leave your device and I cannot see them. Clearing your browser data also deletes them.'],
       ['Exports', 'Images, videos and CSV files are generated directly on your device. Whether and with whom you share them is entirely up to you.'],
+      ['Sync devices', 'Sending your data to another phone or tablet connects the two devices directly to each other and transfers it straight across — it is never uploaded anywhere, and I cannot see it. This only works between devices that can already reach each other, e.g. on the same Wi-Fi.'],
       ['Donations', 'Tapping the donate button opens the payment provider (PayPal) in a new tab, where their privacy policy applies.'],
     ],
   },

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './state/store'
 import { useLandscape } from './lib/useLandscape'
 import { ACCENT, COND } from './theme'
@@ -17,6 +17,21 @@ import Toast from './components/Toast'
 import ShareCodeModal from './components/ShareCodeModal'
 import ImportModal from './components/ImportModal'
 
+// QR encode/decode alone are ~60KB gzipped — a real cost for a feature only
+// two devices in the same room, once in a while, ever open. Loaded on
+// demand so every other visit to the app never fetches it at all.
+const DeviceSyncModal = lazy(() => import('./components/DeviceSyncModal'))
+
+// Shown the instant "Sync devices" is tapped, while that chunk is still
+// downloading — matches DeviceSyncModal's own backdrop exactly so there's
+// no visible swap once it takes over, just the dim-then-pop-in a coach
+// already gets from every other modal in the app. Without this, a slow
+// connection means tapping the link does nothing at all until the chunk
+// arrives, which reads as a broken tap rather than a loading one.
+function SyncLoadingFallback() {
+  return <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)' }} />
+}
+
 function Screen() {
   const { state } = useApp()
   return (
@@ -30,6 +45,11 @@ function Screen() {
       {state.screen === 'schedule' && <Schedule />}
       {state.infoPage && <InfoOverlay />}
       <BackupModal />
+      {state.syncOpen && (
+        <Suspense fallback={<SyncLoadingFallback />}>
+          <DeviceSyncModal />
+        </Suspense>
+      )}
       <RunScreen />
       <ConfirmModal />
       <Toast />
