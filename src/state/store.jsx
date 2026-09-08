@@ -36,7 +36,7 @@ function initialState() {
   const s0 = startState()
   return {
     screen: 'home', // 'home' | 'board' | 'stats' | 'attend' | 'practice' | 'teams' | 'schedule'
-    boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false,
+    boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false, syncOpen: false,
     confirmAsk: null, // { title, message, confirmLabel, onConfirm }
     toast: null, // { id, text }
 
@@ -536,6 +536,8 @@ export function AppProvider({ children }) {
   const closeInfo = () => set({ infoPage: null })
   const openBackup = () => set({ backupOpen: true })
   const closeBackup = () => set({ backupOpen: false })
+  const openSync = () => set({ syncOpen: true })
+  const closeSync = () => set({ syncOpen: false })
 
   // Generic confirmation gate for destructive actions (delete/reset).
   // Call with a message and the action to run if the user confirms.
@@ -975,7 +977,7 @@ export function AppProvider({ children }) {
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
-    openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup,
+    openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,

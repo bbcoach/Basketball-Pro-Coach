@@ -17,6 +17,12 @@ function buildBackup() {
   return { app: 'basketball-pro-coach', version: 1, exportedAt: new Date().toISOString(), data }
 }
 
+// Same snapshot downloadBackup() saves to a file, as a plain string — for
+// handing straight to another device instead of going through a file at all.
+export function backupText() {
+  return JSON.stringify(buildBackup())
+}
+
 export function downloadBackup() {
   const backup = buildBackup()
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
