@@ -2,20 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import { backupText, parseBackup, applyBackup } from '../lib/backup'
-import { startSend, respondToOffer, finishSend, sendPayload, receivePayload, waitForOpen } from '../lib/deviceSync'
+import { encodeFrames, collectFrame, decodeFrames } from '../lib/transfer'
 import { encodeQr, decodeQrFrame } from '../lib/qr'
 
-// How long to wait for a step that depends on the *other* device doing
-// something (scanning a code, being on the same Wi-Fi at all) before giving
-// up and showing a way back out, rather than a spinner that never resolves.
-const CONNECT_TIMEOUT_MS = 25000
+// How long one QR code stays on screen before the sender cycles to the
+// next one. A real camera reads far faster than this — the ceiling here is
+// jsQR's own decode cost on the *scanning* side, run on every frame — so
+// this just needs to comfortably outlast that, not match camera frame rate.
+const FRAME_MS = 380
 
-// Owns the camera for as long as it's mounted: opens it on mount, scans
-// every frame for a QR code, and stops the stream on unmount no matter how
-// that happens (a decode, a Cancel tap, or the whole modal closing) — a
-// camera left running after the user has moved on is the kind of bug that's
-// invisible in a code review and glaring on an actual phone.
-function QrScanner({ onDecode }) {
+// Owns the camera for as long as it's mounted: opens it on mount, decodes
+// every frame it can and reports each one back (there is no "found it,
+// stop" here — the sender may be cycling through several codes, so the
+// same scanner instance has to keep reading for as long as pieces are still
+// missing), and stops the stream on unmount no matter how that happens (a
+// completed scan, a Cancel tap, or the whole modal closing).
+function QrScanner({ onFrame }) {
   const videoRef = useRef(null)
   const [error, setError] = useState(null)
 
@@ -33,9 +35,8 @@ function QrScanner({ onDecode }) {
         canvas.width = v.videoWidth
         canvas.height = v.videoHeight
         ctx.drawImage(v, 0, 0)
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        const text = decodeQrFrame(frame)
-        if (text) { stopped = true; onDecode(text); return }
+        const text = decodeQrFrame(ctx.getImageData(0, 0, canvas.width, canvas.height))
+        if (text) onFrame(text)
       }
       raf = requestAnimationFrame(tick)
     }
@@ -99,90 +100,72 @@ export default function DeviceSyncModal() {
   const [mode, setMode] = useState('choose')
   const [error, setError] = useState('')
   const [pending, setPending] = useState(null)
-  const pcRef = useRef(null)
-  const dataRef = useRef(null) // { offerText | answerText } to display as QR
-  // The handshake steps below hold open a chain of awaits — a camera
-  // permission prompt, up to CONNECT_TIMEOUT_MS of waiting for the other
-  // device — that can easily outlive the attempt it belongs to, whether
-  // because the coach hit Cancel (unmounting this component) or hit "Try
-  // again" (restarting in place, no unmount at all). Every attempt captures
-  // the current generation when it starts; bumping it on reset/close/unmount
-  // means a stale chain's callback can tell it no longer owns the screen and
-  // quietly stop, instead of a late "Couldn't connect" clobbering whatever
-  // the coach's new attempt is showing by then.
-  const genRef = useRef(0)
+  const [frames, setFrames] = useState(null)
+  const [frameIdx, setFrameIdx] = useState(0)
+  const [progress, setProgress] = useState({ have: 0, total: null })
 
-  useEffect(() => () => { genRef.current++; pcRef.current?.close(); pcRef.current = null }, [])
+  const collectedRef = useRef({ n: null, chunks: new Map() })
+  const doneRef = useRef(false)
+  // Both async steps here — preparing the QR frames, and decoding+parsing
+  // once a scan completes — are short, but not instant, and a coach hitting
+  // Cancel (or Try again right after a failure) doesn't wait for them.
+  // Every attempt captures this counter when it starts; bumping it on
+  // reset/close means a stale attempt's result can tell it's no longer the
+  // one on screen and quietly drop itself, instead of clobbering whatever
+  // the coach's next attempt is showing by the time it resolves.
+  const attemptRef = useRef(0)
 
-  const reset = () => { genRef.current++; pcRef.current?.close(); pcRef.current = null; dataRef.current = null; setError(''); setPending(null); setMode('choose') }
-  const fail = (gen, msg) => { if (gen !== genRef.current) return; pcRef.current?.close(); pcRef.current = null; setError(msg); setMode('error') }
+  const reset = () => { attemptRef.current++; setError(''); setPending(null); setFrames(null); setFrameIdx(0); setMode('choose') }
   const close = () => { reset(); closeSync() }
+  const fail = (attempt, msg) => { if (attempt !== attemptRef.current) return; setError(msg); setMode('error') }
 
-  // ── sending ──────────────────────────────────────────────
+  // ── sending: prepare the frames, then just cycle through them ──
   const beginSend = async () => {
-    const gen = genRef.current
-    setMode('send-offer')
+    const attempt = ++attemptRef.current
+    setMode('send-prep')
     try {
-      const { pc, channel, offerText } = await startSend()
-      if (gen !== genRef.current) { pc.close(); return }
-      pcRef.current = pc
-      dataRef.current = { channel, offerText }
-      setMode('send-offer-ready')
+      const f = await encodeFrames(backupText())
+      if (attempt !== attemptRef.current) return
+      setFrames(f)
+      setFrameIdx(0)
+      setMode('send-showing')
     } catch {
-      fail(gen, "Couldn't start the connection on this device.")
+      fail(attempt, "Couldn't prepare the data on this device.")
     }
   }
 
-  const onScannedAnswer = async (answerText) => {
-    const gen = genRef.current
-    const pc = pcRef.current
-    const { channel } = dataRef.current
-    setMode('send-connecting')
+  useEffect(() => {
+    if (mode !== 'send-showing' || !frames || frames.length <= 1) return undefined
+    const id = setInterval(() => setFrameIdx((i) => (i + 1) % frames.length), FRAME_MS)
+    return () => clearInterval(id)
+  }, [mode, frames])
+
+  // ── receiving: scan until every piece has arrived ──
+  const beginReceive = () => {
+    attemptRef.current++
+    collectedRef.current = { n: null, chunks: new Map() }
+    doneRef.current = false
+    setProgress({ have: 0, total: null })
+    setMode('recv-scan')
+  }
+
+  const finishReceive = async (base64Text, attempt) => {
+    setMode('recv-processing')
     try {
-      await finishSend(pc, answerText)
-      await Promise.race([
-        waitForOpen(channel),
-        new Promise((_, reject) => setTimeout(() => reject(), CONNECT_TIMEOUT_MS)),
-      ])
-      if (gen !== genRef.current) return
-      setMode('send-transfer')
-      await sendPayload(channel, backupText())
-      if (gen !== genRef.current) return
-      setMode('send-done')
+      const json = await decodeFrames(base64Text)
+      if (attempt !== attemptRef.current) return
+      setPending(parseBackup(json))
+      setMode('recv-confirm')
     } catch {
-      fail(gen, "Couldn't connect — make sure both devices are on the same Wi-Fi and try again.")
+      fail(attempt, "That didn't look like Basketball Pro Coach data.")
     }
   }
 
-  // ── receiving ────────────────────────────────────────────
-  const beginReceive = () => setMode('recv-scan')
-
-  const onScannedOffer = async (offerText) => {
-    const gen = genRef.current
-    setMode('recv-connecting')
-    try {
-      const { pc, channelPromise, answerText } = await respondToOffer(offerText)
-      if (gen !== genRef.current) { pc.close(); return }
-      pcRef.current = pc
-      dataRef.current = { answerText }
-      setMode('recv-answer-ready')
-      const channel = await Promise.race([
-        channelPromise,
-        new Promise((_, reject) => setTimeout(() => reject(), CONNECT_TIMEOUT_MS)),
-      ])
-      if (gen !== genRef.current) return
-      receivePayload(channel, (text) => {
-        if (gen !== genRef.current) return
-        try {
-          setPending(parseBackup(text))
-          setMode('recv-confirm')
-        } catch {
-          fail(gen, "That didn't look like Basketball Pro Coach data.")
-        }
-      })
-    } catch {
-      fail(gen, "Couldn't connect — make sure both devices are on the same Wi-Fi and try again.")
-    }
+  const onFrame = (text) => {
+    if (doneRef.current) return
+    const result = collectFrame(collectedRef.current, text)
+    setProgress({ have: collectedRef.current.chunks.size, total: collectedRef.current.n })
+    if (result) { doneRef.current = true; finishReceive(result, attemptRef.current) }
   }
 
   const confirmRestore = () => {
@@ -204,7 +187,7 @@ export default function DeviceSyncModal() {
     return box(
       <>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
-          Send everything on this device straight to another phone or tablet — no cloud, no account. Both devices need to be on the same Wi-Fi (or one hotspotting to the other), close enough to scan each other's screen.
+          Send everything on this device straight to another phone or tablet — one shows a QR code, the other scans it. No cloud, no account, no network needed between them at all.
         </div>
         <BigButton onClick={beginSend}>Send to another device</BigButton>
         <BigButton onClick={beginReceive} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>Receive from another device</BigButton>
@@ -213,63 +196,35 @@ export default function DeviceSyncModal() {
     )
   }
 
-  if (mode === 'send-offer' || mode === 'send-offer-ready') {
-    return box(
-      <Step title="On the other device, choose “Receive from another device” and scan this:">
-        {mode === 'send-offer-ready' ? <QrDisplay text={dataRef.current.offerText} /> : <div style={{ aspectRatio: '1', borderRadius: 14, background: 'rgba(255,255,255,.06)' }} />}
-        <BigButton onClick={() => setMode('send-scan')} style={mode !== 'send-offer-ready' ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>It showed me a code back →</BigButton>
-        <QuietButton onClick={close}>Cancel</QuietButton>
-      </Step>,
-    )
+  if (mode === 'send-prep') {
+    return box(<div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)', padding: '24px 4px', textAlign: 'center' }}>Preparing…</div>)
   }
 
-  if (mode === 'send-scan') {
+  if (mode === 'send-showing') {
     return box(
-      <Step title="Now scan the code the other device is showing:">
-        <QrScanner onDecode={onScannedAnswer} />
-        <QuietButton onClick={close}>Cancel</QuietButton>
-      </Step>,
-    )
-  }
-
-  if (mode === 'send-connecting' || mode === 'send-transfer') {
-    return box(
-      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)', padding: '24px 4px', textAlign: 'center' }}>
-        {mode === 'send-connecting' ? 'Connecting…' : 'Sending…'}
-      </div>,
-    )
-  }
-
-  if (mode === 'send-done') {
-    return box(
-      <>
-        <div style={{ fontSize: 12.5, color: '#5bbf72', padding: '10px 0 4px', lineHeight: 1.5 }}>Sent. The other device now has everything from this one.</div>
+      <Step title={frames.length > 1 ? 'Scan this on the other device — it will keep changing, hold both screens steady:' : 'Scan this on the other device:'}>
+        <QrDisplay text={frames[frameIdx]} />
+        {frames.length > 1 && (
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', textAlign: 'center', marginTop: 10 }}>
+            Code {frameIdx + 1} of {frames.length}, cycling automatically
+          </div>
+        )}
         <BigButton onClick={close}>Done</BigButton>
-      </>,
+      </Step>,
     )
   }
 
   if (mode === 'recv-scan') {
     return box(
-      <Step title="Scan the code the other device is showing:">
-        <QrScanner onDecode={onScannedOffer} />
+      <Step title={progress.total ? `Scanning… ${progress.have} of ${progress.total} codes` : 'Point the camera at the code on the other device:'}>
+        <QrScanner onFrame={onFrame} />
         <QuietButton onClick={close}>Cancel</QuietButton>
       </Step>,
     )
   }
 
-  if (mode === 'recv-connecting' || (mode === 'recv-answer-ready' && !dataRef.current)) {
-    return box(<div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)', padding: '24px 4px', textAlign: 'center' }}>Connecting…</div>)
-  }
-
-  if (mode === 'recv-answer-ready') {
-    return box(
-      <Step title="Show this back to the other device:">
-        <QrDisplay text={dataRef.current.answerText} />
-        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', textAlign: 'center', marginTop: 12 }}>Waiting to receive…</div>
-        <QuietButton onClick={close}>Cancel</QuietButton>
-      </Step>,
-    )
+  if (mode === 'recv-processing') {
+    return box(<div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)', padding: '24px 4px', textAlign: 'center' }}>Processing…</div>)
   }
 
   if (mode === 'recv-confirm') {
