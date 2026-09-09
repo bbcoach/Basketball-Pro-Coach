@@ -12,7 +12,7 @@ export const INFO = {
     title: 'Legal notice',
     blocks: [
       ['Information pursuant to § 5 TMG', 'Ralph Arnold, St. Norbert Straße 1a, 67677 Enkenbach-Alsenborn, Germany'],
-      ['Contact', 'Email: ralph.arnold@live.de'],
+      ['Contact', 'Email: info@basketballprocoach.com'],
       ['Responsible for the content', 'Ralph Arnold, address as above.'],
       ['Note', 'A private, non-commercial spare-time project. No goods or services are sold; voluntary donations are not payment for a service.'],
     ],
