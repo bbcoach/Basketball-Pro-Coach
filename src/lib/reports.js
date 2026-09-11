@@ -46,11 +46,33 @@ function reportHead(title) {
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,700;1,800&display=swap" rel="stylesheet">`
 }
 
+// The app's mark, redrawn for paper. Same geometry as Logo.jsx — ball with
+// both curved seams, dashed shaft, arrowhead — but the arrow can't stay the
+// white it is on screen: reports print on white, so a white arrow would be
+// an invisible one, which is how this header ended up showing a bare
+// circle-and-cross for a while. What carries over is the *relationship*
+// (accent ball, arrow in the contrasting foreground colour), not the literal
+// hex, so the arrow takes the same ink as the report's body text.
+// Strokes run heavier than the on-screen original because this renders at
+// a fraction of the size.
+const MARK_INK = '#171717'
+function markSvg(px) {
+  return `<svg width="${px}" height="${px}" viewBox="0 0 48 48">
+    <circle cx="21" cy="27" r="15" fill="none" stroke="${ACCENT}" stroke-width="3.2"/>
+    <path d="M6 27 H36" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
+    <path d="M21 12 V42" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
+    <path d="M10.5 16.5 C17 22 17 32 10.5 37.5" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
+    <path d="M31.5 16.5 C25 22 25 32 31.5 37.5" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
+    <path d="M30 19 C36 15 38 11 39.5 7.5" fill="none" stroke="${MARK_INK}" stroke-width="2.9" stroke-linecap="round" stroke-dasharray="4 3.4"/>
+    <path d="M43 4 L34.5 7 L39.5 12 Z" fill="${MARK_INK}" transform="rotate(-18 39 8)"/>
+  </svg>`
+}
+
 function reportHeader({ title, subtitle, metaLines }) {
   const meta = metaLines.filter(Boolean).map((l, i) => (i === 0 ? `<span class="headline">${esc(l)}</span>` : esc(l))).join('<br>')
   return `<div class="topbar"></div>
     <header>
-      <div class="logo"><svg width="20" height="20" viewBox="0 0 48 48"><circle cx="21" cy="27" r="15" fill="none" stroke="${ACCENT}" stroke-width="3.2"/><path d="M6 27 H36" stroke="${ACCENT}" stroke-width="2" opacity=".9"/><path d="M21 12 V42" stroke="${ACCENT}" stroke-width="2" opacity=".9"/></svg></div>
+      <div class="logo">${markSvg(28)}</div>
       <div>
         <h1>${esc(title)}</h1>
         <h2>${esc(subtitle)}</h2>
