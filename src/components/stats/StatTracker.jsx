@@ -5,7 +5,8 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
-import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally } from '../../lib/stats'
+import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
+import { COND } from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
@@ -69,12 +70,24 @@ function GamesTab() {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {games.map((g) => {
           const t = teamTally(g.log)
+          const res = gameScore(g)
           return (
             <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
               <div onClick={() => openGame(g.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtDate(g.date)}{g.time ? ' · ' + g.time : ''} · {t.pts} pts · {g.log.length} logged</div>
+                {/* Our points are dropped from this line whenever the result
+                    badge is showing them anyway — otherwise the same number
+                    appears twice in one row. */}
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{fmtDate(g.date)}{g.time ? ' · ' + g.time : ''}{res ? '' : ' · ' + t.pts + ' pts'} · {g.log.length} logged</div>
               </div>
+              {/* A loss takes the warning orange rather than the destructive
+                  red used for delete — losing a game is not an error. */}
+              {res && (
+                <div style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                  <span style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 14, color: res.outcome === 'W' ? '#5bbf72' : res.outcome === 'L' ? '#d9843c' : 'rgba(255,255,255,.5)' }}>{res.outcome}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{res.us}:{res.them}</span>
+                </div>
+              )}
               <div onClick={() => askConfirm({ title: 'Delete game', message: `Delete ${gameTitle(g)} (${fmtDate(g.date)})? ${g.log.length} logged actions will be lost.`, onConfirm: () => removeGame(g) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>
           )
@@ -267,6 +280,41 @@ function StatPad({ selPlayer, onCourt, logStat, columns = 3 }) {
   )
 }
 
+// The scoreboard the app was missing. Tracking only your own players means
+// the log can tell you everything about how your team played and nothing
+// about whether you won, so this keeps the other side's score too — three
+// taps, no roster, no player selection.
+//
+// Deliberately not accent-coloured: accent means "your team" everywhere else
+// in this screen, and these three buttons sit a thumb's width from the ones
+// that credit your own players. Muted and captioned is the point.
+function OppScoreBar({ game, ourPts }) {
+  const { logOppScore } = useApp()
+  const them = oppPts(game.log)
+  const num = { fontFamily: COND, fontWeight: 700, fontSize: 21, lineHeight: 1 }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.09)' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+          <span style={{ ...num, color: ACCENT }}>{ourPts}</span>
+          <span style={{ ...num, fontSize: 15, color: 'rgba(255,255,255,.3)' }}>:</span>
+          <span style={{ ...num, color: '#fff' }}>{them}</span>
+        </div>
+        <div style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.38)', marginTop: 3 }}>Us · them</div>
+      </div>
+      {OPP_DEFS.map((o) => (
+        <div
+          key={o.k}
+          onClick={() => logOppScore(o.k)}
+          style={{ flex: 'none', minWidth: 42, textAlign: 'center', padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}
+        >
+          {o.label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function LastActionBar({ lastAction, selPlayer, undoStat }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -296,11 +344,17 @@ function LiveTab({ game }) {
   } else {
     const e = log[log.length - 1]
     if (!e) lastAction = 'Tap a stat to log it'
+    // An opponent basket has no player to name, and running it through the
+    // roster lookup below would print the useless "Last: player — …".
+    else if (e.p === OPP_ID) lastAction = 'Last: ' + STAT_LABEL[e.k]
     else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
   }
 
   const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt, compact: landscape }
   const padProps = { selPlayer, onCourt, logStat }
+  // Free play has no opponent to score, and a two-team game already keeps a
+  // real A–B score from both rosters.
+  const showOpp = !game.twoTeam && game.type !== 'practice'
   const scoreText = game.twoTeam ? sidePts(players, log, 'A') + ' – ' + sidePts(players, log, 'B') : null
 
   if (landscape) {
@@ -330,6 +384,7 @@ function LiveTab({ game }) {
               {promptOpen ? <div style={{ flex: 1, minWidth: 0 }}><PromptHint text={promptText} /></div> : <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: 'rgba(255,255,255,.45)', overflow: 'hidden' }}>{lastAction}</div>}
             </div>
             <StatPad {...padProps} columns={4} />
+            {showOpp && <OppScoreBar game={game} ourPts={teamTally(log).pts} />}
             <div onClick={undoStat} style={{ flex: 'none', padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Undo</div>
           </div>
         </div>
@@ -370,6 +425,12 @@ function LiveTab({ game }) {
       )}
 
       {promptOpen && <div style={{ margin: '0 18px 8px' }}><PromptHint text={promptText} /></div>}
+
+      {showOpp && (
+        <div style={{ flex: 'none', padding: '2px 18px 8px' }}>
+          <OppScoreBar game={game} ourPts={teamTally(log).pts} />
+        </div>
+      )}
 
       <div style={{ flex: 'none', padding: '2px 18px 0' }}>
         <StatPad {...padProps} />
@@ -501,6 +562,7 @@ function SeasonTab() {
   // excluded here so a coach's per-game averages aren't diluted by scrimmages.
   const games = state.games.filter((g) => g.type !== 'practice')
   const log = games.flatMap((g) => g.log)
+  const rec = seasonRecord(games)
   const rows = roster
     .map((p) => {
       const t = tallyFor(log, p.id)
@@ -512,7 +574,11 @@ function SeasonTab() {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.4)', padding: '0 6px 10px' }}>
-        {games.length} game{games.length === 1 ? '' : 's'} tracked · averages per game played
+        {games.length} game{games.length === 1 ? '' : 's'} tracked
+        {/* Only games whose opponent score was actually kept can count
+            towards a record, so this stays absent until one is. */}
+        {rec.tracked > 0 && <> · <span style={{ color: 'rgba(255,255,255,.7)', fontWeight: 700 }}>{rec.w}W–{rec.l}L{rec.t ? '–' + rec.t + 'T' : ''}</span></>}
+        {' '}· averages per game played
       </div>
       {roster.length ? (
         <ScrollX style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>

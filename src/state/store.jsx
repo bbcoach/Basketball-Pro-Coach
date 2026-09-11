@@ -7,6 +7,7 @@ import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
 import { kindOf } from '../lib/playKind'
 import { playDrillAlert, unlockDrillAlert } from '../lib/drillAlert'
+import { OPP_ID } from '../lib/stats'
 
 const LS = {
   plays: 'tb.plays.v1',
@@ -681,6 +682,14 @@ export function AppProvider({ children }) {
     if (!game || game.onCourt.indexOf(s.selPlayer) < 0) return
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: x.log.concat([{ p: s.selPlayer, k: key, ts: Date.now() }]) } : x)))
   }
+  // No player selection and no on-court check, unlike logStat: the opponent
+  // has no roster here, and requiring a selected player would mean the score
+  // couldn't be kept at all until someone was picked.
+  const logOppScore = (key) => {
+    const s = stateRef.current
+    if (!s.activeGameId) return
+    persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: x.log.concat([{ p: OPP_ID, k: key, ts: Date.now() }]) } : x)))
+  }
   const undoStat = () => {
     const s = stateRef.current
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: x.log.slice(0, -1) } : x)))
@@ -981,7 +990,7 @@ export function AppProvider({ children }) {
     askConfirm, closeConfirm, runConfirm, showToast,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, selectStatPlayer, logStat, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,

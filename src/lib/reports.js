@@ -1,4 +1,4 @@
-import { tallyFor } from './stats'
+import { tallyFor, gameScore, seasonRecord } from './stats'
 import { download } from './download'
 import { ACCENT } from '../state/config'
 import { playStepSvgs } from './playSvg'
@@ -79,6 +79,14 @@ function reportHeader({ title, subtitle, metaLines }) {
       </div>
       <div class="meta">${meta}</div>
     </header>`
+}
+
+// Empty string, not "0W–0L", when no game has an opponent score entered —
+// a record nobody kept shouldn't print as a record of nothing happening.
+function recordText(games) {
+  const r = seasonRecord(games)
+  if (!r.tracked) return ''
+  return ' · ' + r.w + 'W–' + r.l + 'L' + (r.t ? '–' + r.t + 'T' : '')
 }
 
 function reportFooter() {
@@ -188,7 +196,8 @@ export function exportBoxPdf(players, log, teamName, game) {
     metaLines = [date, `${teamAName} ${ptsA} – ${ptsB} ${teamBName}`]
   } else {
     tablesHtml = boxTableHtml(head, tr, players, log)
-    metaLines = [date, opponent, log.length + ' logged actions']
+    const res = gameScore(game)
+    metaLines = [date, opponent + (res ? ` · ${res.us} – ${res.them}` : ''), log.length + ' logged actions']
   }
 
   const html = `<!doctype html><html><head>${reportHead('Box score')}<style>
@@ -238,7 +247,7 @@ export function exportSeasonPdf(roster, allGames, teamName) {
       th,td{text-align:center}
       th:nth-child(2),td:nth-child(2){text-align:left}
     </style></head><body>
-    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked', 'Averages per game played'] })}
+    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked' + recordText(games), 'Averages per game played'] })}
     <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="13" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
     ${reportFooter()}
     </body></html>`
