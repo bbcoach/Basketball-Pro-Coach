@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, poly, wavy,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, poly, wavy, isCone, conePath, CONE_COLOR,
 } from '../../lib/board-geometry'
 
 // Static, read-only diagram of a saved play — start positions plus every
@@ -22,6 +22,10 @@ export default function PlayPreview({ play }) {
     const tks = []
     players.forEach((pl) => {
       const p = board.entPos(pl, 0, board.nSteps(), marks)
+      if (isCone(pl)) {
+        tks.push({ key: pl.id, x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' })
+        return
+      }
       const off = pl.team === 'off'
       tks.push({
         key: pl.id, x: p.x, y: p.y, r: 54, fill: off ? ACCENT : '#121316',
@@ -90,7 +94,9 @@ export default function PlayPreview({ play }) {
       ))}
       {tokens.map((tk) => (
         <g key={tk.key}>
-          <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.ball ? 4 : 6} />
+          {tk.cone
+            ? <path d={conePath(tk.x, tk.y, tk.r)} fill={tk.fill} stroke={tk.stroke} strokeWidth="6" strokeLinejoin="round" />
+            : <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.ball ? 4 : 6} />}
           {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth="3.2" strokeLinecap="round" />}
           {tk.label && <text x={tk.x} y={tk.y} dominantBaseline="central" textAnchor="middle" fill={tk.tc} fontSize={tk.r * 0.96} fontWeight="700" fontFamily="'Barlow Condensed', sans-serif">{tk.label}</text>}
         </g>

@@ -27,6 +27,7 @@ const TOOLS = [
   ['shot', '◎︎', 'Shot'],
   ['addOff', '＋︎', 'Offense'],
   ['addDef', '✕︎', 'Defense'],
+  ['addCone', '▲︎', 'Cone'],
   ['erase', '⌫︎', 'Erase'],
 ]
 
