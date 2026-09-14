@@ -62,6 +62,51 @@ export function setAct(ent, step, type, p) {
   return Object.assign({}, e, { acts: e.acts.filter((a) => a.step !== step).concat([{ type, step, pts: [p] }]) })
 }
 
+// Cones share the players array — that is what gets them dragging, erasing,
+// undo, saving, sharing and device sync for free, since all of those already
+// move `players` around wholesale. What they must never share is the ball:
+// see movers() and its use in carrierMap.
+export const CONE_TEAM = 'cone'
+export const CONE_COLOR = '#2fc4b2'
+
+export function isCone(ent) {
+  return !!ent && ent.team === CONE_TEAM
+}
+
+// Everyone who can hold, receive or carry the ball — i.e. not the furniture.
+// The ball is magnetic (carrierMap follows whoever stands nearest), so
+// without this a cone dropped beside the ball would take possession of it.
+export function movers(players) {
+  return players.filter((p) => !isCone(p))
+}
+
+// One cone silhouette for all three renderers — the live board, the preview
+// and the PDF exporter each draw their own tokens, and a shape defined three
+// times is a shape that ends up different three times.
+//
+// `r` is the player-token radius it stands next to; a cone comes out
+// deliberately smaller than that, because it marks a spot on the floor
+// rather than standing in for a person. Drawn as a cone with a flared foot
+// instead of a plain triangle, which at preview size would read as an
+// arrowhead or a direction marker.
+export function conePath(cx, cy, r) {
+  const h = r * 1.34
+  const w = r * 0.70
+  const apex = cy - h * 0.58
+  const shoulder = cy + h * 0.28
+  const foot = cy + h * 0.46
+  return [
+    'M', cx.toFixed(1), apex.toFixed(1),
+    'L', (cx + w * 0.66).toFixed(1), shoulder.toFixed(1),
+    'L', (cx + w).toFixed(1), shoulder.toFixed(1),
+    'L', (cx + w).toFixed(1), foot.toFixed(1),
+    'L', (cx - w).toFixed(1), foot.toFixed(1),
+    'L', (cx - w).toFixed(1), shoulder.toFixed(1),
+    'L', (cx - w * 0.66).toFixed(1), shoulder.toFixed(1),
+    'Z',
+  ].join(' ')
+}
+
 export function nearestPlayer(players, pt, step, max) {
   let best = null
   let bd = max || 240
@@ -74,7 +119,12 @@ export function nearestPlayer(players, pt, step, max) {
 
 // Who's holding the ball at the start of each step (magnetic ball): follows the
 // nearest player until a pass hands it off, or a shot releases it.
-export function carrierMap(players, ball, n) {
+export function carrierMap(allPlayers, ball, n) {
+  // Cones are dropped here once, at the top, rather than at each of the
+  // nearestPlayer calls below — they are on the court but they cannot hold,
+  // receive or hand off a ball, and this is the only place in the app that
+  // decides who does.
+  const players = movers(allPlayers)
   const out = {}
   let c = nearestPlayer(players, { x: ball.x, y: ball.y }, 1, 240)
   for (let k = 1; k <= n; k++) {

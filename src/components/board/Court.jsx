@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy } from '../../lib/board-geometry'
+import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, conePath, CONE_COLOR } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 
 const COURT_W = 1500
@@ -29,6 +29,17 @@ export default function Court() {
     const tks = []
     players.forEach((pl) => {
       const p = board.entPos(pl, t, nSteps, marks)
+      if (isCone(pl)) {
+        // Smaller than a player token on purpose — it marks a spot on the
+        // floor, it doesn't stand in for a person.
+        tks.push({
+          key: pl.id, x: p.x, y: p.y, r: TR * 0.74, cone: true, label: '',
+          fill: CONE_COLOR,
+          stroke: sel === pl.id ? '#ffffff' : 'rgba(0,0,0,.42)',
+          sw: sel === pl.id ? 7 : 5,
+        })
+        return
+      }
       const off = pl.team === 'off'
       tks.push({
         key: pl.id, x: p.x, y: p.y, r: TR, rHalo: TR + 6, fs: TR * 0.96,
@@ -199,14 +210,26 @@ export default function Court() {
 
         {tokens.map((tk) => (
           <g key={tk.key}>
-            <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.34} fill="url(#tokshadow)" />
-            <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} />
-            {/* Inset by half the stroke so the sheen stops at the inner edge
-                of the ring instead of washing over it. Drawn before the ring
-                and the seams so neither gets dimmed by it. */}
-            <circle cx={tk.x} cy={tk.y} r={tk.r - tk.sw / 2} fill="url(#toklight)" />
-            <circle cx={tk.x} cy={tk.y} r={tk.r} fill="none" stroke={tk.stroke} strokeWidth={tk.sw} />
-            {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
+            {tk.cone ? (
+              <>
+                {/* A cone stands on the floor rather than lying on it, so its
+                    shadow is a flat pool at the foot instead of the discs'
+                    offset copy of themselves. */}
+                <ellipse cx={tk.x + shadow.dx * tk.r * 1.6} cy={tk.y + tk.r * 0.62} rx={tk.r * 1.05} ry={tk.r * 0.42} fill="url(#tokshadow)" />
+                <path d={conePath(tk.x, tk.y, tk.r)} fill={tk.fill} stroke={tk.stroke} strokeWidth={tk.sw} strokeLinejoin="round" />
+              </>
+            ) : (
+              <>
+                <circle cx={tk.x + shadow.dx * tk.r} cy={tk.y + shadow.dy * tk.r} r={tk.r * 1.34} fill="url(#tokshadow)" />
+                <circle cx={tk.x} cy={tk.y} r={tk.r} fill={tk.fill} />
+                {/* Inset by half the stroke so the sheen stops at the inner edge
+                    of the ring instead of washing over it. Drawn before the ring
+                    and the seams so neither gets dimmed by it. */}
+                <circle cx={tk.x} cy={tk.y} r={tk.r - tk.sw / 2} fill="url(#toklight)" />
+                <circle cx={tk.x} cy={tk.y} r={tk.r} fill="none" stroke={tk.stroke} strokeWidth={tk.sw} />
+                {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
+              </>
+            )}
           </g>
         ))}
         <g pointerEvents="none">

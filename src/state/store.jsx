@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   actsOf, baseAt, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
+  CONE_TEAM, isCone,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
@@ -214,6 +215,17 @@ export function AppProvider({ children }) {
       }))
       return
     }
+    if (tool === 'addCone') {
+      snapshot()
+      // Unlike the two player tools, this one stays selected. Cones come in
+      // fours and sixes, and dropping back to Move after each would mean
+      // re-picking the tool for every cone of a drill setup.
+      set((st) => ({
+        players: st.players.concat([{ id: 'c' + st.seq, team: CONE_TEAM, label: '', x: p.x, y: p.y, acts: [] }]),
+        seq: st.seq + 1, playing: false,
+      }))
+      return
+    }
     const board = makeBoard(s)
     const id = board.hit(p, s.t)
     if (tool === 'erase') {
@@ -233,6 +245,10 @@ export function AppProvider({ children }) {
     }
     if (!id) { set({ sel: null }); return }
     if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
+    // Everything past here draws a route or moves the ball, and a cone does
+    // neither — it has no legs to run a cut and no hands to pass with. Move
+    // and Erase are the only tools that mean anything on one.
+    if (isCone(board.entity(id))) return
     const k = s.step
     const t0 = (k - 1) / nSteps()
     if (tool === 'pass' || tool === 'shot') {

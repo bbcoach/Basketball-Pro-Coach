@@ -1,5 +1,5 @@
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -38,6 +38,9 @@ function stepSvg(play, board, cmap, stepIndex) {
 
   const tokens = players.map((pl) => {
     const p = baseAt(pl, stepIndex)
+    if (isCone(pl)) {
+      return { x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' }
+    }
     const off = pl.team === 'off'
     return {
       x: p.x, y: p.y, r: 54, fill: off ? ACCENT : '#121316',
@@ -75,7 +78,9 @@ function stepSvg(play, board, cmap, stepIndex) {
   })
 
   const routesSvg = routes.map((r) => `<path d="${r.d}" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="${r.dash}" marker-end="${r.marker}" opacity="0.92" />`).join('')
-  const tokensSvg = tokens.map((tk) => `<circle cx="${tk.x.toFixed(1)}" cy="${tk.y.toFixed(1)}" r="${tk.r}" fill="${tk.fill}" stroke="${tk.stroke}" stroke-width="${tk.ball ? 4 : 6}" />${tk.ball ? `<path d="${ballSeams(tk.x, tk.y, tk.r)}" fill="none" stroke="${tk.stroke}" stroke-width="3.2" stroke-linecap="round" />` : ''}${tk.label ? `<text x="${tk.x.toFixed(1)}" y="${tk.y.toFixed(1)}" dominant-baseline="central" text-anchor="middle" fill="${tk.tc}" font-size="${tk.r * 0.96}" font-weight="700" font-family="'Barlow Condensed', sans-serif">${esc(tk.label)}</text>` : ''}`).join('')
+  const tokensSvg = tokens.map((tk) => (tk.cone
+    ? `<path d="${conePath(tk.x, tk.y, tk.r)}" fill="${tk.fill}" stroke="${tk.stroke}" stroke-width="6" stroke-linejoin="round" />`
+    : `<circle cx="${tk.x.toFixed(1)}" cy="${tk.y.toFixed(1)}" r="${tk.r}" fill="${tk.fill}" stroke="${tk.stroke}" stroke-width="${tk.ball ? 4 : 6}" />${tk.ball ? `<path d="${ballSeams(tk.x, tk.y, tk.r)}" fill="none" stroke="${tk.stroke}" stroke-width="3.2" stroke-linecap="round" />` : ''}${tk.label ? `<text x="${tk.x.toFixed(1)}" y="${tk.y.toFixed(1)}" dominant-baseline="central" text-anchor="middle" fill="${tk.tc}" font-size="${tk.r * 0.96}" font-weight="700" font-family="'Barlow Condensed', sans-serif">${esc(tk.label)}</text>` : ''}`)).join('')
 
   return `<svg viewBox="${vb}" style="width:100%;height:100%;display:block">
     <defs><marker id="step-arw" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 z" fill="#ffffff" /></marker></defs>
