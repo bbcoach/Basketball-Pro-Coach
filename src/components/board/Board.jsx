@@ -31,10 +31,24 @@ const TOOLS = [
   ['erase', '⌫︎', 'Erase'],
 ]
 
-// Full screen is otherwise read-only (step through, play/pause) — these are
-// the drawing tools a coach still needs to sketch an adjustment on the spot
-// while the team is watching the big screen, without the full toolbar.
-const FULLSCREEN_TOOL_IDS = ['move', 'cut', 'dribble', 'screen', 'pass', 'handoff']
+// Full screen gets every tool the normal toolbar has — a coach sketching an
+// adjustment while the team watches the big screen shouldn't have to drop out
+// of full screen to reach Shot or a cone. Twelve tiles won't fit a phone, so
+// the strip scrolls and is capped at exactly this many on screen at once.
+//
+// The cap has to be a real measurement, not "whatever fits": on a tablet the
+// bar would otherwise happily show all twelve. So the tiles carry an explicit
+// size and the cap is computed from it — portrait scrolls sideways and caps
+// width, landscape scrolls down its column and caps height.
+//
+// 44px is not arbitrary: a 390pt phone leaves 336px next to the grip, which
+// is exactly seven of them plus their gaps. Wider tiles fitted only five and
+// made the strip scroll more than it had to.
+const FS_MAX_VISIBLE = 7
+const FS_GAP = 4
+const FS_TILE_W = 44
+const FS_TILE_H = 30
+const fsCap = (n) => FS_MAX_VISIBLE * n + (FS_MAX_VISIBLE - 1) * FS_GAP
 
 function Header({ compact }) {
   const { state, setView, goHome } = useApp()
@@ -244,7 +258,7 @@ const HOLD_MS = 300
 function FullScreenTools() {
   const { state, setTool, undo } = useApp()
   const landscape = useLandscape()
-  const tools = TOOLS.filter(([id]) => FULLSCREEN_TOOL_IDS.includes(id))
+  const tools = TOOLS
   const storageKey = 'tb.fsToolsPos.' + (landscape ? 'landscape' : 'portrait') + '.v1'
   const barRef = useRef(null)
   const dragRef = useRef(null)
@@ -334,17 +348,45 @@ function FullScreenTools() {
 
   const showHint = !hintSeen && !pos
 
+  // The bar itself no longer scrolls — only the strip inside it does. The
+  // grip has to stay put, and with a dozen tiles it used to scroll out of
+  // reach along with everything else.
   const wrapStyle = {
-    position: 'absolute', zIndex: 60, display: 'flex', gap: 4, overflowY: 'auto', overflowX: 'auto',
+    position: 'absolute', zIndex: 60, display: 'flex', gap: FS_GAP,
     ...defaultToolBarStyle(landscape),
     ...(pos ? { top: pos.y, left: pos.x, right: 'auto', bottom: 'auto', flexDirection: landscape ? 'column' : 'row' } : null),
-    alignItems: landscape && !pos ? 'stretch' : 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     opacity: dragging ? 0.85 : 1,
-    // A press-and-hold would otherwise raise the text-selection callout on
-    // touch, and scrolling would fight the drag once it has started.
-    touchAction: dragging ? 'none' : 'pan-x',
     userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
   }
+
+  // touchAction has to follow the scroll axis. It was hard-coded to 'pan-x'
+  // for both orientations, which silently blocked the landscape column's
+  // vertical scroll — invisible while six tools always fitted, not any more.
+  const stripStyle = {
+    display: 'flex', gap: FS_GAP,
+    // Shrinks below the cap when the screen is narrower than seven tiles —
+    // without this the strip held its capped width, pushed the grip off the
+    // left edge of a phone and overflowed the bar in both directions.
+    flex: '0 1 auto', minWidth: 0, minHeight: 0,
+    flexDirection: landscape ? 'column' : 'row',
+    alignItems: landscape ? 'stretch' : 'center',
+    ...(landscape
+      ? { maxHeight: fsCap(FS_TILE_H), overflowY: 'auto', overflowX: 'hidden' }
+      : { maxWidth: fsCap(FS_TILE_W), overflowX: 'auto', overflowY: 'hidden' }),
+    // A press-and-hold would otherwise raise the text-selection callout on
+    // touch, and scrolling would fight the drag once it has started.
+    touchAction: dragging ? 'none' : landscape ? 'pan-y' : 'pan-x',
+  }
+
+  const tileStyle = (active) => ({
+    flex: 'none', boxSizing: 'border-box',
+    display: 'flex', flexDirection: landscape ? 'row' : 'column',
+    alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
+    ...(landscape ? { height: FS_TILE_H, padding: '0 9px' } : { width: FS_TILE_W, padding: '5px 2px' }),
+    borderRadius: 12, cursor: 'pointer', overflow: 'hidden',
+    background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
+  })
 
   return (
     <div
@@ -354,7 +396,7 @@ function FullScreenTools() {
     >
       <div
         onPointerDown={onHandleDown}
-        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: landscape ? 'auto' : 18, height: landscape ? 18 : 'auto', alignSelf: 'stretch', borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
         ⠿
       </div>
@@ -363,34 +405,22 @@ function FullScreenTools() {
           Hold to move
         </div>
       )}
-      {tools.map(([id, icon, label]) => {
-        const active = state.tool === id
-        const row = landscape
-        return (
-          <div
-            key={id} onClick={() => onToolClick(() => setTool(id))}
-            style={{
-              flex: 'none', display: 'flex', flexDirection: row ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: row ? 5 : 1,
-              padding: row ? '6px 9px' : '5px 6px', borderRadius: 12, cursor: 'pointer',
-              background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
-            }}
-          >
-            <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: row ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>{label}</div>
-          </div>
-        )
-      })}
-      <div
-        onClick={() => onToolClick(undo)}
-        style={{
-          flex: 'none', display: 'flex', flexDirection: landscape ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
-          padding: landscape ? '6px 9px' : '5px 6px', borderRadius: 12, cursor: 'pointer',
-          background: 'rgba(255,255,255,.16)', color: '#fff',
-        }}
-      >
-        <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>↺︎</div>
-        <div style={{ fontSize: landscape ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>Undo</div>
-      </div>
+      <ScrollX axis={landscape ? 'y' : 'x'} style={stripStyle}>
+        {tools.map(([id, icon, label]) => {
+          const active = state.tool === id
+          const row = landscape
+          return (
+            <div key={id} onClick={() => onToolClick(() => setTool(id))} style={tileStyle(active)}>
+              <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>{icon}</div>
+              <div style={{ fontSize: row ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>{label}</div>
+            </div>
+          )
+        })}
+        <div onClick={() => onToolClick(undo)} style={tileStyle(false)}>
+          <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>↺︎</div>
+          <div style={{ fontSize: landscape ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>Undo</div>
+        </div>
+      </ScrollX>
     </div>
   )
 }

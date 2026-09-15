@@ -95,6 +95,23 @@ input[type="range"]::-webkit-slider-thumb {
   mask-image: linear-gradient(to right, transparent, #000 34px, #000 calc(100% - 34px), transparent);
 }
 
+/* Same thing rotated, for a strip that scrolls down rather than across (the
+   full-screen tool column in landscape). "left"/"right" keep their names —
+   they mean start/end of the scroll axis, which is what ScrollX measures. */
+.scrolly {
+  scrollbar-width: none;
+}
+.scrolly::-webkit-scrollbar { display: none; }
+.scrolly[data-more="right"] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+.scrolly[data-more="left"] {
+  mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent);
+}
+.scrolly[data-more="both"] {
+  mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+}
+
 /* The app is a single fixed-width portrait column — on a rotated phone
    (short viewport height) content gets clipped instead of reflowing, so
    show a rotate prompt rather than a half-broken layout. Tablets in

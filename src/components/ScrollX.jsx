@@ -14,8 +14,12 @@ import { useCallback, useEffect, useRef } from 'react'
 // fade sits at the edge while the content scrolls underneath it. The fade
 // appears only while there is actually something beyond the edge, which is
 // what makes it readable as "there is more" rather than as decoration.
-export default function ScrollX({ children, className, ...rest }) {
+// The same story vertically, for a strip that runs down the screen instead of
+// across it — the full-screen tool column in landscape. Same measurement,
+// same data attribute, different axis; index.css carries the matching mask.
+export default function ScrollX({ children, className, axis = 'x', ...rest }) {
   const ref = useRef(null)
+  const vertical = axis === 'y'
 
   const measure = useCallback(() => {
     const el = ref.current
@@ -23,12 +27,13 @@ export default function ScrollX({ children, className, ...rest }) {
     // A tolerance, not a nicety: fractional layout widths mean scrollWidth is
     // routinely a fraction of a pixel over clientWidth with nothing to
     // scroll to, which would leave a fade permanently stuck to the edge.
-    const max = el.scrollWidth - el.clientWidth
-    const left = el.scrollLeft > 1
-    const right = el.scrollLeft < max - 1
+    const max = vertical ? el.scrollHeight - el.clientHeight : el.scrollWidth - el.clientWidth
+    const at = vertical ? el.scrollTop : el.scrollLeft
+    const left = at > 1
+    const right = at < max - 1
     const v = left && right ? 'both' : left ? 'left' : right ? 'right' : 'none'
     if (el.dataset.more !== v) el.dataset.more = v
-  }, [])
+  }, [vertical])
 
   useEffect(() => {
     const el = ref.current
@@ -53,7 +58,7 @@ export default function ScrollX({ children, className, ...rest }) {
   })
 
   return (
-    <div {...rest} ref={ref} className={className ? 'scrollx ' + className : 'scrollx'}>
+    <div {...rest} ref={ref} className={[vertical ? 'scrolly' : 'scrollx', className].filter(Boolean).join(' ')}>
       {children}
     </div>
   )
