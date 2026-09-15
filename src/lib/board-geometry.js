@@ -287,7 +287,29 @@ export function smoothPoly(pts) {
 }
 
 // Resample a polyline and offset it perpendicular with a sine wave (dribble path).
+// A dribble is a squiggle drawn *along* a path, not a path of its own. The
+// old wave had a 148-unit wavelength for 34 units of peak-to-peak throw —
+// each half-wave a 74-unit sweep across a 1500-unit court, which is a real
+// detour rather than a texture. It read as a slalom, and on a freehand path
+// it merged with the path's own curvature until the two were inseparable.
+//
+// Tight and shallow instead: a ~1:2.3 throw-to-wavelength ratio at a fifth
+// of the old amplitude, so the line keeps its direction and the squiggle is
+// something laid on top of it.
+const WAVE_AMP = 10
+const WAVE_LEN = 46
+const WAVE_STEP = 4
+// The wave used to run right up to the end point, leaving the last sample
+// off the line and the closing segment pointing wherever that happened to
+// be — measured at -25° on a path travelling at -90°, i.e. an arrowhead 65°
+// off the actual direction of travel. Fading the throw out over the last
+// stretch and then finishing with a guaranteed straight run brings that to
+// exactly -90°.
+const WAVE_TAPER = 24
+const WAVE_RUNOUT = 12
+
 export function wavy(pts) {
+  const total = pts.slice(1).reduce((s, p, i) => s + dist(pts[i], p), 0)
   const out = []
   let acc = 0
   for (let i = 1; i < pts.length; i++) {
@@ -297,13 +319,24 @@ export function wavy(pts) {
     if (!len) continue
     const nx = -(b.y - a.y) / len
     const ny = (b.x - a.x) / len
-    for (let s = 0; s < len; s += 9) {
+    for (let s = 0; s < len; s += WAVE_STEP) {
       const r = s / len
       const k = acc + s
-      const amp = 17 * Math.sin(k / 26)
+      const fade = Math.max(0, Math.min(1, k / WAVE_TAPER, (total - k) / WAVE_TAPER))
+      const amp = WAVE_AMP * fade * Math.sin((k / WAVE_LEN) * Math.PI * 2)
       out.push({ x: a.x + (b.x - a.x) * r + nx * amp, y: a.y + (b.y - a.y) * r + ny * amp })
     }
     acc += len
+  }
+  // The straight finish the arrowhead takes its angle from.
+  if (pts.length > 1) {
+    const last = pts[pts.length - 1]
+    const prev = pts[pts.length - 2]
+    const l = dist(prev, last)
+    if (l) {
+      const run = Math.min(WAVE_RUNOUT, l)
+      out.push({ x: last.x - ((last.x - prev.x) / l) * run, y: last.y - ((last.y - prev.y) / l) * run })
+    }
   }
   out.push(pts[pts.length - 1])
   return out.length > 1 ? poly(out) : poly(pts)
