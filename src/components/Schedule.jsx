@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import ScreenHeader from './ScreenHeader'
+import Tabs from './Tabs'
 import { downloadIcs, parseIcs } from '../lib/ics'
 import { fmtDate } from '../lib/dates'
 
@@ -32,6 +33,7 @@ export default function Schedule() {
   } = useApp()
   const { teams, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
   const [showPast, setShowPast] = useState(false)
+  const [kindFilter, setKindFilter] = useState('all')
   const [icsPreview, setIcsPreview] = useState(null)
   const [icsStatus, setIcsStatus] = useState(null)
   const icsFileRef = useRef(null)
@@ -63,6 +65,14 @@ export default function Schedule() {
   upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   past.sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
 
+  // Filtering happens after the lists are built, not while building them, so
+  // the .ics export and the "N upcoming" total keep meaning the whole
+  // schedule rather than whatever subset is on screen.
+  const matchesFilter = (it) => kindFilter === 'all' || it.kind === kindFilter
+  const upcomingShown = upcoming.filter(matchesFilter)
+  const pastShown = past.filter(matchesFilter)
+  const filtered = kindFilter !== 'all'
+
   const exportIcs = () => downloadIcs(upcoming, 'my-schedule-' + today + '.ics')
   const pickIcsFile = () => { setIcsStatus(null); icsFileRef.current?.click() }
   const onIcsFile = async (e) => {
@@ -86,7 +96,7 @@ export default function Schedule() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
-      <ScreenHeader title="My schedule" line={upcoming.length ? upcoming.length + ' upcoming' : undefined} onClose={closeSchedule} />
+      <ScreenHeader title="My schedule" line={upcoming.length ? (filtered ? upcomingShown.length + ' of ' + upcoming.length + ' upcoming' : upcoming.length + ' upcoming') : undefined} onClose={closeSchedule} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
         <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
           <div onClick={exportIcs} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Export .ics</div>
@@ -95,16 +105,24 @@ export default function Schedule() {
         </div>
         {icsStatus && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', textAlign: 'center', paddingBottom: 10 }}>{icsStatus}</div>}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14 }}>
+        {/* Walled off as its own card: the type buttons below used to sit
+            loose above the list, in the same full-width three-equal-segments
+            shape Tabs uses for real filtering, and got read as a filter for
+            the list rather than a setting for this form. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 14, borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.09)' }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
             {evEditId ? 'Edit event' : 'Schedule ' + (evKind === 'event' ? 'an event' : 'a ' + KIND_META[evKind].label.toLowerCase())}
           </div>
           {!evEditId && (
-            <div style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+            // Left-aligned, pill-shaped, only as wide as their labels, behind
+            // a "Type" caption — everything the filter strip is not, so the
+            // two can't be mistaken for each other.
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={{ flex: 'none', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.38)' }}>Type</span>
               {KINDS.map((k) => (
                 <div
                   key={k} onClick={() => set({ evKind: k })}
-                  style={{ flex: 1, textAlign: 'center', padding: '7px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? ACCENT : 'rgba(255,255,255,.06)', color: evKind === k ? '#101012' : 'rgba(255,255,255,.6)' }}
+                  style={{ flex: 'none', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? ACCENT : 'rgba(255,255,255,.07)', color: evKind === k ? '#101012' : 'rgba(255,255,255,.62)' }}
                 >
                   {KIND_META[k].label}
                 </div>
@@ -156,11 +174,31 @@ export default function Schedule() {
           </div>
         </div>
 
+        {/* The real filter — deliberately in the app's established Tabs shape,
+            which everywhere else means "narrow the list below this". Only
+            offered once there is more than one entry to narrow. */}
+        {(upcoming.length + past.length) > 1 && (
+          <Tabs
+            style={{ margin: '0 0 10px' }}
+            active={kindFilter}
+            onChange={setKindFilter}
+            tabs={[['all', 'All'], ['training', 'Trainings'], ['game', 'Games'], ['event', 'Events']]}
+          />
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 8 }}>
-          {upcoming.map((it) => (
+          {upcomingShown.map((it) => (
             <ScheduleRow key={it.id} it={it} editEvent={editEvent} removeEvent={removeEvent} />
           ))}
-          {!upcoming.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>Nothing coming up — schedule a training, add a game, or note a team event above.</div>}
+          {!upcomingShown.length && (
+            <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>
+              {/* Two different situations that must not share a message: an
+                  empty schedule, and a schedule with nothing of this one kind. */}
+              {upcoming.length
+                ? 'Nothing coming up in this category — ' + upcoming.length + ' other ' + (upcoming.length === 1 ? 'entry' : 'entries') + ' under “All”.'
+                : 'Nothing coming up — schedule a training, add a game, or note a team event above.'}
+            </div>
+          )}
         </div>
 
         <div onClick={() => setShowPast((v) => !v)} style={{ padding: '6px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', cursor: 'pointer', textAlign: 'center' }}>
@@ -170,10 +208,10 @@ export default function Schedule() {
         {showPast && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, paddingBottom: 16, opacity: 0.7 }}>
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Past</div>
-            {past.map((it) => (
+            {pastShown.map((it) => (
               <ScheduleRow key={it.id} it={it} editEvent={editEvent} removeEvent={removeEvent} />
             ))}
-            {!past.length && <div style={{ padding: '2px 2px 4px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No past trainings, games or events yet.</div>}
+            {!pastShown.length && <div style={{ padding: '2px 2px 4px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>{past.length ? 'Nothing past in this category.' : 'No past trainings, games or events yet.'}</div>}
           </div>
         )}
       </div>
