@@ -34,21 +34,29 @@ const TOOLS = [
 // Full screen gets every tool the normal toolbar has — a coach sketching an
 // adjustment while the team watches the big screen shouldn't have to drop out
 // of full screen to reach Shot or a cone. Twelve tiles won't fit a phone, so
-// the strip scrolls and is capped at exactly this many on screen at once.
+// the strip scrolls, capped at five clear ones plus the sliver of a sixth
+// showing through the edge fade.
 //
-// The cap has to be a real measurement, not "whatever fits": on a tablet the
-// bar would otherwise happily show all twelve. So the tiles carry an explicit
-// size and the cap is computed from it — portrait scrolls sideways and caps
-// width, landscape scrolls down its column and caps height.
+// That sliver is the whole reason the cap isn't a round number of tiles. Cut
+// to exactly N tiles, the last one sits fully inside the mask and reads as a
+// washed-out button — a rendering fault, not an invitation. Cut mid-tile and
+// the fade does what it is for: a piece of something, cropped, which is what
+// "there is more this way" actually looks like.
 //
-// 44px is not arbitrary: a 390pt phone leaves 336px next to the grip, which
-// is exactly seven of them plus their gaps. Wider tiles fitted only five and
-// made the strip scroll more than it had to.
-const FS_MAX_VISIBLE = 7
+// So the cap is five tiles, the five gaps that follow them, and one fade
+// width. FS_FADE_* mirror the mask widths in index.css — change them there
+// and the strip stops cutting where the fade starts.
+//
+// On a tablet none of this would bind on its own: the bar would simply show
+// all twelve, which is why the tiles carry an explicit size and the cap is
+// derived from it rather than left to whatever fits.
+const FS_MAX_VISIBLE = 5
 const FS_GAP = 4
-const FS_TILE_W = 44
+const FS_TILE_W = 52
 const FS_TILE_H = 30
-const fsCap = (n) => FS_MAX_VISIBLE * n + (FS_MAX_VISIBLE - 1) * FS_GAP
+const FS_FADE_X = 34
+const FS_FADE_Y = 28
+const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
 function Header({ compact }) {
   const { state, setView, goHome } = useApp()
@@ -372,8 +380,8 @@ function FullScreenTools() {
     flexDirection: landscape ? 'column' : 'row',
     alignItems: landscape ? 'stretch' : 'center',
     ...(landscape
-      ? { maxHeight: fsCap(FS_TILE_H), overflowY: 'auto', overflowX: 'hidden' }
-      : { maxWidth: fsCap(FS_TILE_W), overflowX: 'auto', overflowY: 'hidden' }),
+      ? { maxHeight: fsCap(FS_TILE_H, FS_FADE_Y), overflowY: 'auto', overflowX: 'hidden' }
+      : { maxWidth: fsCap(FS_TILE_W, FS_FADE_X), overflowX: 'auto', overflowY: 'hidden' }),
     // A press-and-hold would otherwise raise the text-selection callout on
     // touch, and scrolling would fight the drag once it has started.
     touchAction: dragging ? 'none' : landscape ? 'pan-y' : 'pan-x',
