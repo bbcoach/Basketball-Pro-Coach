@@ -7,8 +7,9 @@ import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
 import ActionHint from '../ActionHint'
-import { exportAttendancePdf } from '../../lib/reports'
+import { exportAttendancePdf, exportPersonAttendancePdf } from '../../lib/reports'
 import { fmtDate, plural } from '../../lib/dates'
+import { personAttendance, personLabel, markMeta } from '../../lib/attendance'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -179,12 +180,92 @@ function SessionOpen() {
   )
 }
 
+// One person's session-by-session record, opened by tapping their row in the
+// Summary list. Lists every past session and not just the attended ones:
+// whenever a coach opens this, the sessions someone *missed* are usually the
+// actual question, and a list of only the ones they made cannot answer it.
+function PersonDetail({ person, kind, onBack }) {
+  const { state, showToast } = useApp()
+  const { sessions, plans, teams, activeTeamId } = state
+  const teamName = teams.find((t) => t.id === activeTeamId)?.name
+  const { rows, counts } = personAttendance(person, kind, sessions, todayStr(), plans)
+  const isCoach = kind === 'coach'
+  const pctColor = !counts.total ? 'rgba(255,255,255,.35)' : counts.pct >= 80 ? '#5bbf72' : counts.pct >= 55 ? ACCENT : '#d9843c'
+
+  const chip = (label, n, color) => (
+    <div key={label} style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: 5, padding: '5px 10px', borderRadius: 99, background: 'rgba(255,255,255,.06)' }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color }}>{n}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.45)' }}>{label}</span>
+    </div>
+  )
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: '0 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{personLabel(person, kind)}</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>
+            {counts.in} of {plural(counts.total, 'session')} · <span style={{ color: pctColor, fontWeight: 700 }}>{counts.total ? counts.pct + '%' : '–'}</span>
+          </div>
+        </div>
+        <div onClick={onBack} style={{ flex: 'none', padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>Back</div>
+      </div>
+
+      <ScrollX style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+        {chip(isCoach ? 'attended' : 'present', counts.in, '#5bbf72')}
+        {!isCoach && counts.inj > 0 && chip('injured', counts.inj, '#d9843c')}
+        {chip('absent', counts.out, '#c8d1d8')}
+        {/* Only when there are any: a nought next to "not recorded" invites
+            the question of what it means, for no information. */}
+        {counts.none > 0 && chip('not recorded', counts.none, 'rgba(255,255,255,.5)')}
+      </ScrollX>
+
+      <div
+        onClick={() => { exportPersonAttendancePdf(person, kind, sessions, teamName, plans); showToast('Opening PDF…') }}
+        style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
+      >
+        Export PDF
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 8 }}>
+        {rows.map((r) => {
+          const m = markMeta(r.mark)
+          return (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: '#fff' }}>{fmtDate(r.date)}{r.time ? ' · ' + r.time : ''}</div>
+                {r.planName && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.planName}</div>}
+              </div>
+              <div style={{ flex: 'none', padding: '5px 9px', borderRadius: 8, fontSize: 10.5, fontWeight: 700, letterSpacing: '.3px', color: r.mark ? '#101012' : 'rgba(255,255,255,.5)', background: r.mark ? m.color : 'rgba(255,255,255,.06)' }}>
+                {m.short}
+              </div>
+            </div>
+          )
+        })}
+        {!rows.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>No past sessions yet — attendance shows up here once a session's date has passed.</div>}
+      </div>
+    </div>
+  )
+}
+
 function SummaryTab() {
   const { state, showToast } = useApp()
   const { roster, coaches, sessions, teams, activeTeamId } = state
+  // View-only navigation, so it lives here rather than in the store — and it
+  // resets on its own when the tab is switched away and back.
+  const [sel, setSel] = useState(null)
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
   const pastSessions = sessions.filter((s) => s.date <= todayStr())
   const total = pastSessions.length
+
+  if (sel) {
+    const list = sel.kind === 'coach' ? coaches : roster
+    const person = list.find((x) => x.id === sel.id)
+    // Gone from the roster while the detail was open — fall back rather than
+    // render a blank sheet.
+    if (person) return <PersonDetail person={person} kind={sel.kind} onBack={() => setSel(null)} />
+  }
+
   const ranked = roster
     .map((p) => {
       const inn = pastSessions.filter((s) => (s.marks || {})[p.id] === 'in').length
@@ -206,13 +287,14 @@ function SummaryTab() {
       {ranked.map(({ p, inn, injured, pct }) => {
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+          <div key={p.id} onClick={() => setSel({ id: p.id, kind: 'player' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
             <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} of {total} sessions{injured ? ' · ' + injured + ' injured' : ''}</div>
             </div>
             <div style={{ fontSize: 15, fontWeight: 700, color: pctColor, flex: 'none' }}>{total ? pct + '%' : '–'}</div>
+            <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
           </div>
         )
       })}
@@ -222,13 +304,14 @@ function SummaryTab() {
           {coaches.map((c) => {
             const inn = pastSessions.filter((s) => (s.coachMarks || {})[c.id] === 'in').length
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+              <div key={c.id} onClick={() => setSel({ id: c.id, kind: 'coach' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
                 <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>of {total} sessions</div>
                 </div>
                 <div style={{ fontSize: 17, fontWeight: 700, color: ACCENT, flex: 'none' }}>{inn}</div>
+                <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
               </div>
             )
           })}

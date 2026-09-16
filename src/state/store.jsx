@@ -125,9 +125,20 @@ export function AppProvider({ children }) {
       teams = [{ id: 'tm' + Date.now(), name: 'My Team', roster, coaches, games, sessions, events }]
       saveJson(LS.teams, teams)
     }
-    // teams saved before coaches/events existed won't have those fields yet
-    if (teams.some((t) => !t.coaches || !t.events)) {
-      teams = teams.map((t) => ({ ...t, coaches: t.coaches || [], events: t.events || [] }))
+    // Teams saved before coaches/events existed won't have those fields yet.
+    // The list is every collection the mirror below reads: those reads have
+    // no fallback, so one missing array is a white screen on load — and since
+    // it lives in localStorage, on every load after that too. applyBackup()
+    // writes restored team records through unchecked (file restore and QR
+    // device sync both go that way), so an older or truncated backup is a
+    // real way to get here, not a hypothetical one.
+    const TEAM_LISTS = ['roster', 'coaches', 'games', 'sessions', 'events']
+    if (teams.some((t) => TEAM_LISTS.some((k) => !Array.isArray(t[k])))) {
+      teams = teams.map((t) => {
+        const fixed = { ...t }
+        TEAM_LISTS.forEach((k) => { if (!Array.isArray(fixed[k])) fixed[k] = [] })
+        return fixed
+      })
       saveJson(LS.teams, teams)
     }
     let activeTeamId = loadJson(LS.activeTeam, null)
