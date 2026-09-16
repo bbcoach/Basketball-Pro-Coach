@@ -1,4 +1,5 @@
 import { tallyFor, gameScore, seasonRecord } from './stats'
+import { personAttendance, markMeta, personLabel } from './attendance'
 import { download } from './download'
 import { ACCENT } from '../state/config'
 import { playStepSvgs } from './playSvg'
@@ -325,6 +326,75 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
     </body></html>`
 
   openReportWindow(html, 'attendance-summary.html')
+}
+
+// Medium length on purpose: a table of twenty sessions with a spelled-out
+// weekday and month per row wraps and shoves the other columns around.
+function fmtDateRow(iso) {
+  return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// One person's attendance, session by session — the sheet a coach wants in
+// hand for a conversation about why someone keeps missing Thursdays. Built
+// from the same personAttendance() the on-screen detail uses, so the two
+// cannot disagree about a count.
+export function exportPersonAttendancePdf(person, kind, sessions, teamName, plans) {
+  const today = new Date().toISOString().slice(0, 10)
+  const { rows, counts } = personAttendance(person, kind, sessions, today, plans)
+  const isCoach = kind === 'coach'
+
+  const rowHtml = rows.map((r) => {
+    const m = markMeta(r.mark)
+    // Print colours are the screen's, except the "absent" grey, which is set
+    // light enough to read on a dark board and would be nearly invisible on
+    // paper.
+    const color = r.mark === 'out' ? '#8a8a8a' : r.mark ? m.color : '#aaaaaa'
+    return `<tr>
+      <td class="d">${esc(fmtDateRow(r.date))}</td>
+      <td class="t">${esc(r.time || '')}</td>
+      <td class="pl">${esc(r.planName || '')}</td>
+      <td class="mk" style="color:${color};font-weight:700">${esc(m.label)}</td>
+    </tr>`
+  }).join('')
+
+  const chip = (label, n) => `<span class="chip"><b>${n}</b> ${esc(label)}</span>`
+  const summary = [
+    chip(isCoach ? 'attended' : 'present', counts.in),
+    counts.inj ? chip('injured', counts.inj) : '',
+    chip('absent', counts.out),
+    counts.none ? chip('not recorded', counts.none) : '',
+  ].filter(Boolean).join('')
+
+  const now = new Date()
+  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+  const html = `<!doctype html><html><head>${reportHead('Attendance — ' + personLabel(person, kind))}<style>
+      ${reportStyles('A4 portrait')}
+      td.d{font-weight:600;white-space:nowrap}
+      td.t{width:58px;color:#777;white-space:nowrap}
+      td.pl{color:#777}
+      td.mk{width:96px;text-align:right;white-space:nowrap}
+      .tally{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px}
+      .chip{font-size:11.5px;color:#555;background:#f2f2f2;border-radius:99px;padding:5px 11px}
+      .chip b{color:#171717;font-size:12.5px}
+      .head{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:19px;text-transform:uppercase;letter-spacing:.3px;margin:0 0 10px}
+      .rate{font-weight:700;color:${pctColorFor(counts.pct, !!counts.total)}}
+    </style></head><body>
+    ${reportHeader({
+      title: teamName || 'Basketball Pro Coach',
+      subtitle: isCoach ? 'Coach attendance' : 'Player attendance',
+      metaLines: [generatedDate, counts.total + ' session' + (counts.total === 1 ? '' : 's') + ' counted'],
+    })}
+    <div class="head">${esc(personLabel(person, kind))} — <span class="rate">${counts.total ? counts.pct + '%' : '–'}</span></div>
+    <div class="tally">${summary}</div>
+    <table><thead><tr><th>Session</th><th>Time</th><th>Trained</th><th>Attendance</th></tr></thead>
+      <tbody>${rowHtml || '<tr><td colspan="4" style="color:#aaa;padding:10px 8px">No past sessions yet.</td></tr>'}</tbody>
+    </table>
+    ${reportFooter()}
+    </body></html>`
+
+  const slug = (personLabel(person, kind) || 'person').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  openReportWindow(html, 'attendance-' + (slug || 'person') + '.html')
 }
 
 // A single still image showing every step of a play at once gets unreadable
