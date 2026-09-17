@@ -1,4 +1,4 @@
-import { sunken, ACCENT2, INK2 } from '../theme'
+import { sunken, ACCENT2 } from '../theme'
 // The app's one "filter what's below" control. Anything that looks like this
 // — a full-width track of equal, centred segments with one lit up — is read
 // as filtering the list under it, so don't reuse the shape for anything else
@@ -15,8 +15,9 @@ export default function Tabs({ tabs, active, onChange, style }) {
           onClick={() => onChange(key)}
           style={{
             flex: 1, textAlign: 'center', padding: '7px 6px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            background: active === key ? ACCENT2 : 'transparent',
-            color: active === key ? INK2 : 'rgba(255,255,255,.5)',
+            background: active === key ? 'rgba(255,255,255,.11)' : 'transparent',
+            color: active === key ? '#fff' : 'rgba(255,255,255,.5)',
+            border: '1px solid ' + (active === key ? ACCENT2 : 'transparent'),
           }}
         >
           {label}

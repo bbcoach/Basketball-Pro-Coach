@@ -6,7 +6,7 @@ import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
-import { COND, raised, keycap, chipSurface, field, centred, ACCENT2, INK2 } from '../../theme'
+import { COND, raised, keycap, chipSurface, field, centred, ACCENT2 } from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
@@ -171,13 +171,13 @@ function GameMetaEditor({ game }) {
         <div style={{ display: 'flex', gap: 6 }}>
           <div
             onClick={() => setGameHome(game.home === 'home' ? '' : 'home')}
-            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT2 : 'rgba(255,255,255,.06)', color: game.home === 'home' ? INK2 : 'rgba(255,255,255,.6)' }}
+            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (game.home === 'home' ? ACCENT2 : 'transparent') }}
           >
             Home
           </div>
           <div
             onClick={() => setGameHome(game.home === 'away' ? '' : 'away')}
-            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT2 : 'rgba(255,255,255,.06)', color: game.home === 'away' ? INK2 : 'rgba(255,255,255,.6)' }}
+            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (game.home === 'away' ? ACCENT2 : 'transparent') }}
           >
             Away
           </div>

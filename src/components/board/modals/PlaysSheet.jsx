@@ -1,6 +1,6 @@
 import { useApp } from '../../../state/store'
 import { ACCENT } from '../../../state/config'
-import { COND, keycap, field, centred, ACCENT2, ACCENT2_SOFT } from '../../../theme'
+import { COND, keycap, field, centred } from '../../../theme'
 import { maxStepOf } from '../../../lib/board-geometry'
 import { kindOf, KIND_LABEL } from '../../../lib/playKind'
 import { plural } from '../../../lib/dates'
@@ -39,7 +39,7 @@ export default function PlaysSheet() {
         onClick={() => set({ kindDraft: id })}
         style={{
           padding: '9px 11px', borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-          background: active ? ACCENT2_SOFT : 'rgba(255,255,255,.06)', color: active ? ACCENT2 : 'rgba(255,255,255,.55)',
+          background: active ? 'rgba(232,177,60,.18)' : 'rgba(255,255,255,.06)', color: active ? ACCENT : 'rgba(255,255,255,.55)',
           border: '1px solid ' + (active ? 'rgba(232,177,60,.5)' : 'rgba(255,255,255,.1)'),
         }}
       >

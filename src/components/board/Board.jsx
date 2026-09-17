@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, TEAM_NAME } from '../../state/config'
-import { COND, keycap, sunken, ACCENT2, INK2 } from '../../theme'
+import {COND, keycap, sunken} from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
 import Logo from '../Logo'
@@ -67,7 +67,7 @@ function Header({ compact }) {
       style={{
         flex: compact ? 1 : 'none', textAlign: compact ? 'center' : 'left',
         padding: compact ? '6px 4px' : '7px 11px', borderRadius: 8, fontSize: compact ? 11 : 12, fontWeight: 600, cursor: 'pointer',
-        background: active ? ACCENT2 : 'transparent', color: active ? INK2 : 'rgba(255,255,255,.5)',
+        background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)',
       }}
     >
       {label}
@@ -142,7 +142,7 @@ function StepBar() {
   const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
   const chipStyle = (active) => ({
     minWidth: 27, padding: '5px 6px', borderRadius: 8, textAlign: 'center', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-    background: active ? ACCENT2 : 'rgba(255,255,255,.06)', color: active ? INK2 : 'rgba(255,255,255,.72)', border: '1px solid ' + (active ? ACCENT2 : 'rgba(255,255,255,.09)'),
+    background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.72)', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'),
   })
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'center', padding: '4px 12px 8px' }}>
@@ -165,7 +165,7 @@ function ToolsRow() {
         return (
           <div
             key={id} onClick={() => setTool(id)}
-            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT2 : 'rgba(255,255,255,.09)'), background: active ? ACCENT2 : 'rgba(255,255,255,.06)', color: active ? INK2 : 'rgba(255,255,255,.78)' }}
+            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
           >
             <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
             <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
@@ -182,7 +182,7 @@ function FooterButtons() {
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const btn = (label, onClick, active) => (
-    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT2 : 'rgba(255,255,255,.07)', color: active ? INK2 : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT : 'rgba(255,255,255,.07)', color: active ? '#101012' : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
   )
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 14px 0' }}>
@@ -393,7 +393,7 @@ function FullScreenTools() {
     alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
     ...(landscape ? { height: FS_TILE_H, padding: '0 9px' } : { width: FS_TILE_W, padding: '5px 2px' }),
     borderRadius: 12, cursor: 'pointer', overflow: 'hidden',
-    background: active ? ACCENT2 : 'rgba(255,255,255,.16)', color: active ? INK2 : '#fff',
+    background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
   })
 
   return (
