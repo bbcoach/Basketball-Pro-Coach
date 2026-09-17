@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import { parseRosterCsv } from '../lib/rosterCsv'
-import { raised, keycap, chipSurface, field, centred, ACCENT2 } from '../theme'
+import { raised, keycap, chipSurface, field, centred } from '../theme'
 import PlayerDetail from './PlayerDetail'
 
 // Keys as parseRosterCsv writes them, labels for the import preview.
@@ -62,7 +62,7 @@ export default function RosterEditor({ emptyHint, grow = true }) {
       </div>
       <div style={{ flex: grow ? 1 : 'none', minHeight: 0, overflowY: grow ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: 5 }}>
         {roster.map((p) => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: editId === p.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (editId === p.id ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: editId === p.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (editId === p.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
             {/* Everything but the pencil and delete buttons opens the extended
                 profile — birth date, contact, a parent's for a youth player, a
                 photo. The pencil keeps doing the one thing it always has:

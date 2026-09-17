@@ -1,22 +1,14 @@
 export const ACCENT = '#e8b13c'
 
-// ── second accent ───────────────────────────────────────────────────────
-// Gold was carrying six different jobs: the brand, "press this", "this is
-// switched on", "this is us on the court", the numbers, and the toast tick.
-// Two of those sit side by side constantly — a gold primary button next to
-// a gold selected pill — so the colour stopped telling you which was which.
-// This one takes only "switched on": selected tools, active filters, the
-// team you're in, the row you're editing. Gold keeps the rest.
-//
-// It's a ring, not a fill. A solid turquoise tile reads as its own hot
-// patch of colour next to the app's dark, low-saturation surfaces — eleven
-// of them lit up across the board's tool strip was the complaint. A border
-// on the same dark tile the rest of the row already uses says "chosen"
-// without turning into one. Every selected state below follows that: a
-// pale wash a shade lighter than its own unselected state, a turquoise
-// ring, white ink throughout — nothing sits on a turquoise field, so
-// there's no dark ink to keep readable on it.
-export const ACCENT2 = '#2fc4b2'
+// A second accent (turquoise) briefly carried "this is switched on" as its
+// own colour, separate from gold's "press this". It went through a fill,
+// then a ring-only version, then came off the tactics board entirely, and
+// each of those was a real fix for a real complaint — but the net result
+// was a second saturated hue running through fifteen-odd files that needed
+// re-checking every time, on an app whose identity is gold on black. Gone
+// now; "switched on" is gold again, as a ring rather than a fill, which is
+// what actually separated it from a filled gold button — the shape, not
+// a different colour. See git history on this file for the turquoise era.
 export const COND = "'Barlow Condensed', sans-serif"
 export const SANS = 'Barlow, system-ui, sans-serif'
 
