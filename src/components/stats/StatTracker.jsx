@@ -6,7 +6,7 @@ import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
-import { COND } from '../../theme'
+import {COND, raised, keycap, sunken, chipSurface} from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
@@ -64,7 +64,7 @@ function GamesTab() {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <div onClick={() => newGame('game')} style={{ flex: 1, padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>＋ New game</div>
+        <div onClick={() => newGame('game')} style={{ flex: 1, padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>＋ New game</div>
         <div onClick={() => newGame('practice')} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>＋ Free play</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -72,7 +72,7 @@ function GamesTab() {
           const t = teamTally(g.log)
           const res = gameScore(g)
           return (
-            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, ...raised(.05, .08) }}>
               <div onClick={() => openGame(g.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{gameTitle(g)}</div>
                 {/* Our points are dropped from this line whenever the result
@@ -152,16 +152,16 @@ function GameMetaEditor({ game }) {
       <div style={{ display: 'flex', gap: 6 }}>
         <input
           type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
-          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <input
           type="time" value={game.time || ''} onChange={(e) => setGameTime(e.target.value)}
-          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         {isGame ? (
           <input
             type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
           />
         ) : (
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
@@ -183,7 +183,7 @@ function GameMetaEditor({ game }) {
           </div>
           <input
             type="text" value={game.location || ''} onChange={(e) => setGameLocation(e.target.value)} placeholder="Location (optional)"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
           />
         </div>
       )}
@@ -220,7 +220,7 @@ function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, 
       onClick={() => selectStatPlayer(p)}
       style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: compact ? '7px 9px' : '8px 10px', borderRadius: 12, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
     >
-      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num}</div>
+      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(), background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num}</div>
       {/* The full "PTS · REB · AST" line is dropped here rather than shrunk,
           since it's fixed-width and would otherwise win the space against
           the name (flex:1, minWidth:0) — exactly what made names unreadably
@@ -250,7 +250,7 @@ function PlayerColumn({ title, players, onCourt, style, ...rowProps }) {
 
 function PromptHint({ text }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 11px', borderRadius: 12, ...raised(.06, .1) }}>
       <div style={{ fontSize: 13, lineHeight: 1 }}>☝</div>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{text}</div>
     </div>
@@ -293,7 +293,7 @@ function OppScoreBar({ game, ourPts }) {
   const them = oppPts(game.log)
   const num = { fontFamily: COND, fontWeight: 700, fontSize: 21, lineHeight: 1 }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.09)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 11px', borderRadius: 12, ...raised(.05, .09) }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
           <span style={{ ...num, color: ACCENT }}>{ourPts}</span>
@@ -306,7 +306,7 @@ function OppScoreBar({ game, ourPts }) {
         <div
           key={o.k}
           onClick={() => logOppScore(o.k)}
-          style={{ flex: 'none', minWidth: 42, textAlign: 'center', padding: '10px 8px', borderRadius: 10, background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}
+          style={{ flex: 'none', minWidth: 42, textAlign: 'center', padding: '10px 8px', borderRadius: 10, ...raised(.08, .12), color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}
         >
           {o.label}
         </div>
@@ -647,20 +647,20 @@ function TwoTeamModal() {
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             type="text" value={game.teamAName || ''} onChange={(e) => setTeamAName(e.target.value)} placeholder={activeTeamName || 'Team A'}
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
           />
           <input
             type="text" value={game.teamBName || ''} onChange={(e) => setTeamBName(e.target.value)} placeholder="Opponent"
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
           />
         </div>
 
         <div>
-          <div onClick={openImportSheet} style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
+          <div onClick={openImportSheet} style={{ padding: '10px 12px', borderRadius: 12, ...raised(.06, .09), color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
             ⇩ Import another team's roster
           </div>
           {importSheetOpen && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8, padding: 10, borderRadius: 12, ...raised(.04, .07) }}>
               {otherTeams.map((t) => (
                 <div
                   key={t.id} onClick={() => importTeamRoster(t.id)}
@@ -678,8 +678,8 @@ function TwoTeamModal() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Assign players</div>
           {players.map((p) => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-              <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num}</div>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, ...raised(.05, .08) }}>
+              <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{p.imported ? <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 500 }}> · imported</span> : ''}</div>
               {sidePill(p, 'A')}
               {sidePill(p, 'B')}

@@ -1,6 +1,6 @@
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
-import { COND } from '../../theme'
+import {COND, keycap} from '../../theme'
 import { useWakeLock } from '../../lib/useWakeLock'
 import PlayPreview from './PlayPreview'
 
@@ -42,7 +42,7 @@ export default function RunScreen() {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <div onClick={toggleRunPause} style={{ flex: 1, textAlign: 'center', padding: 14, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{runPaused ? 'Resume' : 'Pause'}</div>
-        <div onClick={() => gotoDrill(runIdx + 1)} style={{ flex: 1, textAlign: 'center', padding: 14, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Next drill</div>
+        <div onClick={() => gotoDrill(runIdx + 1)} style={{ flex: 1, textAlign: 'center', padding: 14, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>Next drill</div>
       </div>
     </div>
   )

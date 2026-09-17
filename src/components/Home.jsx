@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
-import { COND } from '../theme'
+import {COND, raised, keycap} from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
@@ -45,7 +45,7 @@ export default function Home() {
     return subscribeInstallPrompt(() => setShowInstallHint(shouldShowInstallHint()))
   }, [])
 
-  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', cursor: 'pointer' }
+  const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 18, ...raised(.06, .1), color: '#fff', cursor: 'pointer' }
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
@@ -66,7 +66,7 @@ export default function Home() {
             </div>
             <div
               onClick={() => { setShowBackupReminder(false); openBackup() }}
-              style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+              style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, ...keycap(), color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
             >
               Back up
             </div>
@@ -80,7 +80,7 @@ export default function Home() {
         )}
 
         {showInstallHint && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, ...raised(.06, .14), marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>📲</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
               {canPromptInstall()
@@ -90,7 +90,7 @@ export default function Home() {
             {canPromptInstall() && (
               <div
                 onClick={() => promptInstall()}
-                style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 'none', padding: '7px 11px', borderRadius: 8, ...keycap(), color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}
               >
                 Install
               </div>
@@ -116,12 +116,12 @@ export default function Home() {
         </div>
 
         {boardMenu && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 18, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
-            <div onClick={startNewPlay} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, background: ACCENT, color: '#101012', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '0 0 12px', padding: 12, borderRadius: 18, ...raised(.04, .07) }}>
+            <div onClick={startNewPlay} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, ...keycap(), color: '#101012', cursor: 'pointer' }}>
               <div style={{ fontSize: 19, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>＋</div>
               <div style={{ fontSize: 13.5, fontWeight: 700 }}>Create new play</div>
             </div>
-            <div onClick={toggleLoad} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', color: '#fff', cursor: 'pointer' }}>
+            <div onClick={toggleLoad} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '12px 13px', borderRadius: 12, ...raised(.06, .09), color: '#fff', cursor: 'pointer' }}>
               <div style={{ fontSize: 16, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▤</div>
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>Load from library</div>
@@ -145,7 +145,7 @@ export default function Home() {
                 )}
                 <div style={{ maxHeight: 210, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {shownPlays.map((p) => (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, ...raised(.05, .08) }}>
                       <div onClick={() => openPlayFromHome(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                           <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
@@ -211,7 +211,7 @@ export default function Home() {
       </div>
 
       <div style={{ padding: '20px 24px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <a href={DONATE_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', color: ACCENT, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+        <a href={DONATE_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, ...raised(.06, .12), color: ACCENT, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
           <span style={{ fontSize: 14 }}>♡</span>
           <span>Support this project</span>
         </a>

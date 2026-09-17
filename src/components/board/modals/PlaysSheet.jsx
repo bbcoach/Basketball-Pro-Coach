@@ -1,6 +1,6 @@
 import { useApp } from '../../../state/store'
 import { ACCENT } from '../../../state/config'
-import { COND } from '../../../theme'
+import {COND, keycap, sunken} from '../../../theme'
 import { maxStepOf } from '../../../lib/board-geometry'
 import { kindOf, KIND_LABEL } from '../../../lib/playKind'
 import { plural } from '../../../lib/dates'
@@ -60,11 +60,11 @@ export default function PlaysSheet() {
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
         <input
           type="text" value={nameDraft} onChange={(e) => set({ nameDraft: e.target.value })} placeholder={kindDraft === 'drill' ? 'Drill name' : 'Play name'}
-          style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 13, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
         />
         {seg('play', 'Play')}
         {seg('drill', 'Drill')}
-        <div onClick={savePlay} style={{ padding: '9px 14px', borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save</div>
+        <div onClick={savePlay} style={{ padding: '9px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Save</div>
       </div>
       <div style={{ display: 'flex', background: 'rgba(255,255,255,.06)', borderRadius: 12, padding: 3, gap: 2, marginBottom: 10 }}>
         {tab('all', 'All ' + plays.length)}

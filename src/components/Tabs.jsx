@@ -1,3 +1,4 @@
+import { sunken } from '../theme'
 // The app's one "filter what's below" control. Anything that looks like this
 // — a full-width track of equal, centred segments with one lit up — is read
 // as filtering the list under it, so don't reuse the shape for anything else
@@ -7,7 +8,7 @@
 // dropped where the surrounding layout already indents.
 export default function Tabs({ tabs, active, onChange, style }) {
   return (
-    <div style={{ display: 'flex', gap: 2, margin: '0 18px 12px', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3, ...style }}>
+    <div style={{ display: 'flex', gap: 2, margin: '0 18px 12px', ...sunken(.07), borderRadius: 12, padding: 3, ...style }}>
       {tabs.map(([key, label]) => (
         <div
           key={key}

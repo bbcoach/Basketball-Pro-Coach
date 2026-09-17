@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useApp } from '../state/store'
-import { ACCENT } from '../state/config'
 import { downloadBackup, parseBackup, applyBackup } from '../lib/backup'
+import { keycap } from '../theme'
 
 export default function BackupModal() {
   const { state, closeBackup } = useApp()
@@ -64,7 +64,7 @@ export default function BackupModal() {
               Everything lives only on this device. Save a backup file now and then, so a lost phone or a cleared browser doesn't mean starting over.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div onClick={doExport} style={{ padding: 11, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Save backup file</div>
+              <div onClick={doExport} style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Save backup file</div>
               <div onClick={pickFile} style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Restore from file…</div>
               <input ref={fileRef} type="file" accept="application/json" onChange={onFile} style={{ display: 'none' }} />
               {status && <div style={{ fontSize: 11.5, color: status.ok ? '#5bbf72' : '#d9843c', textAlign: 'center', lineHeight: 1.4, padding: '2px 4px' }}>{status.text}</div>}

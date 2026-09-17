@@ -191,6 +191,23 @@ export function posAtTime(ent, t, n) {
 // the equator and meridian, plus the two side seams curving in towards the
 // middle. Shared so the live board, the thumbnails and the PDF export all
 // draw the same ball.
+// The ball is the one object on the board where roundness reads as quality,
+// and it was a flat orange disc. These are the stops for a sphere lit from
+// the same side the court's tokens are — defined here so the live board, the
+// preview and the PDF exporter can't end up with three different balls, the
+// way the cone nearly did.
+//
+// A specular dot is deliberately not part of this: at the ball's real size
+// (radius ~26 of a 1500-unit court, so a dozen screen pixels on a phone) it
+// lands on two pixels and reads as a stray speck. The gradient alone carries
+// the roundness, and it survives being small.
+export const BALL_SPHERE = [
+  { offset: '0%', color: '#f7a860' },
+  { offset: '42%', color: '#e2762b' },
+  { offset: '100%', color: '#8f3f10' },
+]
+export const BALL_SPHERE_CENTER = { cx: 0.34, cy: 0.3, r: 0.78 }
+
 export function ballSeams(cx, cy, r) {
   const q = r * 0.72
   const n = (v) => v.toFixed(1)
