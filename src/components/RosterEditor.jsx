@@ -68,9 +68,11 @@ export default function RosterEditor({ emptyHint, grow = true }) {
                 photo. The pencil keeps doing the one thing it always has:
                 a quick rename or renumber without leaving the list. */}
             <div onClick={() => openPlayerDetail(p)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', ...(p.photo ? {} : chipSurface(.10)), color: '#fff', fontWeight: 700, fontSize: 15 }}>
-                {p.photo ? <img src={p.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.num}
-              </div>
+              {/* The number stays the badge here regardless of a photo — a
+                  coach scanning the list is matching jersey numbers, and a
+                  row of photos doesn't sort or scan the way numbers do. The
+                  photo has its place in the profile sheet this opens. */}
+              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
             </div>
