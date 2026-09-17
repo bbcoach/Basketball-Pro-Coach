@@ -58,13 +58,6 @@ const FS_FADE_X = 34
 const FS_FADE_Y = 28
 const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
-// A strip along the top of full screen that the court is kept out of, so the
-// exit button has somewhere to sit that isn't the floor. Floating it over the
-// court only looked right by luck: the court is letterboxed to its own aspect
-// ratio, so how much black there is above it — and therefore whether the
-// button lands on wood — depends on the device.
-const FS_TOP_STRIP = 'calc(38px + env(safe-area-inset-top, 0px))'
-
 function Header({ compact }) {
   const { state, setView, goHome } = useApp()
   const { view, playName } = state
@@ -450,18 +443,10 @@ export default function Board() {
   useWakeLock(fullScreen)
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? FS_TOP_STRIP + ' 0 0 0' : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
       {fullScreen && (
         <>
-          {/* Smaller than it was, and inside the reserved strip rather than
-              over the court. The ✕ carries the meaning, so the label can be
-              one word instead of three. */}
-          <div
-            onClick={exitFullScreen}
-            style={{ position: 'absolute', top: 'calc(7px + env(safe-area-inset-top, 0px))', right: 14, zIndex: 60, display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 99, background: 'rgba(255,255,255,.13)', color: 'rgba(255,255,255,.85)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-          >
-            <span style={{ fontSize: 11.5, lineHeight: 1 }}>✕</span> Exit
-          </div>
+          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
           <FullScreenTools />
           <FullScreenControls />
           <div
