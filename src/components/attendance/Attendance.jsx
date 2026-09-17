@@ -10,7 +10,7 @@ import ActionHint from '../ActionHint'
 import { exportAttendancePdf, exportPersonAttendancePdf } from '../../lib/reports'
 import { fmtDate, plural } from '../../lib/dates'
 import { personAttendance, personLabel, markMeta } from '../../lib/attendance'
-import { raised, keycap, chipSurface, field } from '../../theme'
+import { raised, keycap, chipSurface, field, ACCENT2, INK2 } from '../../theme'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -116,7 +116,7 @@ function SessionOpen() {
           return (
             <div
               key={pl.id ?? 'none'} onClick={() => setSessionPlan(pl.id)}
-              style={{ flex: 'none', padding: '7px 10px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? ACCENT : 'rgba(255,255,255,.05)', color: on ? '#101012' : 'rgba(255,255,255,.6)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.09)') }}
+              style={{ flex: 'none', padding: '7px 10px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? ACCENT2 : 'rgba(255,255,255,.05)', color: on ? INK2 : 'rgba(255,255,255,.6)', border: '1px solid ' + (on ? ACCENT2 : 'rgba(255,255,255,.09)') }}
             >
               {pl.name}
             </div>

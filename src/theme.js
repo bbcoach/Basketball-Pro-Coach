@@ -1,4 +1,15 @@
 export const ACCENT = '#e8b13c'
+
+// ── second accent ───────────────────────────────────────────────────────
+// Gold was carrying six different jobs: the brand, "press this", "this is
+// switched on", "this is us on the court", the numbers, and the toast tick.
+// Two of those sit side by side constantly — a gold primary button next to
+// a gold selected pill — so the colour stopped telling you which was which.
+// This one takes only "switched on": selected tools, active filters, the
+// team you're in, the row you're editing. Gold keeps the rest.
+export const ACCENT2 = '#2fc4b2'
+export const ACCENT2_SOFT = 'rgba(47,196,178,.18)'
+export const INK2 = '#101012' // readable on ACCENT2
 export const COND = "'Barlow Condensed', sans-serif"
 export const SANS = 'Barlow, system-ui, sans-serif'
 
