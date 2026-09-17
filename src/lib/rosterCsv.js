@@ -10,6 +10,18 @@ const NAME_HEADS = ['name', 'spieler', 'spielername', 'player', 'playername', 'f
 const FIRST_HEADS = ['vorname', 'first', 'firstname', 'first name', 'given name']
 const LAST_HEADS = ['nachname', 'familienname', 'last', 'lastname', 'last name', 'surname']
 
+// Everything below is optional and only ever read out of a header row — with
+// no header to name a column, there's no reliable way to tell a phone number
+// from a jersey number was better guessed at than a street address, so a
+// headerless file just gets name and number, as before.
+const DOB_HEADS = ['geburtsdatum', 'geburtstag', 'dob', 'birthdate', 'birth date', 'date of birth']
+const EMAIL_HEADS = ['email', 'e-mail', 'mail', 'emailadresse', 'e-mail-adresse']
+const PHONE_HEADS = ['telefon', 'telefonnummer', 'tel', 'tel.', 'handy', 'handynummer', 'mobil', 'phone', 'mobile', 'phone number']
+const ADDRESS_HEADS = ['adresse', 'anschrift', 'address']
+const PARENT_NAME_HEADS = ['eltern', 'elternteil', 'erziehungsberechtigter', 'parent', 'parent name', 'guardian', 'guardian name']
+const PARENT_PHONE_HEADS = ['telefon eltern', 'elterntelefon', 'parent phone', 'guardian phone']
+const PARENT_EMAIL_HEADS = ['email eltern', 'elternemail', 'parent email', 'guardian email']
+
 function splitLine(line, delim) {
   const out = []
   let cur = ''
@@ -95,6 +107,13 @@ export function parseRosterCsv(text) {
       nameIdx: headerIndex(rows[0], NAME_HEADS),
       firstIdx: headerIndex(rows[0], FIRST_HEADS),
       lastIdx: headerIndex(rows[0], LAST_HEADS),
+      dobIdx: headerIndex(rows[0], DOB_HEADS),
+      emailIdx: headerIndex(rows[0], EMAIL_HEADS),
+      phoneIdx: headerIndex(rows[0], PHONE_HEADS),
+      addressIdx: headerIndex(rows[0], ADDRESS_HEADS),
+      parentNameIdx: headerIndex(rows[0], PARENT_NAME_HEADS),
+      parentPhoneIdx: headerIndex(rows[0], PARENT_PHONE_HEADS),
+      parentEmailIdx: headerIndex(rows[0], PARENT_EMAIL_HEADS),
     }
     body = rows.slice(1)
     // A lone "Name" header next to a "Vorname" column is the last name.
@@ -105,6 +124,12 @@ export function parseRosterCsv(text) {
     body = rows
     cols = inferColumns(body)
   }
+
+  // idx -> field name, for every optional column a header can supply.
+  const EXTRA_COLS = [
+    ['dobIdx', 'dob'], ['emailIdx', 'email'], ['phoneIdx', 'phone'], ['addressIdx', 'address'],
+    ['parentNameIdx', 'parentName'], ['parentPhoneIdx', 'parentPhone'], ['parentEmailIdx', 'parentEmail'],
+  ]
 
   const players = []
   const seen = new Set()
@@ -117,7 +142,12 @@ export function parseRosterCsv(text) {
     const key = name.toLowerCase() + '|' + num
     if (seen.has(key)) return
     seen.add(key)
-    players.push({ name, num })
+    const player = { name, num }
+    EXTRA_COLS.forEach(([idxKey, field]) => {
+      const idx = cols[idxKey]
+      if (idx >= 0 && r[idx] && r[idx].trim()) player[field] = r[idx].trim()
+    })
+    players.push(player)
   })
 
   if (!players.length) throw new Error("Couldn't find any player names in that file.")

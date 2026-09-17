@@ -59,7 +59,7 @@ function initialState() {
     teams: [], activeTeamId: null, teamsDetail: false, teamRemoveAsk: null,
 
     // stat tracker (roster is shared with attendance, scoped to the active team)
-    statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null,
+    statsTab: 'games', roster: [], selPlayer: null, nameIn: '', numIn: '', editId: null, playerDetailId: null,
     games: [], activeGameId: null, resetAsk: false, importSheetOpen: false, twoTeamModalOpen: false,
 
     // coaches (scoped to the active team, tracked mainly for attendance/pay)
@@ -601,7 +601,7 @@ export function AppProvider({ children }) {
     saveJson(LS.activeTeam, id)
     set({
       activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
-      activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '',
+      activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '', playerDetailId: null,
       coachEditId: null, coachNameIn: '', evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '',
     })
   }
@@ -658,6 +658,9 @@ export function AppProvider({ children }) {
   }
   // Bulk add from a CSV import. Players without a number in the file get the
   // next free one rather than clashing with somebody already on the roster.
+  // A file with contact columns carries those straight onto the new player —
+  // see rosterCsv.js for which header names it recognises.
+  const ROSTER_EXTRA_FIELDS = ['dob', 'email', 'phone', 'address', 'parentName', 'parentPhone', 'parentEmail']
   const importRosterPlayers = (list) => {
     const existing = stateRef.current.roster
     const used = new Set(existing.map((p) => String(p.num)))
@@ -670,7 +673,9 @@ export function AppProvider({ children }) {
         num = String(next)
       }
       used.add(num)
-      return { id: 'rp' + stamp + '-' + i, name: p.name, num }
+      const extra = {}
+      ROSTER_EXTRA_FIELDS.forEach((k) => { if (p[k]) extra[k] = p[k] })
+      return { id: 'rp' + stamp + '-' + i, name: p.name, num, ...extra }
     })
     if (!add.length) return
     persistRoster((r) => r.concat(add))
@@ -682,6 +687,14 @@ export function AppProvider({ children }) {
     persistRoster((r) => r.filter((x) => x.id !== p.id))
     if (stateRef.current.editId === p.id) set({ editId: null, nameIn: '', numIn: '' })
   }
+  // The extended profile — birth date, contact details, a parent/guardian's
+  // for a youth player, a photo — lives on the same player record as the
+  // number and name, and is edited a field at a time from PlayerDetail
+  // rather than through a staged draft: there's no add/cancel step here, so
+  // whatever's typed is what's saved, the same way renaming a team works.
+  const updatePlayer = (id, patch) => persistRoster((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const openPlayerDetail = (p) => set({ playerDetailId: p.id })
+  const closePlayerDetail = () => set({ playerDetailId: null })
 
   // ── coaches ─────────────────────────────────────────────────
   const addCoach = () => {
@@ -740,7 +753,7 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, log: [] } : x)))
     persistRoster(() => [])
-    set({ resetAsk: false, selPlayer: null, editId: null, nameIn: '', numIn: '', statsTab: 'roster' })
+    set({ resetAsk: false, selPlayer: null, editId: null, nameIn: '', numIn: '', playerDetailId: null, statsTab: 'roster' })
   }
 
   // ── games ───────────────────────────────────────────────────
@@ -1017,7 +1030,7 @@ export function AppProvider({ children }) {
     askConfirm, closeConfirm, runConfirm, showToast,
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,

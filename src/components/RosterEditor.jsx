@@ -3,9 +3,16 @@ import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import { parseRosterCsv } from '../lib/rosterCsv'
 import { raised, keycap, chipSurface, field, centred, ACCENT2 } from '../theme'
+import PlayerDetail from './PlayerDetail'
+
+// Keys as parseRosterCsv writes them, labels for the import preview.
+const CSV_EXTRA_FIELDS = [
+  ['dob', 'DOB'], ['email', 'Email'], ['phone', 'Phone'], ['address', 'Address'],
+  ['parentName', 'Parent'], ['parentPhone', 'Parent phone'], ['parentEmail', 'Parent email'],
+]
 
 export default function RosterEditor({ emptyHint, grow = true }) {
-  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, askConfirm } = useApp()
+  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, openPlayerDetail, askConfirm } = useApp()
   const { roster, nameIn, numIn, editId } = state
   const csvFileRef = useRef(null)
   const [csvPreview, setCsvPreview] = useState(null)
@@ -56,8 +63,19 @@ export default function RosterEditor({ emptyHint, grow = true }) {
       <div style={{ flex: grow ? 1 : 'none', minHeight: 0, overflowY: grow ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: 5 }}>
         {roster.map((p) => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: editId === p.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (editId === p.id ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
-            <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
-            <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+            {/* Everything but the pencil and delete buttons opens the extended
+                profile — birth date, contact, a parent's for a youth player, a
+                photo. The pencil keeps doing the one thing it always has:
+                a quick rename or renumber without leaving the list. */}
+            <div onClick={() => openPlayerDetail(p)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              {/* The number stays the badge here regardless of a photo — a
+                  coach scanning the list is matching jersey numbers, and a
+                  row of photos doesn't sort or scan the way numbers do. The
+                  photo has its place in the profile sheet this opens. */}
+              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+              <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
+            </div>
             <div onClick={() => editPlayer(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
             <div onClick={() => askConfirm({ title: 'Remove player', message: `Remove ${p.name}? This can't be undone.`, onConfirm: () => removePlayer(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
           </div>
@@ -74,12 +92,21 @@ export default function RosterEditor({ emptyHint, grow = true }) {
               {csvPreview.skipped > 0 && ` ${csvPreview.skipped} already on the roster and skipped.`}
             </div>
             <div style={{ maxHeight: 190, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14 }}>
-              {csvPreview.players.map((p, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.05)' }}>
-                  <div style={{ width: 24, flex: 'none', textAlign: 'center', fontSize: 12, fontWeight: 700, color: p.num ? ACCENT : 'rgba(255,255,255,.3)' }}>{p.num || '–'}</div>
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                </div>
-              ))}
+              {csvPreview.players.map((p, i) => {
+                const extra = CSV_EXTRA_FIELDS.filter(([k]) => p[k]).map(([, label]) => label)
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.05)' }}>
+                    <div style={{ width: 24, flex: 'none', textAlign: 'center', fontSize: 12, fontWeight: 700, color: p.num ? ACCENT : 'rgba(255,255,255,.3)' }}>{p.num || '–'}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      {/* Confirms the extra columns actually landed on the right
+                          player before committing — the whole reason this file
+                          existed was to bring more than name and number in. */}
+                      {!!extra.length && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.4)', marginTop: 1 }}>+ {extra.join(' · ')}</div>}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div onClick={confirmCsvImport} style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Import {csvPreview.players.length}</div>
@@ -88,6 +115,7 @@ export default function RosterEditor({ emptyHint, grow = true }) {
           </div>
         </div>
       )}
+      <PlayerDetail />
     </div>
   )
 }
