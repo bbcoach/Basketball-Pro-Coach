@@ -36,9 +36,17 @@ function TeamDetail() {
   const { teams, activeTeamId } = state
   const team = teams.find((t) => t.id === activeTeamId)
   if (!team) return null
+  // No horizontal padding here: RosterEditor and CoachesEditor already carry
+  // their own 18px, since they're also used as the whole content of a tab
+  // (Attendance's Roster tab, the stat tracker's Roster tab) with nothing
+  // else supplying it there. Stacking this container's padding on top of
+  // theirs, as it did before, double-indented every row in My Roster to
+  // 36px while the row above it — team name and Back — stayed at 18px, so
+  // the roster read as narrower than everything around it. The name row
+  // supplies its own 18px instead, matching what those other screens do.
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 10px' }}>
         <input
           type="text" value={team.name} onChange={(e) => renameTeam(e.target.value)} placeholder="Team name"
           style={{ flex: 1, minWidth: 0, ...field() }}
