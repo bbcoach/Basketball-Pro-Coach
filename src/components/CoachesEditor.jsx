@@ -1,6 +1,6 @@
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
-import {keycap, sunken, chipSurface} from '../theme'
+import { keycap, chipSurface, field, centred } from '../theme'
 
 export default function CoachesEditor({ emptyHint }) {
   const { state, set, addCoach, editCoach, cancelEditCoach, removeCoach, askConfirm } = useApp()
@@ -12,10 +12,10 @@ export default function CoachesEditor({ emptyHint }) {
       <div style={{ display: 'flex', gap: 6, paddingBottom: 10 }}>
         <input
           type="text" value={coachNameIn} onChange={(e) => set({ coachNameIn: e.target.value })} placeholder="Coach name"
-          style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, ...field() }}
         />
-        <div onClick={addCoach} style={{ padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{coachEditId ? 'Save' : 'Add'}</div>
-        {coachEditId && <div onClick={cancelEditCoach} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
+        <div onClick={addCoach} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{coachEditId ? 'Save' : 'Add'}</div>
+        {coachEditId && <div onClick={cancelEditCoach} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 10 }}>
         {coaches.map((c) => (

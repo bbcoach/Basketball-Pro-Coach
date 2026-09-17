@@ -5,7 +5,7 @@ import ScreenHeader from './ScreenHeader'
 import Tabs from './Tabs'
 import { downloadIcs, parseIcs } from '../lib/ics'
 import { fmtDate } from '../lib/dates'
-import { raised, keycap, sunken } from '../theme'
+import { raised, keycap, field, centred } from '../theme'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -134,7 +134,7 @@ export default function Schedule() {
             <input
               type="text" value={evTitleIn} onChange={(e) => set({ evTitleIn: e.target.value })}
               placeholder={evKind === 'game' ? 'Opponent (optional)' : 'e.g. Season tournament'}
-              style={{ padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+              style={{ ...field() }}
             />
           )}
           {(evKind === 'game' || evKind === 'event') && (
@@ -143,13 +143,13 @@ export default function Schedule() {
                 <>
                   <div
                     onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
-                    style={{ flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
                   >
                     Home
                   </div>
                   <div
                     onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
-                    style={{ flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
                   >
                     Away
                   </div>
@@ -157,21 +157,21 @@ export default function Schedule() {
               )}
               <input
                 type="text" value={evLocationIn} onChange={(e) => set({ evLocationIn: e.target.value })} placeholder="Location (optional)"
-                style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+                style={{ flex: 1, minWidth: 0, ...field() }}
               />
             </div>
           )}
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               type="date" value={evDateIn} onChange={(e) => set({ evDateIn: e.target.value })}
-              style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+              style={{ flex: 1, minWidth: 0, ...field() }}
             />
             <input
               type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
-              style={{ flex: 'none', width: 104, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+              style={{ flex: 'none', width: 104, ...field() }}
             />
-            <div onClick={addScheduleItem} style={{ padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
-            {evEditId && <div onClick={cancelEditEvent} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
+            <div onClick={addScheduleItem} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
+            {evEditId && <div onClick={cancelEditEvent} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
           </div>
         </div>
 

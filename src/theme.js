@@ -59,6 +59,36 @@ export function sunken(a = 0.06) {
   }
 }
 
+// The one definition of a form field. The fill and shadow were the easy
+// part; the reason this exists is the box model. Every input in the app was
+// styled at its own call site, so the vertical padding had drifted four ways
+// — 8, 9 and 10px, plus two narrow variants — and My Schedule happened to
+// hold the tallest of them. Nobody could see that while the fields were a
+// flat wash; a recessed well has visible walls, and then a 42pt-tall empty
+// box next to a 36pt button reads as a mistake, because it is one.
+//
+// A shallower inset than `sunken` on purpose: a tab track is wide enough to
+// carry a 5px shadow, a one-line field is not — there, the same shadow eats
+// the top of the text.
+export function field() {
+  return {
+    padding: '8px 11px',
+    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,.14)',
+    background: 'rgba(255,255,255,.06)',
+    boxShadow: 'inset 0 1px 3px rgba(0,0,0,.38), inset 0 -1px 0 rgba(255,255,255,.05)',
+    color: '#fff',
+    fontSize: 13,
+    outline: 'none',
+  }
+}
+
+// An action button that shares a row with fields. The row stretches its
+// children to the tallest one — which is what makes the button line up with
+// the fields — so the button has to centre its own label, or the label stays
+// where the padding put it and the extra height all lands underneath.
+export const centred = { display: 'flex', alignItems: 'center', justifyContent: 'center' }
+
 // Number chips and initials, borrowing the board's token treatment so the
 // two halves of the app speak the same language. The sheen sits up and to
 // the left of centre, the same side the court's light comes from.

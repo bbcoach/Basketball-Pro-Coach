@@ -6,7 +6,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import PlayPreview from './PlayPreview'
 import { plural } from '../../lib/dates'
-import { raised, keycap, sunken } from '../../theme'
+import { raised, keycap, field } from '../../theme'
 
 function planMeta(app, p) {
   const list = app.planDrills(p)
@@ -53,7 +53,7 @@ function PlanOpen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: 10 }}>
         <input
           type="text" value={plan.name} onChange={(e) => setPlanName(e.target.value)} placeholder="Session name"
-          style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, ...field() }}
         />
         <div onClick={() => runPlanCmd(plan.id)} style={{ padding: '9px 12px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 12, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>Start</div>
         <div onClick={backToPlans} style={{ padding: '9px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
@@ -141,12 +141,12 @@ function DrillsTab() {
         <div onClick={openImport} style={{ padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.10)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>Import</div>
       </div>
       <div style={{ display: 'flex', gap: 6, paddingBottom: 8 }}>
-        <input type="text" value={dName} onChange={(e) => set({ dName: e.target.value })} placeholder="Drill name" style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }} />
-        <input type="text" value={dMin} onChange={(e) => set({ dMin: e.target.value })} placeholder="min" style={{ width: 58, flex: 'none', padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, textAlign: 'center', outline: 'none' }} />
+        <input type="text" value={dName} onChange={(e) => set({ dName: e.target.value })} placeholder="Drill name" style={{ flex: 1, minWidth: 0, ...field() }} />
+        <input type="text" value={dMin} onChange={(e) => set({ dMin: e.target.value })} placeholder="min" style={{ width: 58, flex: 'none', ...field(), textAlign: 'center' }} />
       </div>
       <input
         type="text" value={dCategory} onChange={(e) => set({ dCategory: e.target.value })} placeholder="Category (optional)"
-        style={{ padding: '10px 11px', marginBottom: categories.length ? 6 : 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+        style={{ ...field(), marginBottom: categories.length ? 6 : 8 }}
       />
       {!!categories.length && (
         <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
@@ -162,7 +162,7 @@ function DrillsTab() {
       )}
       <textarea
         value={dDesc} onChange={(e) => set({ dDesc: e.target.value })} placeholder="Description — how it runs, what to watch for (optional)" rows={3}
-        style={{ width: '100%', padding: '10px 11px', marginBottom: 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+        style={{ width: '100%', ...field(), marginBottom: 8, resize: 'vertical', fontFamily: 'inherit' }}
       />
       <DrillPlayPicker />
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>

@@ -3,7 +3,7 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
-import { keycap, sunken } from '../../theme'
+import { keycap, field } from '../../theme'
 
 function TeamsList() {
   const { state, selectTeam, newTeam, askRemoveTeam } = useApp()
@@ -42,7 +42,7 @@ function TeamDetail() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
         <input
           type="text" value={team.name} onChange={(e) => renameTeam(e.target.value)} placeholder="Team name"
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, ...field() }}
         />
         <div onClick={backToTeamsList} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>

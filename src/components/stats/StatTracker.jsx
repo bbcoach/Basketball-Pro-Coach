@@ -6,7 +6,7 @@ import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
-import {COND, raised, keycap, sunken, chipSurface} from '../../theme'
+import { COND, raised, keycap, chipSurface, field, centred } from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
@@ -152,16 +152,16 @@ function GameMetaEditor({ game }) {
       <div style={{ display: 'flex', gap: 6 }}>
         <input
           type="date" value={game.date} onChange={(e) => setGameDate(e.target.value)}
-          style={{ flex: 'none', width: 118, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 118, ...field() }}
         />
         <input
           type="time" value={game.time || ''} onChange={(e) => setGameTime(e.target.value)}
-          style={{ flex: 'none', width: 92, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 92, ...field() }}
         />
         {isGame ? (
           <input
             type="text" value={game.opponent} onChange={(e) => setGameOpponent(e.target.value)} placeholder="Opponent name"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, ...field() }}
           />
         ) : (
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>Free play</div>
@@ -171,19 +171,19 @@ function GameMetaEditor({ game }) {
         <div style={{ display: 'flex', gap: 6 }}>
           <div
             onClick={() => setGameHome(game.home === 'home' ? '' : 'home')}
-            style={{ flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
+            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'home' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'home' ? '#101012' : 'rgba(255,255,255,.6)' }}
           >
             Home
           </div>
           <div
             onClick={() => setGameHome(game.home === 'away' ? '' : 'away')}
-            style={{ flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
+            style={{ ...centred, flex: 'none', padding: '8px 11px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: game.home === 'away' ? ACCENT : 'rgba(255,255,255,.06)', color: game.home === 'away' ? '#101012' : 'rgba(255,255,255,.6)' }}
           >
             Away
           </div>
           <input
             type="text" value={game.location || ''} onChange={(e) => setGameLocation(e.target.value)} placeholder="Location (optional)"
-            style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, ...field() }}
           />
         </div>
       )}
@@ -647,11 +647,11 @@ function TwoTeamModal() {
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             type="text" value={game.teamAName || ''} onChange={(e) => setTeamAName(e.target.value)} placeholder={activeTeamName || 'Team A'}
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, ...field() }}
           />
           <input
             type="text" value={game.teamBName || ''} onChange={(e) => setTeamBName(e.target.value)} placeholder="Opponent"
-            style={{ flex: 1, minWidth: 0, padding: '9px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, ...field() }}
           />
         </div>
 
