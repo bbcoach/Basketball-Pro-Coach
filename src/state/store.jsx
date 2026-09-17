@@ -63,7 +63,7 @@ function initialState() {
     games: [], activeGameId: null, resetAsk: false, importSheetOpen: false, twoTeamModalOpen: false,
 
     // coaches (scoped to the active team, tracked mainly for attendance/pay)
-    coaches: [], coachNameIn: '', coachEditId: null,
+    coaches: [], coachNameIn: '', coachEditId: null, coachDetailId: null,
 
     // training attendance
     attendTab: 'sessions', sessions: [], openSession: null,
@@ -602,7 +602,7 @@ export function AppProvider({ children }) {
     set({
       activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
       activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '', playerDetailId: null,
-      coachEditId: null, coachNameIn: '', evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '',
+      coachEditId: null, coachNameIn: '', coachDetailId: null, evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '',
     })
   }
   const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
@@ -712,6 +712,12 @@ export function AppProvider({ children }) {
     persistCoaches((cs) => cs.filter((x) => x.id !== c.id))
     if (stateRef.current.coachEditId === c.id) set({ coachEditId: null, coachNameIn: '' })
   }
+  // Same shape as the player profile, minus what only makes sense for a
+  // player: no birth date, no parent/guardian section, and no CSV columns —
+  // a club's roster export doesn't carry its coaches.
+  const updateCoach = (id, patch) => persistCoaches((cs) => cs.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const openCoachDetail = (c) => set({ coachDetailId: c.id })
+  const closeCoachDetail = () => set({ coachDetailId: null })
 
   const selectStatPlayer = (p) => set((s) => ({ selPlayer: s.selPlayer === p.id ? null : p.id }))
   const logStat = (key) => {
@@ -1031,7 +1037,7 @@ export function AppProvider({ children }) {
     switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
-    addCoach, editCoach, cancelEditCoach, removeCoach,
+    addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
