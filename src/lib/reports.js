@@ -153,8 +153,11 @@ function boxRows(players, log) {
   const rows = players.map((p) => {
     const t = tallyFor(log, p.id)
     Object.keys(tot).forEach((k) => { tot[k] += t[k] || 0 })
-    return { num: p.num, name: p.name, cells: [t.pts, t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta), t.reb, t.ast, t.stl, t.blk, t.tov, t.pf] }
+    return { num: p.num || '–', name: p.name, cells: [t.pts, t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta), t.reb, t.ast, t.stl, t.blk, t.tov, t.pf] }
   })
+  // The team total row keeps a genuinely blank number cell — it isn't a
+  // player without a number, it's not a player at all, so '–' would be the
+  // wrong claim to make there.
   return { rows, totRow: { num: '', name: 'Team', cells: [tot.pts, tot.fgm + '/' + tot.fga, tot.fg3m + '/' + (tot.fg3m + tot.fg3a), tot.ftm + '/' + (tot.ftm + tot.fta), tot.reb, tot.ast, tot.stl, tot.blk, tot.tov, tot.pf] }, pts: tot.pts }
 }
 
@@ -288,7 +291,7 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
     const color = pctColorFor(pct, !!total)
     return `<tr>
       <td class="rank">${i + 1}</td>
-      <td class="num">${esc(p.num)}</td>
+      <td class="num">${esc(p.num || '–')}</td>
       <td class="name">${esc(p.name)}</td>
       <td class="sessions">${inn} / ${total}${injured ? `<span class="inj"> · ${injured} inj.</span>` : ''}</td>
       <td class="pctcell">${bar(pct, color)}<span class="pct" style="color:${color}">${total ? pct + '%' : '–'}</span></td>
