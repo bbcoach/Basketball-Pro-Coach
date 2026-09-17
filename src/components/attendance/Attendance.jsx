@@ -51,7 +51,7 @@ function SessionsTab() {
           const injured = vals.filter((v) => v === 'inj').length
           const plan = s.planId && plans.find((x) => x.id === s.planId)
           return (
-            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: state.openSession === s.id ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (state.openSession === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)') }}>
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, ...raised(.05, .08), background: state.openSession === s.id ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (state.openSession === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)') }}>
               <div onClick={() => openSession(s.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label || fmtDate(s.date)}{s.time ? ' · ' + s.time : ''}</div>
