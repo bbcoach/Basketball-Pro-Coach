@@ -650,29 +650,34 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     const name = (s.nameIn || '').trim()
     if (!name) return
-    const num = (s.numIn || '').trim() || String(s.roster.length + 1)
+    // No fallback to the next free number: a coach who left it blank meant
+    // to leave it blank, not to get whatever number the roster's length
+    // happened to land on. Every place a number displays shows '–' instead.
+    const num = (s.numIn || '').trim()
     if (s.editId) persistRoster((r) => r.map((x) => (x.id === s.editId ? { ...x, name, num } : x)))
     else persistRoster((r) => r.concat([{ id: 'rp' + Date.now(), name, num }]))
     set({ nameIn: '', numIn: '', editId: null })
     showToast(s.editId ? 'Player updated' : 'Player added')
   }
-  // Bulk add from a CSV import. Players without a number in the file get the
-  // next free one rather than clashing with somebody already on the roster.
+  // Bulk add from a CSV import. A number the file actually gave that clashes
+  // with somebody already on the roster gets bumped to a free one — two
+  // players can't share a jersey. A row the file simply didn't number stays
+  // unnumbered; that's not this importer's guess to make.
   // A file with contact columns carries those straight onto the new player —
   // see rosterCsv.js for which header names it recognises.
   const ROSTER_EXTRA_FIELDS = ['dob', 'email', 'phone', 'address', 'parentName', 'parentPhone', 'parentEmail']
   const importRosterPlayers = (list) => {
     const existing = stateRef.current.roster
-    const used = new Set(existing.map((p) => String(p.num)))
-    let next = existing.length + 1
+    const used = new Set(existing.map((p) => String(p.num)).filter(Boolean))
+    let next = 1
     const stamp = Date.now()
     const add = list.map((p, i) => {
       let num = String(p.num || '').trim()
-      if (!num || used.has(num)) {
+      if (num && used.has(num)) {
         while (used.has(String(next))) next++
         num = String(next)
       }
-      used.add(num)
+      if (num) used.add(num)
       const extra = {}
       ROSTER_EXTRA_FIELDS.forEach((k) => { if (p[k]) extra[k] = p[k] })
       return { id: 'rp' + stamp + '-' + i, name: p.name, num, ...extra }

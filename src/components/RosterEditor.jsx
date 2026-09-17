@@ -72,7 +72,7 @@ export default function RosterEditor({ emptyHint, grow = true }) {
                   coach scanning the list is matching jersey numbers, and a
                   row of photos doesn't sort or scan the way numbers do. The
                   photo has its place in the profile sheet this opens. */}
-              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num}</div>
+              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
             </div>

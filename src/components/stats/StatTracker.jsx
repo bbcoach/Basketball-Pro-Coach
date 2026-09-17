@@ -220,7 +220,7 @@ function PlayerRow({ p, log, onCourt, selPlayer, selectStatPlayer, toggleCourt, 
       onClick={() => selectStatPlayer(p)}
       style={{ display: 'flex', alignItems: 'center', gap: compact ? 8 : 10, padding: compact ? '7px 9px' : '8px 10px', borderRadius: 12, cursor: 'pointer', background: on ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.08)') }}
     >
-      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(), background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num}</div>
+      <div style={{ width: compact ? 26 : 30, height: compact ? 26 : 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(), background: on ? ACCENT : 'rgba(255,255,255,.10)', color: on ? '#101012' : '#fff', fontWeight: 700, fontSize: compact ? 13 : 15 }}>{p.num || '–'}</div>
       {/* The full "PTS · REB · AST" line is dropped here rather than shrunk,
           since it's fixed-width and would otherwise win the space against
           the name (flex:1, minWidth:0) — exactly what made names unreadably
@@ -340,14 +340,14 @@ function LiveTab({ game }) {
   if (!selPlayer) lastAction = players.length ? 'Select a player, then tap a stat' : 'Add players under “Roster” first'
   else if (onCourt.indexOf(selPlayer) < 0) {
     const bp = players.find((x) => x.id === selPlayer)
-    lastAction = (bp ? '#' + bp.num + ' ' + bp.name : 'This player') + ' is on the bench — tap the OFF badge to sub him in'
+    lastAction = (bp ? (bp.num ? '#' + bp.num + ' ' : '') + bp.name : 'This player') + ' is on the bench — tap the OFF badge to sub him in'
   } else {
     const e = log[log.length - 1]
     if (!e) lastAction = 'Tap a stat to log it'
     // An opponent basket has no player to name, and running it through the
     // roster lookup below would print the useless "Last: player — …".
     else if (e.p === OPP_ID) lastAction = 'Last: ' + STAT_LABEL[e.k]
-    else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? '#' + p.num + ' ' + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
+    else { const p = players.find((x) => x.id === e.p); lastAction = 'Last: ' + (p ? (p.num ? '#' + p.num + ' ' : '') + p.name : 'player') + ' — ' + STAT_LABEL[e.k] }
   }
 
   const rowProps = { log, selPlayer, selectStatPlayer, toggleCourt, compact: landscape }
@@ -466,7 +466,7 @@ function BoxTable({ players, log, title }) {
         return (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
             <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
+              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
             </div>
             {cells.map((c, i) => <div key={i} style={cellStyle(i)}>{c}</div>)}
@@ -543,7 +543,7 @@ function SeasonTable({ rows }) {
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
             <div style={{ width: 176, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
               <div style={{ width: 16, flex: 'none', fontWeight: 700, color: 'rgba(255,255,255,.3)' }}>{i + 1}</div>
-              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num}</div>
+              <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
             </div>
             <div style={{ width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.7)', fontWeight: 600 }}>{gp}</div>
@@ -679,7 +679,7 @@ function TwoTeamModal() {
           <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>Assign players</div>
           {players.map((p) => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, ...raised(.05, .08) }}>
-              <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num}</div>
+              <div style={{ width: 26, height: 26, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 12 }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{p.imported ? <span style={{ color: 'rgba(255,255,255,.4)', fontWeight: 500 }}> · imported</span> : ''}</div>
               {sidePill(p, 'A')}
               {sidePill(p, 'B')}

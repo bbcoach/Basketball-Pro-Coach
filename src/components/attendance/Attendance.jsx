@@ -141,7 +141,7 @@ function SessionOpen() {
           )
           return (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, ...raised(.05, .08) }}>
-              <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
+              <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               {opt('in', 'IN', '#5bbf72')}
               {opt('out', 'OUT', '#c8d1d8')}
@@ -289,7 +289,7 @@ function SummaryTab() {
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
           <div key={p.id} onClick={() => setSel({ id: p.id, kind: 'player' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', ...raised(.05, .08) }}>
-            <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
+            <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num || '–'}</div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} of {total} sessions{injured ? ' · ' + injured + ' injured' : ''}</div>

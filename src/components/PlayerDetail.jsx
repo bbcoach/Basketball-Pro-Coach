@@ -51,10 +51,10 @@ export default function PlayerDetail() {
         >
           {player.photo
             ? <img src={player.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>{player.num}</span>}
+            : <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>{player.num || '–'}</span>}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>#{player.num} {player.name}</div>
+          <div style={{ fontSize: 15.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{player.num ? '#' + player.num + ' ' : ''}{player.name}</div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>
             <span onClick={pickPhoto} style={{ cursor: 'pointer' }}>{player.photo ? 'Change photo' : 'Add photo'}</span>
             {player.photo && <> · <span onClick={() => set({ photo: '' })} style={{ cursor: 'pointer' }}>Remove</span></>}
