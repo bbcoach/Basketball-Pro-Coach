@@ -1,6 +1,6 @@
 import { useApp } from '../../../state/store'
 import { ACCENT } from '../../../state/config'
-import { COND, keycap, field, centred } from '../../../theme'
+import { raised, COND, keycap, field, centred } from '../../../theme'
 import { maxStepOf } from '../../../lib/board-geometry'
 import { kindOf, KIND_LABEL } from '../../../lib/playKind'
 import { plural } from '../../../lib/dates'
@@ -73,7 +73,7 @@ export default function PlaysSheet() {
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {shown.map((p) => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: p.id === currentId ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (p.id === currentId ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.08)') }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, ...raised(.05, .08), background: p.id === currentId ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (p.id === currentId ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.08)') }}>
             <div onClick={() => loadPlayFromSheet(p)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                 <div style={{ flex: 'none', padding: '2px 6px', borderRadius: 8, fontSize: 9, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', background: kindOf(p) === 'drill' ? 'rgba(255,255,255,.12)' : 'rgba(232,177,60,.2)', color: kindOf(p) === 'drill' ? 'rgba(255,255,255,.7)' : ACCENT }}>{KIND_LABEL[kindOf(p)]}</div>
