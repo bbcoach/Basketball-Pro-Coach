@@ -1,5 +1,5 @@
 import { useApp } from '../state/store'
-import { keycap, chipSurface, field, centred, ACCENT2 } from '../theme'
+import { raised, keycap, chipSurface, field, centred, ACCENT2 } from '../theme'
 
 export default function CoachesEditor({ emptyHint }) {
   const { state, set, addCoach, editCoach, cancelEditCoach, removeCoach, askConfirm } = useApp()
@@ -18,8 +18,8 @@ export default function CoachesEditor({ emptyHint }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 10 }}>
         {coaches.map((c) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...chipSurface(), background: coachEditId === c.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (coachEditId === c.id ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
-            <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: coachEditId === c.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (coachEditId === c.id ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
+            <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
             <div onClick={() => editCoach(c)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
             <div onClick={() => askConfirm({ title: 'Remove coach', message: `Remove ${c.name}? This can't be undone.`, onConfirm: () => removeCoach(c) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
