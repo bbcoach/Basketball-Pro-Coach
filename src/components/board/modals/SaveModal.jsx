@@ -1,5 +1,6 @@
 import { useApp } from '../../../state/store'
-import { COND, keycap, ACCENT2 } from '../../../theme'
+import { ACCENT } from '../../../state/config'
+import {COND, keycap} from '../../../theme'
 
 export default function SaveModal() {
   const { state, set, closeSave, savePlay } = useApp()
@@ -12,8 +13,8 @@ export default function SaveModal() {
         onClick={() => set({ kindDraft: id })}
         style={{
           flex: 1, textAlign: 'center', padding: '9px 6px', borderRadius: 12, cursor: 'pointer',
-          background: active ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: active ? '#fff' : 'rgba(255,255,255,.7)',
-          border: '1px solid ' + (active ? ACCENT2 : 'rgba(255,255,255,.1)'),
+          background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.7)',
+          border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.1)'),
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 700 }}>{label}</div>
