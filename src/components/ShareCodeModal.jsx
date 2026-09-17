@@ -1,6 +1,6 @@
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
-import {COND, keycap, sunken} from '../theme'
+import { COND, keycap, field } from '../theme'
 import { download } from '../lib/download'
 
 export default function ShareCodeModal() {
@@ -43,7 +43,7 @@ export default function ShareCodeModal() {
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', margin: '4px 0 12px' }}>Send this code to another coach — they paste it into "Import" on their device.</div>
         <textarea
           readOnly value={code} rows={4} onFocus={(e) => e.target.select()}
-          style={{ width: '100%', padding: '10px 11px', marginBottom: 10, borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: 'rgba(255,255,255,.7)', fontSize: 11, fontFamily: 'monospace', outline: 'none', resize: 'none' }}
+          style={{ width: '100%', ...field(), marginBottom: 10, color: 'rgba(255,255,255,.7)', fontSize: 11, fontFamily: 'monospace', resize: 'none' }}
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {canNativeShare && <div onClick={nativeShare} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Share…</div>}

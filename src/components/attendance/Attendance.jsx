@@ -10,7 +10,7 @@ import ActionHint from '../ActionHint'
 import { exportAttendancePdf, exportPersonAttendancePdf } from '../../lib/reports'
 import { fmtDate, plural } from '../../lib/dates'
 import { personAttendance, personLabel, markMeta } from '../../lib/attendance'
-import {raised, keycap, sunken, chipSurface} from '../../theme'
+import { raised, keycap, chipSurface, field } from '../../theme'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -95,11 +95,11 @@ function SessionOpen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
         <input
           type="date" value={session.date} onChange={(e) => setSessionDate(e.target.value)}
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, ...field() }}
         />
         <input
           type="time" value={session.time || ''} onChange={(e) => setSessionTime(e.target.value)}
-          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 96, ...field() }}
         />
         <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>

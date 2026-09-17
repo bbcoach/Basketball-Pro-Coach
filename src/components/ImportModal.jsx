@@ -1,5 +1,5 @@
 import { useApp } from '../state/store'
-import {COND, keycap, sunken} from '../theme'
+import { COND, keycap, field } from '../theme'
 
 export default function ImportModal() {
   const { state, closeImport, setImportText, submitImport } = useApp()
@@ -22,7 +22,7 @@ export default function ImportModal() {
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', margin: '4px 0 12px' }}>Paste a play or drill code from another coach, or open the file they sent you.</div>
         <textarea
           value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="BPC1:play:… or BPC1:drill:…" rows={4}
-          style={{ width: '100%', padding: '10px 11px', marginBottom: 8, borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 11, fontFamily: 'monospace', outline: 'none', resize: 'none' }}
+          style={{ width: '100%', ...field(), marginBottom: 8, fontSize: 11, fontFamily: 'monospace', resize: 'none' }}
         />
         {!!importErr && <div style={{ fontSize: 11.5, color: '#e2762b', marginBottom: 8 }}>{importErr}</div>}
         <label style={{ display: 'block', padding: '10px 12px', marginBottom: 10, borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.7)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>

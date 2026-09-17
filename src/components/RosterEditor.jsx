@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT } from '../state/config'
 import { parseRosterCsv } from '../lib/rosterCsv'
-import {keycap, sunken, chipSurface} from '../theme'
+import { keycap, chipSurface, field, centred } from '../theme'
 
 export default function RosterEditor({ emptyHint, grow = true }) {
   const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, askConfirm } = useApp()
@@ -37,14 +37,14 @@ export default function RosterEditor({ emptyHint, grow = true }) {
       <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
         <input
           type="text" value={numIn} onChange={(e) => set({ numIn: e.target.value })} placeholder="#"
-          style={{ width: 54, flex: 'none', padding: '10px 8px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, textAlign: 'center', outline: 'none' }}
+          style={{ width: 54, flex: 'none', ...field(), textAlign: 'center' }}
         />
         <input
           type="text" value={nameIn} onChange={(e) => set({ nameIn: e.target.value })} placeholder="Player name"
-          style={{ flex: 1, minWidth: 0, padding: '10px 11px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 13, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, ...field() }}
         />
-        <div onClick={addPlayer} style={{ padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{editId ? 'Save' : 'Add'}</div>
-        {editId && <div onClick={cancelEditPlayer} style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
+        <div onClick={addPlayer} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{editId ? 'Save' : 'Add'}</div>
+        {editId && <div onClick={cancelEditPlayer} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 12 }}>
         <div onClick={pickCsvFile} style={{ padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Import CSV</div>
