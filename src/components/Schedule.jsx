@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
+import { ACCENT } from '../state/config'
 import { useApp } from '../state/store'
 import ScreenHeader from './ScreenHeader'
 import Tabs from './Tabs'
 import { downloadIcs, parseIcs } from '../lib/ics'
 import { fmtDate } from '../lib/dates'
-import { raised, keycap, field, centred, ACCENT2 } from '../theme'
+import { raised, keycap, field, centred } from '../theme'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -122,7 +123,7 @@ export default function Schedule() {
               {KINDS.map((k) => (
                 <div
                   key={k} onClick={() => set({ evKind: k })}
-                  style={{ flex: 'none', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.07)', color: evKind === k ? '#fff' : 'rgba(255,255,255,.62)', border: '1px solid ' + (evKind === k ? ACCENT2 : 'transparent') }}
+                  style={{ flex: 'none', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.07)', color: evKind === k ? '#fff' : 'rgba(255,255,255,.62)', border: '1px solid ' + (evKind === k ? ACCENT : 'transparent') }}
                 >
                   {KIND_META[k].label}
                 </div>
@@ -142,13 +143,13 @@ export default function Schedule() {
                 <>
                   <div
                     onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
-                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'home' ? ACCENT2 : 'transparent') }}
+                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'home' ? ACCENT : 'transparent') }}
                   >
                     Home
                   </div>
                   <div
                     onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
-                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'away' ? ACCENT2 : 'transparent') }}
+                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'away' ? ACCENT : 'transparent') }}
                   >
                     Away
                   </div>

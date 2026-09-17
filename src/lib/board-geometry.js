@@ -1,7 +1,6 @@
 // Ported from the Claude Design prototype (Taktikboard.dc.html) — pure geometry
 // helpers for the tactics board: routes, step timing, ball magnetism and the
 // defender auto-follow (with screen collisions).
-import { ACCENT2 } from '../theme'
 
 export const HALF = '0 0 1500 1400'
 export const FULL = '0 0 1500 2800'
@@ -68,10 +67,11 @@ export function setAct(ent, step, type, p) {
 // move `players` around wholesale. What they must never share is the ball:
 // see movers() and its use in carrierMap.
 export const CONE_TEAM = 'cone'
-// The cones picked this turquoise first, and it has since become the app's
-// second accent. One turquoise, defined once: two that are nearly the same
-// would read as a mistake rather than as a family.
-export const CONE_COLOR = ACCENT2
+// Its own colour again, not borrowed from a UI accent — the app's second
+// accent (which briefly used this same turquoise) has since been removed,
+// but the cone marker was never that accent doing a UI job. It's a court
+// object's colour, the same way the ball is orange, and stands on its own.
+export const CONE_COLOR = '#2fc4b2'
 
 export function isCone(ent) {
   return !!ent && ent.team === CONE_TEAM

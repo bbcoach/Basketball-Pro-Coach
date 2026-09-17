@@ -1,8 +1,9 @@
 import { useApp } from '../../state/store'
+import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
-import { keycap, field, ACCENT2 } from '../../theme'
+import { keycap, field } from '../../theme'
 
 function TeamsList() {
   const { state, selectTeam, newTeam, askRemoveTeam } = useApp()
@@ -14,7 +15,7 @@ function TeamsList() {
         {teams.map((t) => {
           const active = t.id === activeTeamId
           return (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: active ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (active ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, background: active ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.08)') }}>
               <div onClick={() => selectTeam(t.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>

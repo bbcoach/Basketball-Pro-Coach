@@ -300,15 +300,13 @@ input, button, textarea {
    with an onClick and no tabindex, so the keyboard cannot land on them at
    all; giving those a ring is a keyboard-navigation job, not a paint job.
 
-   Colour is the second accent (theme.js's ACCENT2), not the brand gold —
-   a focus ring is "this is the active control", the same job every ring
-   and selected-tab border in the app does with that colour now. This rule
-   predates that split and was still on the old gold. */
+   Gold, matching every other selection ring in the app now that the
+   second accent (a brief turquoise) has been removed. */
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 button:focus-visible {
-  outline: 2px solid rgba(47, 196, 178, 0.85) !important;
+  outline: 2px solid rgba(232, 177, 60, 0.85) !important;
   outline-offset: 2px;
-  border-color: rgba(47, 196, 178, 0.5) !important;
+  border-color: rgba(232, 177, 60, 0.5) !important;
 }

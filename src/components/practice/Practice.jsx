@@ -6,7 +6,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import PlayPreview from './PlayPreview'
 import { plural } from '../../lib/dates'
-import { raised, keycap, field, ACCENT2 } from '../../theme'
+import { raised, keycap, field } from '../../theme'
 
 function planMeta(app, p) {
   const list = app.planDrills(p)
@@ -153,7 +153,7 @@ function DrillsTab() {
           {categories.map((c) => (
             <div
               key={c} onClick={() => set({ dCategory: c })}
-              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: dCategory === c ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: dCategory === c ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (dCategory === c ? ACCENT2 : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: dCategory === c ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: dCategory === c ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (dCategory === c ? ACCENT : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               {c}
             </div>
@@ -173,21 +173,21 @@ function DrillsTab() {
         <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
           <div
             onClick={() => setFilterCat(null)}
-            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === null ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: filterCat === null ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (filterCat === null ? ACCENT2 : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === null ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: filterCat === null ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (filterCat === null ? ACCENT : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             All
           </div>
           {categories.map((c) => (
             <div
               key={c} onClick={() => setFilterCat(filterCat === c ? null : c)}
-              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === c ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: filterCat === c ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (filterCat === c ? ACCENT2 : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === c ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: filterCat === c ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (filterCat === c ? ACCENT : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               {c}
             </div>
           ))}
           <div
             onClick={() => setFavOnly((v) => !v)}
-            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: favOnly ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: favOnly ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (favOnly ? ACCENT2 : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: favOnly ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: favOnly ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (favOnly ? ACCENT : 'transparent'), fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             ★ Favorites
           </div>
@@ -207,7 +207,7 @@ function DrillsTab() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{d.category ? ' · ' + d.category : ''}{d.desc ? ' · ' + d.desc : ''}</div>
               </div>
-              <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT2 : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
+              <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
               <div onClick={() => shareDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>⇪</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
               <div onClick={() => askConfirm({ title: 'Delete drill', message: `Delete "${d.name}"? It will be removed from any plans that use it.`, onConfirm: () => removeDrill(d) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>

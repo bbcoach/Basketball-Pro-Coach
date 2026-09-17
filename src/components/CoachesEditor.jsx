@@ -1,5 +1,6 @@
 import { useApp } from '../state/store'
-import { raised, keycap, chipSurface, field, centred, ACCENT2 } from '../theme'
+import { ACCENT } from '../state/config'
+import { raised, keycap, chipSurface, field, centred } from '../theme'
 import CoachDetail from './CoachDetail'
 
 export default function CoachesEditor({ emptyHint }) {
@@ -19,7 +20,7 @@ export default function CoachesEditor({ emptyHint }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 10 }}>
         {coaches.map((c) => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: coachEditId === c.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (coachEditId === c.id ? ACCENT2 : 'rgba(255,255,255,.08)') }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: coachEditId === c.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (coachEditId === c.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
             {/* Same split as the roster row: this opens the profile (contact
                 details, a photo), the pencil still just renames. */}
             <div onClick={() => openCoachDetail(c)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
