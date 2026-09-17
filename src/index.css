@@ -33,7 +33,7 @@ a:hover { color: #f3c760; }
    deliberately use a different cursor (the court's crosshair, the tool
    bar's drag grip) stay untouched. */
 [style*="cursor: pointer"] {
-  transition: transform 90ms ease, filter 90ms ease;
+  transition: transform 90ms ease, filter 90ms ease, box-shadow 90ms ease;
   /* Suppress the browser's own grey tap flash — we draw our own now. */
   -webkit-tap-highlight-color: transparent;
 }
@@ -44,6 +44,14 @@ a:hover { color: #f3c760; }
    its own rule so that, in browsers too old for a complex :not(), only
    the squeeze is lost and the brightness above still works. */
 [style*="cursor: pointer"]:not(svg *):active { transform: scale(0.97); }
+/* Now that surfaces sit above the page, a press should look like it goes
+   *into* it: the shadow collapses to almost nothing and the lit top edge
+   goes with it, which is what a real key does when it bottoms out. Only
+   for elements that actually carry the raised shadow — `box-shadow` is
+   inline there, so this needs the override to win. */
+[style*="cursor: pointer"][style*="inset 0 1px 0"]:not(svg *):active {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
 @media (hover: hover) and (pointer: fine) {
   [style*="cursor: pointer"]:hover { filter: brightness(1.07); }
 }

@@ -1,6 +1,5 @@
 import { useApp } from '../../../state/store'
-import { ACCENT } from '../../../state/config'
-import { COND } from '../../../theme'
+import {COND, keycap} from '../../../theme'
 
 export default function ShareModal() {
   const { state, closeShareModal, doExportSteps } = useApp()
@@ -12,7 +11,7 @@ export default function ShareModal() {
         <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Share play</div>
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', margin: '4px 0 14px' }}>{shareStatus}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div onClick={doExportSteps} style={{ padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Step by step (PDF)</div>
+          <div onClick={doExportSteps} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Step by step (PDF)</div>
           <div onClick={closeShareModal} style={{ padding: 10, borderRadius: 12, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
         </div>
       </div>

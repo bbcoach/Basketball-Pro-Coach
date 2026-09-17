@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store'
-import { ACCENT } from '../state/config'
 import { backupText, parseBackup, applyBackup } from '../lib/backup'
 import { encodeFrames, collectFrame, decodeFrames } from '../lib/transfer'
 import { encodeQr, decodeQrFrame } from '../lib/qr'
+import { keycap } from '../theme'
 
 // How long one QR code stays on screen before the sender cycles to the
 // next one. A real camera reads far faster than this — the ceiling here is
@@ -89,7 +89,7 @@ const Step = ({ title, children }) => (
 )
 
 const BigButton = (props) => (
-  <div {...props} style={{ padding: 11, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginTop: 14, ...props.style }} />
+  <div {...props} style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginTop: 14, ...props.style }} />
 )
 const QuietButton = (props) => (
   <div {...props} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginTop: 8, ...props.style }} />

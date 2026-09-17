@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, conePath, CONE_COLOR } from '../../lib/board-geometry'
+import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 
 const COURT_W = 1500
@@ -51,7 +51,7 @@ export default function Court() {
       })
     })
     const bp = board.ballPos(t)
-    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
+    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: 'url(#ballsphere)', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
 
     const rts = []
     const cps = []
@@ -156,6 +156,11 @@ export default function Court() {
             alike — it only lightens one side and deepens the other. Like the
             shadow above, a gradient rather than a filter: tokens re-render on
             every animation frame. */}
+        {/* The ball is a sphere, not a disc — lit from the same side as
+            everything else on the floor. */}
+        <radialGradient id="ballsphere" cx={BALL_SPHERE_CENTER.cx} cy={BALL_SPHERE_CENTER.cy} r={BALL_SPHERE_CENTER.r}>
+          {BALL_SPHERE.map((st) => <stop key={st.offset} offset={st.offset} stopColor={st.color} />)}
+        </radialGradient>
         <radialGradient id="toklight" cx={light.cx} cy={light.cy} r="0.75">
           <stop offset="0%" stopColor="#fff" stopOpacity="0.26" />
           <stop offset="55%" stopColor="#fff" stopOpacity="0.04" />
@@ -225,7 +230,10 @@ export default function Court() {
                 {/* Inset by half the stroke so the sheen stops at the inner edge
                     of the ring instead of washing over it. Drawn before the ring
                     and the seams so neither gets dimmed by it. */}
-                <circle cx={tk.x} cy={tk.y} r={tk.r - tk.sw / 2} fill="url(#toklight)" />
+                {/* Skipped on the ball: its own sphere gradient already
+                    carries the light, and washing the flat token sheen over
+                    it would level exactly what makes it round. */}
+                {!tk.ball && <circle cx={tk.x} cy={tk.y} r={tk.r - tk.sw / 2} fill="url(#toklight)" />}
                 <circle cx={tk.x} cy={tk.y} r={tk.r} fill="none" stroke={tk.stroke} strokeWidth={tk.sw} />
                 {tk.ball && <path d={ballSeams(tk.x, tk.y, tk.r)} fill="none" stroke={tk.stroke} strokeWidth={tk.sw * 0.8} strokeLinecap="round" />}
               </>

@@ -1,5 +1,6 @@
 import {
   HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
+  BALL_SPHERE, BALL_SPHERE_CENTER,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -49,7 +50,7 @@ function stepSvg(play, board, cmap, stepIndex) {
     }
   })
   const bp = board.ballStart(stepIndex, cmap)
-  tokens.push({ x: bp.x, y: bp.y, r: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+  tokens.push({ x: bp.x, y: bp.y, r: 26, fill: 'url(#step-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
 
   const routes = []
   const caps = []
@@ -83,7 +84,8 @@ function stepSvg(play, board, cmap, stepIndex) {
     : `<circle cx="${tk.x.toFixed(1)}" cy="${tk.y.toFixed(1)}" r="${tk.r}" fill="${tk.fill}" stroke="${tk.stroke}" stroke-width="${tk.ball ? 4 : 6}" />${tk.ball ? `<path d="${ballSeams(tk.x, tk.y, tk.r)}" fill="none" stroke="${tk.stroke}" stroke-width="3.2" stroke-linecap="round" />` : ''}${tk.label ? `<text x="${tk.x.toFixed(1)}" y="${tk.y.toFixed(1)}" dominant-baseline="central" text-anchor="middle" fill="${tk.tc}" font-size="${tk.r * 0.96}" font-weight="700" font-family="'Barlow Condensed', sans-serif">${esc(tk.label)}</text>` : ''}`)).join('')
 
   return `<svg viewBox="${vb}" style="width:100%;height:100%;display:block">
-    <defs><marker id="step-arw" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 z" fill="#ffffff" /></marker></defs>
+    <defs><marker id="step-arw" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1 L11 6 L1 11 z" fill="#ffffff" /></marker>
+    <radialGradient id="step-ball" cx="${BALL_SPHERE_CENTER.cx}" cy="${BALL_SPHERE_CENTER.cy}" r="${BALL_SPHERE_CENTER.r}">${BALL_SPHERE.map((st) => `<stop offset="${st.offset}" stop-color="${st.color}" />`).join('')}</radialGradient></defs>
     ${COURT_BG}
     ${routesSvg}
     ${caps.join('')}

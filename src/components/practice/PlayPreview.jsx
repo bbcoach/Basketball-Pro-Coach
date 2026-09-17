@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
   HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, poly, wavy, isCone, conePath, CONE_COLOR,
+  BALL_SPHERE, BALL_SPHERE_CENTER,
 } from '../../lib/board-geometry'
 
 // Static, read-only diagram of a saved play — start positions plus every
@@ -34,7 +35,7 @@ export default function PlayPreview({ play }) {
       })
     })
     const bp = board.ballPos(0)
-    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: '#e2762b', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+    tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: 'url(#pv-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
 
     const rts = []
     const cps = []
@@ -71,6 +72,9 @@ export default function PlayPreview({ play }) {
         <marker id="pv-arw" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
           <path d="M1 1 L11 6 L1 11 z" fill="#ffffff" />
         </marker>
+        <radialGradient id="pv-ball" cx={BALL_SPHERE_CENTER.cx} cy={BALL_SPHERE_CENTER.cy} r={BALL_SPHERE_CENTER.r}>
+          {BALL_SPHERE.map((st) => <stop key={st.offset} offset={st.offset} stopColor={st.color} />)}
+        </radialGradient>
       </defs>
       <rect x="0" y="0" width="1500" height="2800" rx="14" fill="#8a5e34" />
       <g fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" opacity="0.85">

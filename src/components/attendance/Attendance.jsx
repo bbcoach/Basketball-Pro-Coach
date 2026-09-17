@@ -10,6 +10,7 @@ import ActionHint from '../ActionHint'
 import { exportAttendancePdf, exportPersonAttendancePdf } from '../../lib/reports'
 import { fmtDate, plural } from '../../lib/dates'
 import { personAttendance, personLabel, markMeta } from '../../lib/attendance'
+import {raised, keycap, sunken, chipSurface} from '../../theme'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -41,7 +42,7 @@ function SessionsTab() {
   const { sessions, plans } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div onClick={newSession} style={{ padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}>＋ New session</div>
+      <div onClick={newSession} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}>＋ New session</div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {sessions.map((s) => {
           const vals = Object.keys(s.marks || {}).map((k) => s.marks[k])
@@ -94,11 +95,11 @@ function SessionOpen() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
         <input
           type="date" value={session.date} onChange={(e) => setSessionDate(e.target.value)}
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <input
           type="time" value={session.time || ''} onChange={(e) => setSessionTime(e.target.value)}
-          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 'none', width: 96, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <div onClick={backToSessions} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
@@ -139,8 +140,8 @@ function SessionOpen() {
             </div>
           )
           return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-              <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, ...raised(.05, .08) }}>
+              <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
               <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               {opt('in', 'IN', '#5bbf72')}
               {opt('out', 'OUT', '#c8d1d8')}
@@ -164,8 +165,8 @@ function SessionOpen() {
                 </div>
               )
               return (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                  <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 12, ...raised(.05, .08) }}>
+                  <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                   {opt('in', 'IN', '#5bbf72')}
                   {opt('out', 'OUT', '#c8d1d8')}
@@ -222,7 +223,7 @@ function PersonDetail({ person, kind, onBack }) {
 
       <div
         onClick={() => { exportPersonAttendancePdf(person, kind, sessions, teamName, plans); showToast('Opening PDF…') }}
-        style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
+        style={{ padding: 11, borderRadius: 12, ...raised(.07, .1), color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}
       >
         Export PDF
       </div>
@@ -231,7 +232,7 @@ function PersonDetail({ person, kind, onBack }) {
         {rows.map((r) => {
           const m = markMeta(r.mark)
           return (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, ...raised(.05, .08) }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: '#fff' }}>{fmtDate(r.date)}{r.time ? ' · ' + r.time : ''}</div>
                 {r.planName && <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.planName}</div>}
@@ -279,7 +280,7 @@ function SummaryTab() {
       {!!roster.length && (
         <div
           onClick={() => { exportAttendancePdf(roster, coaches, sessions, teamName); showToast('Opening PDF…') }}
-          style={{ padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
+          style={{ padding: 11, borderRadius: 12, ...raised(.07, .1), color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 4 }}
         >
           Export PDF
         </div>
@@ -287,8 +288,8 @@ function SummaryTab() {
       {ranked.map(({ p, inn, injured, pct }) => {
         const pctColor = !total ? 'rgba(255,255,255,.35)' : pct >= 80 ? '#5bbf72' : pct >= 55 ? ACCENT : '#d9843c'
         return (
-          <div key={p.id} onClick={() => setSel({ id: p.id, kind: 'player' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-            <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
+          <div key={p.id} onClick={() => setSel({ id: p.id, kind: 'player' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', ...raised(.05, .08) }}>
+            <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 14 }}>{p.num}</div>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{inn} of {total} sessions{injured ? ' · ' + injured + ' injured' : ''}</div>
@@ -304,8 +305,8 @@ function SummaryTab() {
           {coaches.map((c) => {
             const inn = pastSessions.filter((s) => (s.coachMarks || {})[c.id] === 'in').length
             return (
-              <div key={c.id} onClick={() => setSel({ id: c.id, kind: 'coach' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)' }}>
-                <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.10)', color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
+              <div key={c.id} onClick={() => setSel({ id: c.id, kind: 'coach' })} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px', borderRadius: 12, cursor: 'pointer', ...raised(.05, .08) }}>
+                <div style={{ width: 28, height: 28, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 13 }}>{(c.name || '?').trim().charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>of {total} sessions</div>

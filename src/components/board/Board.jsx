@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, TEAM_NAME } from '../../state/config'
-import { COND } from '../../theme'
+import {COND, keycap, sunken} from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
 import Logo from '../Logo'
@@ -85,7 +85,7 @@ function Header({ compact }) {
             Tactics Board
           </div>
         </div>
-        <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
           {seg(view === 'half', 'Halfcourt', () => setView('half'))}
           {seg(view === 'full', 'Fullcourt', () => setView('full'))}
         </div>
@@ -105,7 +105,7 @@ function Header({ compact }) {
           <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', background: 'rgba(255,255,255,.07)', borderRadius: 12, padding: 3, gap: 2, flex: 'none' }}>
+      <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2, flex: 'none' }}>
         {seg(view === 'half', 'Halfcourt', () => setView('half'))}
         {seg(view === 'full', 'Fullcourt', () => setView('full'))}
       </div>
@@ -120,7 +120,7 @@ function PlaybackBar() {
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 16px 2px' }}>
       <div
         onClick={togglePlay}
-        style={{ width: 42, height: 42, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: ACCENT, color: '#101012', fontSize: 17, fontWeight: 700 }}
+        style={{ width: 42, height: 42, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...keycap(), color: '#101012', fontSize: 17, fontWeight: 700 }}
       >
         {playing ? '❙❙' : '▶'}
       </div>
@@ -409,7 +409,7 @@ function FullScreenTools() {
         ⠿
       </div>
       {showHint && (
-        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 8, background: ACCENT, color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
+        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 8, ...keycap(), color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
           Hold to move
         </div>
       )}

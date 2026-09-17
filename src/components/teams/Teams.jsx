@@ -3,13 +3,14 @@ import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
 import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
+import { keycap, sunken } from '../../theme'
 
 function TeamsList() {
   const { state, selectTeam, newTeam, askRemoveTeam } = useApp()
   const { teams, activeTeamId } = state
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div onClick={newTeam} style={{ padding: 12, borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}>＋ New team</div>
+      <div onClick={newTeam} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}>＋ New team</div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {teams.map((t) => {
           const active = t.id === activeTeamId
@@ -18,7 +19,7 @@ function TeamsList() {
               <div onClick={() => selectTeam(t.id)} style={{ flex: 1, minWidth: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
-                  {active && <div style={{ padding: '2px 7px', borderRadius: 99, background: ACCENT, color: '#101012', fontSize: 9.5, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', flex: 'none' }}>Active</div>}
+                  {active && <div style={{ padding: '2px 7px', borderRadius: 99, ...keycap(), color: '#101012', fontSize: 9.5, fontWeight: 700, letterSpacing: '.4px', textTransform: 'uppercase', flex: 'none' }}>Active</div>}
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{t.roster.length} players · {t.games.length} games · {t.sessions.length} sessions</div>
               </div>
@@ -41,7 +42,7 @@ function TeamDetail() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 10 }}>
         <input
           type="text" value={team.name} onChange={(e) => renameTeam(e.target.value)} placeholder="Team name"
-          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: 12, border: '1px solid rgba(255,255,255,.14)', ...sunken(.06), color: '#fff', fontSize: 12.5, outline: 'none' }}
         />
         <div onClick={backToTeamsList} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>

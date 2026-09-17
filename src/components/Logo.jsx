@@ -1,9 +1,10 @@
+import { raised } from '../theme'
 export default function Logo({ size = 26, iconSize = 19, accent = '#e8b13c' }) {
   return (
     <div
       style={{
         width: size, height: size, flex: 'none', borderRadius: size * 0.3,
-        background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
+        ...raised(.06, .1),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >

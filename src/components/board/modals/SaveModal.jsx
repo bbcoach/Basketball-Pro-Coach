@@ -1,6 +1,6 @@
 import { useApp } from '../../../state/store'
 import { ACCENT } from '../../../state/config'
-import { COND } from '../../../theme'
+import {COND, keycap} from '../../../theme'
 
 export default function SaveModal() {
   const { state, set, closeSave, savePlay } = useApp()
@@ -37,7 +37,7 @@ export default function SaveModal() {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <div onClick={closeSave} style={{ flex: 1, textAlign: 'center', padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.8)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</div>
-          <div onClick={savePlay} style={{ flex: 1, textAlign: 'center', padding: '11px 12px', borderRadius: 12, background: ACCENT, color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
+          <div onClick={savePlay} style={{ flex: 1, textAlign: 'center', padding: '11px 12px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</div>
         </div>
       </div>
     </div>
