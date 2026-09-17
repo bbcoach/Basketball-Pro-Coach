@@ -6,7 +6,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import PlayPreview from './PlayPreview'
 import { plural } from '../../lib/dates'
-import { raised, keycap, field } from '../../theme'
+import { raised, keycap, field, ACCENT2, INK2 } from '../../theme'
 
 function planMeta(app, p) {
   const list = app.planDrills(p)
@@ -153,7 +153,7 @@ function DrillsTab() {
           {categories.map((c) => (
             <div
               key={c} onClick={() => set({ dCategory: c })}
-              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: dCategory === c ? ACCENT : 'rgba(255,255,255,.06)', color: dCategory === c ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: dCategory === c ? ACCENT2 : 'rgba(255,255,255,.06)', color: dCategory === c ? INK2 : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               {c}
             </div>
@@ -173,21 +173,21 @@ function DrillsTab() {
         <ScrollX style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8 }}>
           <div
             onClick={() => setFilterCat(null)}
-            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === null ? ACCENT : 'rgba(255,255,255,.06)', color: filterCat === null ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === null ? ACCENT2 : 'rgba(255,255,255,.06)', color: filterCat === null ? INK2 : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             All
           </div>
           {categories.map((c) => (
             <div
               key={c} onClick={() => setFilterCat(filterCat === c ? null : c)}
-              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === c ? ACCENT : 'rgba(255,255,255,.06)', color: filterCat === c ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: filterCat === c ? ACCENT2 : 'rgba(255,255,255,.06)', color: filterCat === c ? INK2 : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               {c}
             </div>
           ))}
           <div
             onClick={() => setFavOnly((v) => !v)}
-            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: favOnly ? ACCENT : 'rgba(255,255,255,.06)', color: favOnly ? '#101012' : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: favOnly ? ACCENT2 : 'rgba(255,255,255,.06)', color: favOnly ? INK2 : 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             ★ Favorites
           </div>
