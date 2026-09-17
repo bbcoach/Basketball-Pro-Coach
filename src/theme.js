@@ -7,9 +7,16 @@ export const ACCENT = '#e8b13c'
 // a gold selected pill — so the colour stopped telling you which was which.
 // This one takes only "switched on": selected tools, active filters, the
 // team you're in, the row you're editing. Gold keeps the rest.
+//
+// It's a ring, not a fill. A solid turquoise tile reads as its own hot
+// patch of colour next to the app's dark, low-saturation surfaces — eleven
+// of them lit up across the board's tool strip was the complaint. A border
+// on the same dark tile the rest of the row already uses says "chosen"
+// without turning into one. Every selected state below follows that: a
+// pale wash a shade lighter than its own unselected state, a turquoise
+// ring, white ink throughout — nothing sits on a turquoise field, so
+// there's no dark ink to keep readable on it.
 export const ACCENT2 = '#2fc4b2'
-export const ACCENT2_SOFT = 'rgba(47,196,178,.18)'
-export const INK2 = '#101012' // readable on ACCENT2
 export const COND = "'Barlow Condensed', sans-serif"
 export const SANS = 'Barlow, system-ui, sans-serif'
 
