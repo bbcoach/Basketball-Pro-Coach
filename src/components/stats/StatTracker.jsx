@@ -521,22 +521,31 @@ function BoxTab({ game }) {
 // every tracked game's log into one combined log and reuses the exact same
 // `tallyFor` aggregation the single-game box score uses (it's log-array
 // agnostic), then divides by games-played to get per-game averages.
+// PTS and PPG both get their own column — a season total answers "how many
+// has this player scored", a per-game average answers "how many do they
+// usually score", and neither substitutes for the other once games start
+// piling up unevenly (an injury, a player who joined mid-season). BOX_HEAD's
+// single "PTS" is right for a one-game box score, where those two questions
+// have the same answer, so this builds its own header rather than reusing
+// it here.
+const SEASON_HEAD = ['PTS', 'PPG'].concat(BOX_HEAD.slice(1))
+
 function SeasonTable({ rows }) {
   return (
-    <div style={{ minWidth: 176 + 46 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <div style={{ minWidth: 176 + 46 + SEASON_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
         <div style={{ width: 176, flex: 'none' }}>Player</div>
         <div style={{ width: 46, flex: 'none', textAlign: 'center' }}>GP</div>
-        {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
+        {SEASON_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
       </div>
       {rows.map(({ p, t, gp }, i) => {
         const avg = (v) => (gp ? (v / gp).toFixed(1) : '0.0')
         const cells = [
-          avg(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
+          String(t.pts), avg(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
           t.ftm + '/' + (t.ftm + t.fta), avg(t.reb), avg(t.ast),
           avg(t.stl), avg(t.blk), avg(t.tov), avg(t.pf),
         ]
-        const cellStyle = (i2) => (i2 === 0
+        const cellStyle = (i2) => (i2 <= 1
           ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
           : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
         return (
@@ -578,7 +587,7 @@ function SeasonTab() {
         {/* Only games whose opponent score was actually kept can count
             towards a record, so this stays absent until one is. */}
         {rec.tracked > 0 && <> · <span style={{ color: 'rgba(255,255,255,.7)', fontWeight: 700 }}>{rec.w}W–{rec.l}L{rec.t ? '–' + rec.t + 'T' : ''}</span></>}
-        {' '}· averages per game played
+        {' '}· PTS totals the season, the rest average per game played
       </div>
       {roster.length ? (
         <ScrollX style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>

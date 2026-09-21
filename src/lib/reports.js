@@ -224,7 +224,7 @@ export function exportBoxPdf(players, log, teamName, game) {
 export function exportSeasonPdf(roster, allGames, teamName) {
   const games = allGames.filter((g) => g.type !== 'practice')
   const log = games.flatMap((g) => g.log)
-  const head = ['#', 'Player', 'GP', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
+  const head = ['#', 'Player', 'GP', 'PTS', 'PPG', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
   const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
   const avg = (v, gp) => (gp ? (v / gp).toFixed(1) : '0.0')
 
@@ -238,7 +238,7 @@ export function exportSeasonPdf(roster, allGames, teamName) {
 
   const body = rows.map(({ p, t, gp }, i) => tr([
     i + 1, p.name, gp,
-    avg(t.pts, gp), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta),
+    t.pts, avg(t.pts, gp), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta),
     avg(t.reb, gp), avg(t.ast, gp), avg(t.stl, gp), avg(t.blk, gp), avg(t.tov, gp), avg(t.pf, gp),
   ], 'td')).join('')
 
@@ -251,8 +251,8 @@ export function exportSeasonPdf(roster, allGames, teamName) {
       th,td{text-align:center}
       th:nth-child(2),td:nth-child(2){text-align:left}
     </style></head><body>
-    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked' + recordText(games), 'Averages per game played'] })}
-    <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="13" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
+    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked' + recordText(games), 'PTS totals the season, the rest average per game played'] })}
+    <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="14" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
     ${reportFooter()}
     </body></html>`
 
