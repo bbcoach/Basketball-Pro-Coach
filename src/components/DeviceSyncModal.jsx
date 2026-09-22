@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store'
-import { backupText, parseBackup, applyBackup } from '../lib/backup'
+import { backupText, buildBackup, parseBackup, applyBackup } from '../lib/backup'
 import { encodeFrames, collectFrame, decodeFrames } from '../lib/transfer'
 import { encodeQr, decodeQrFrame } from '../lib/qr'
-import { keycap } from '../theme'
+import { generateSyncKey, pushToCloud, pullFromCloud, deleteFromCloud, loadSyncKey, saveSyncKey, clearSyncKey } from '../lib/cloudSync'
+import { keycap, field, centred } from '../theme'
 
 // How long one QR code stays on screen before the sender cycles to the
 // next one. A real camera reads far faster than this — the ceiling here is
@@ -104,6 +105,12 @@ export default function DeviceSyncModal() {
   const [frameIdx, setFrameIdx] = useState(0)
   const [progress, setProgress] = useState({ have: 0, total: null })
 
+  // Cloud sync's own bit of state — a key this device either already has
+  // (loaded once, not re-read every render) or doesn't.
+  const [cloudKey, setCloudKey] = useState(loadSyncKey)
+  const [joinInput, setJoinInput] = useState('')
+  const [pulledFromCloud, setPulledFromCloud] = useState(false)
+
   const collectedRef = useRef({ n: null, chunks: new Map() })
   const doneRef = useRef(false)
   // Both async steps here — preparing the QR frames, and decoding+parsing
@@ -115,7 +122,7 @@ export default function DeviceSyncModal() {
   // the coach's next attempt is showing by the time it resolves.
   const attemptRef = useRef(0)
 
-  const reset = () => { attemptRef.current++; setError(''); setPending(null); setFrames(null); setFrameIdx(0); setMode('choose') }
+  const reset = () => { attemptRef.current++; setError(''); setPending(null); setFrames(null); setFrameIdx(0); setPulledFromCloud(false); setJoinInput(''); setMode('choose') }
   const close = () => { reset(); closeSync() }
   const fail = (attempt, msg) => { if (attempt !== attemptRef.current) return; setError(msg); setMode('error') }
 
@@ -174,6 +181,82 @@ export default function DeviceSyncModal() {
     setTimeout(() => window.location.reload(), 500)
   }
 
+  // ── cloud sync: a key this device holds is both the address and the
+  // password for one slot in the Worker's KV store. Turning it on, joining
+  // an existing one, pushing and pulling are all the same handful of calls
+  // in cloudSync.js — this is just the UI wrapped around them, using the
+  // exact same confirm-before-overwrite screen (recv-confirm/pending) the
+  // QR receive flow already has, since "replace everything on this device"
+  // means the same thing regardless of which wire it came in on.
+  const openCloud = () => { attemptRef.current++; setError(''); setMode('cloud-menu') }
+
+  const startCloudSync = async () => {
+    const attempt = ++attemptRef.current
+    setMode('cloud-busy')
+    try {
+      const key = generateSyncKey()
+      await pushToCloud(key, buildBackup())
+      if (attempt !== attemptRef.current) return
+      saveSyncKey(key)
+      setCloudKey(key)
+      setMode('cloud-key')
+    } catch {
+      fail(attempt, "Couldn't reach the cloud sync service — check the connection and try again.")
+    }
+  }
+
+  const pushNow = async () => {
+    const attempt = ++attemptRef.current
+    setMode('cloud-busy')
+    try {
+      await pushToCloud(cloudKey, buildBackup())
+      if (attempt !== attemptRef.current) return
+      setMode('cloud-push-done')
+    } catch {
+      fail(attempt, "Couldn't reach the cloud sync service — check the connection and try again.")
+    }
+  }
+
+  // Only persists the key once a pull off it actually succeeds — a
+  // mistyped join shouldn't leave this device pointed at a key that isn't
+  // really the one its other devices are using.
+  const pullWith = async (key, attempt) => {
+    setMode('cloud-busy')
+    try {
+      const data = await pullFromCloud(key)
+      if (attempt !== attemptRef.current) return
+      if (data === null) { fail(attempt, "Nothing's been pushed to this sync key yet."); return }
+      saveSyncKey(key)
+      setCloudKey(key)
+      setPending(parseBackup(data))
+      setPulledFromCloud(true)
+      setMode('recv-confirm')
+    } catch {
+      fail(attempt, "Couldn't read that — either the sync key's wrong, or the connection dropped.")
+    }
+  }
+
+  const pullNow = () => pullWith(cloudKey, ++attemptRef.current)
+
+  const joinCloud = () => {
+    const key = joinInput.trim()
+    if (!key) return
+    pullWith(key, ++attemptRef.current)
+  }
+
+  const stopCloudSync = (alsoDelete) => async () => {
+    const attempt = ++attemptRef.current
+    if (alsoDelete) {
+      setMode('cloud-busy')
+      try { await deleteFromCloud(cloudKey) } catch { /* stopping locally still proceeds either way */ }
+      if (attempt !== attemptRef.current) return
+    }
+    clearSyncKey()
+    setCloudKey(null)
+    setJoinInput('')
+    setMode('cloud-menu')
+  }
+
   const box = (children) => (
     <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
       <div style={{ width: '100%', maxWidth: 340, background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 18 }}>
@@ -187,10 +270,11 @@ export default function DeviceSyncModal() {
     return box(
       <>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
-          Send everything on this device straight to another phone or tablet — one shows a QR code, the other scans it. No cloud, no account, no network needed between them at all.
+          Send everything on this device straight to another phone or tablet — one shows a QR code, the other scans it. No cloud, no account, no network needed between them at all. Cloud sync below is the alternative for when the two devices can't be in the same room.
         </div>
         <BigButton onClick={beginSend}>Send to another device</BigButton>
         <BigButton onClick={beginReceive} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>Receive from another device</BigButton>
+        <BigButton onClick={openCloud} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>Cloud sync (optional)</BigButton>
         <QuietButton onClick={close}>Close</QuietButton>
       </>,
     )
@@ -231,7 +315,7 @@ export default function DeviceSyncModal() {
     return box(
       <>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
-          Data from {pending.exportedAt ? new Date(pending.exportedAt).toLocaleString() : 'the other device'} · {pending.teamCount}{pending.teamCount === 1 ? ' team' : ' teams'}.
+          Data from {pending.exportedAt ? new Date(pending.exportedAt).toLocaleString() : pulledFromCloud ? 'the cloud' : 'the other device'} · {pending.teamCount}{pending.teamCount === 1 ? ' team' : ' teams'}.
           This replaces everything currently on this device — it can't be undone.
         </div>
         <div onClick={confirmRestore} style={{ padding: 11, borderRadius: 12, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Replace everything</div>
@@ -242,6 +326,86 @@ export default function DeviceSyncModal() {
 
   if (mode === 'recv-done') {
     return box(<div style={{ fontSize: 12.5, color: '#5bbf72', padding: '20px 0', textAlign: 'center' }}>Restored — reloading…</div>)
+  }
+
+  if (mode === 'cloud-menu') {
+    return box(
+      cloudKey ? (
+        <>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
+            This device syncs with a key it shares with your other devices — no account, and nothing the cloud side can read.
+          </div>
+          <BigButton onClick={pushNow}>Push this device to the cloud</BigButton>
+          <BigButton onClick={pullNow} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>Pull from the cloud</BigButton>
+          <QuietButton onClick={() => setMode('cloud-key')}>Add another device…</QuietButton>
+          <QuietButton onClick={() => setMode('cloud-stop')} style={{ color: '#d9843c' }}>Stop cloud sync</QuietButton>
+          <QuietButton onClick={close}>Close</QuietButton>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
+            Sync over the internet instead of holding two screens together — a random key, generated on this device, is the only thing that links your devices. Nobody without it, including whoever runs the server, can read what's synced.
+          </div>
+          <BigButton onClick={startCloudSync}>Turn on cloud sync</BigButton>
+          <BigButton onClick={() => setMode('cloud-join')} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>I already have a sync key</BigButton>
+          <QuietButton onClick={() => setMode('choose')}>Back</QuietButton>
+        </>
+      ),
+    )
+  }
+
+  if (mode === 'cloud-key') {
+    return box(
+      <Step title="Scan this on your other device (Cloud sync → I already have a sync key), or copy the text below it:">
+        <QrDisplay text={cloudKey} />
+        <div style={{ fontSize: 11, fontFamily: 'ui-monospace, monospace', color: 'rgba(255,255,255,.6)', background: 'rgba(255,255,255,.06)', borderRadius: 10, padding: '9px 11px', marginTop: 10, wordBreak: 'break-all', userSelect: 'all' }}>
+          {cloudKey}
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 8, lineHeight: 1.5 }}>
+          Anyone with this key can read and overwrite this data — treat it like a password.
+        </div>
+        <BigButton onClick={() => setMode('cloud-menu')}>Done</BigButton>
+      </Step>,
+    )
+  }
+
+  if (mode === 'cloud-join') {
+    return box(
+      <Step title="Paste the sync key from your other device:">
+        <textarea
+          value={joinInput} onChange={(e) => setJoinInput(e.target.value)} placeholder="Sync key" rows={2}
+          style={{ width: '100%', ...field(), resize: 'none', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
+        />
+        <BigButton onClick={joinCloud} style={joinInput.trim() ? {} : { opacity: 0.5, pointerEvents: 'none' }}>Continue</BigButton>
+        <QuietButton onClick={() => setMode('cloud-menu')}>Back</QuietButton>
+      </Step>,
+    )
+  }
+
+  if (mode === 'cloud-stop') {
+    return box(
+      <>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
+          This device stops syncing. Any other device that still has the key keeps working — unless you also delete the data from the cloud, which affects all of them.
+        </div>
+        <div onClick={stopCloudSync(true)} style={{ ...centred, padding: 11, borderRadius: 12, background: '#c0392b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Stop and delete the cloud data</div>
+        <BigButton onClick={stopCloudSync(false)} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>Just stop on this device</BigButton>
+        <QuietButton onClick={() => setMode('cloud-menu')}>Cancel</QuietButton>
+      </>,
+    )
+  }
+
+  if (mode === 'cloud-busy') {
+    return box(<div style={{ fontSize: 12.5, color: 'rgba(255,255,255,.6)', padding: '24px 4px', textAlign: 'center' }}>Talking to the cloud…</div>)
+  }
+
+  if (mode === 'cloud-push-done') {
+    return box(
+      <>
+        <div style={{ fontSize: 12.5, color: '#5bbf72', padding: '20px 0', textAlign: 'center' }}>Pushed — your other devices can now pull this.</div>
+        <BigButton onClick={() => setMode('cloud-menu')}>Done</BigButton>
+      </>,
+    )
   }
 
   // mode === 'error'
