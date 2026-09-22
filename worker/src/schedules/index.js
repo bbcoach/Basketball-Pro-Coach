@@ -6,5 +6,6 @@
 // one line below — everything else (routing, caching, the app's import UI)
 // is source-agnostic.
 import * as germany from './germany.js'
+import * as france from './france.js'
 
-export const SOURCES = { germany }
+export const SOURCES = { germany, france }

@@ -89,12 +89,19 @@ export default {
 }
 
 // GET /schedule/<source>/<id> -> { source, id, leagueName, teams, games }.
+// `id` is everything after the source segment, slashes and all — Germany's
+// is a bare liga_id, but France's identifies a team by a whole
+// region/comité/club/équipe path, which needs those slashes intact rather
+// than being cut off at the first one.
 // Each adapter's own validId() gate matters here specifically: `id` ends up
 // inside a URL this Worker fetches server-side, so it's the one input on
 // this route that isn't just echoed back — it has to be checked before it's
 // anywhere near a fetch() call.
 async function handleSchedule(url) {
-  const [, , source, id] = url.pathname.split('/')
+  const rest = url.pathname.slice('/schedule/'.length)
+  const slash = rest.indexOf('/')
+  const source = slash === -1 ? rest : rest.slice(0, slash)
+  const id = slash === -1 ? '' : rest.slice(slash + 1)
   const adapter = SOURCES[source]
   if (!adapter) return json(404, { error: 'unknown source', sources: Object.keys(SOURCES) })
   if (!adapter.validId(id)) return json(400, { error: 'bad id for this source' })

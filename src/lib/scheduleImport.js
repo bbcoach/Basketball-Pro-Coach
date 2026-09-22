@@ -5,15 +5,26 @@
 // CORS block on a cross-origin request straight to e.g. basketball-bund.net.
 const WORKER_URL = 'https://basketball-pro-coach-sync.ralph-arnold.workers.dev'
 
-// One source shipped so far — see worker/src/schedules/ for how to add
-// another. idHint is shown next to the input so a coach knows what to paste.
+// One entry per adapter in worker/src/schedules/. idHint is shown next to
+// the input so a coach knows what to paste — a bare id for a source keyed
+// by league (Germany), or a whole team-page link for one keyed by team
+// (France, whose schedule pages have no single "league id" to speak of).
 export const SOURCES = [
   { id: 'germany', label: 'Germany — basketball-bund.net', idHint: 'The number after "liga_id=" in your league’s URL on basketball-bund.net' },
+  { id: 'france', label: 'France — competitions.ffbb.com', idHint: 'Paste the link to your team’s page on competitions.ffbb.com (find it under Compétitions → your région → comité → club → équipe)' },
 ]
+
+// A pasted id may be the bare thing the Worker wants (Germany's liga_id) or
+// a full page URL copied straight out of the address bar (France's team
+// link) — stripping a leading origin here means the Worker only ever has to
+// deal with the latter as its own adapter's concern, not the routing.
+function cleanId(id) {
+  return id.trim().replace(/^https?:\/\/[^/]+\//i, '').replace(/^\/+/, '')
+}
 
 // { leagueName, teams: [name,...], games: [{ matchNo, date, time, home, away, venue }] }
 export async function fetchSchedule(source, id) {
-  const res = await fetch(`${WORKER_URL}/schedule/${source}/${encodeURIComponent(id)}`)
+  const res = await fetch(`${WORKER_URL}/schedule/${source}/${cleanId(id)}`)
   const body = await res.json().catch(() => null)
   if (!res.ok) throw new Error((body && body.error) || 'Could not load that schedule.')
   return body
