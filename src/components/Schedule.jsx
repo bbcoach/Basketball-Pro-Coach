@@ -283,7 +283,7 @@ export default function Schedule() {
                 </select>
                 <input
                   type="text" value={leagueIdIn} onChange={(e) => setLeagueIdIn(e.target.value)}
-                  placeholder="League id" style={{ width: '100%', ...field() }}
+                  placeholder="League id or team link" style={{ width: '100%', ...field() }}
                 />
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', margin: '6px 0 0', lineHeight: 1.5 }}>
                   {SOURCES.find((s) => s.id === leagueSource)?.idHint}
