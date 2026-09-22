@@ -20,10 +20,11 @@ export const INFO = {
   privacy: {
     title: 'Privacy',
     blocks: [
-      ['No data collection', 'This app collects no personal data. There are no accounts, no tracking, no analytics, no ads and nothing is shared with third parties.'],
-      ['Everything stays on your device', 'Plays, roster and game stats are stored only locally in your browser (localStorage). They never leave your device and I cannot see them. Clearing your browser data also deletes them.'],
+      ['No data collection', 'This app collects no personal data. There are no accounts, no tracking, no analytics, no ads. Nothing is shared with third parties, except what you explicitly choose to send via cloud sync (see below).'],
+      ['Everything stays on your device', 'Plays, roster and game stats are stored only locally in your browser (localStorage). They never leave your device unless you turn on cloud sync yourself. Clearing your browser data also deletes them.'],
       ['Exports', 'Images, videos and CSV files are generated directly on your device. Whether and with whom you share them is entirely up to you.'],
       ['Sync devices', 'Sending your data to another phone or tablet shows it as a QR code (or a short sequence of them) that the other device scans — it is never uploaded anywhere, and I cannot see it.'],
+      ['Cloud sync (optional)', 'Off by default. If you turn it on, your data is encrypted on your device before it ever leaves it and stored, still encrypted, on a server so your other devices can pull it down. It is decrypted only on your own devices, using a key that is generated on your device and never sent anywhere — without that key the stored data cannot be read, including by me.'],
       ['Donations', 'Tapping the donate button opens the payment provider (PayPal) in a new tab, where their privacy policy applies.'],
     ],
   },
