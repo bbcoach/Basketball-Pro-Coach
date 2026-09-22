@@ -7,7 +7,7 @@ const LAST_BACKUP_KEY = 'tb.lastBackup.v1'
 const SNOOZE_KEY = 'tb.backupSnooze.v1'
 const REMINDER_INTERVAL_DAYS = 14
 
-function buildBackup() {
+export function buildBackup() {
   const data = {}
   for (const k of LS_KEYS) {
     const raw = localStorage.getItem(k)
@@ -57,12 +57,18 @@ export function shouldShowBackupReminder(hasData) {
   }
 }
 
-// Parses and validates a backup file without touching localStorage, so the
-// caller can show the coach what they're about to restore and let them
-// back out before anything is overwritten.
-export function parseBackup(text) {
+// Parses and validates a backup without touching localStorage, so the
+// caller can show the coach what they're about to restore and let them back
+// out before anything is overwritten. Takes either the raw JSON text (a
+// file, a QR scan) or an already-parsed object (cloud sync decrypts
+// straight to one) — one validated shape either way.
+export function parseBackup(input) {
   let parsed
-  try { parsed = JSON.parse(text) } catch { throw new Error("That file isn't valid JSON.") }
+  if (typeof input === 'string') {
+    try { parsed = JSON.parse(input) } catch { throw new Error("That file isn't valid JSON.") }
+  } else {
+    parsed = input
+  }
   const data = parsed && parsed.data
   const keys = data && typeof data === 'object' ? Object.keys(data).filter((k) => LS_KEYS.includes(k)) : []
   if (!keys.length) throw new Error("That doesn't look like a Basketball Pro Coach backup file.")

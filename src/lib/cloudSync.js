@@ -98,3 +98,18 @@ export async function pullFromCloud(masterKey) {
 export async function deleteFromCloud(masterKey) {
   await fetch(`${WORKER_URL}/${await lookupKeyFor(masterKey)}`, { method: 'DELETE' })
 }
+
+// The sync key lives on the device, not in a team's own data — it isn't
+// part of what backupText()/applyBackup() carry, and QR-transferring a team
+// to a new phone shouldn't silently drag along cloud-sync membership it
+// never asked for. A separate key, loaded once when the sync modal opens.
+const KEY_STORAGE = 'tb.cloudSyncKey.v1'
+export function loadSyncKey() {
+  try { return localStorage.getItem(KEY_STORAGE) } catch { return null }
+}
+export function saveSyncKey(key) {
+  try { localStorage.setItem(KEY_STORAGE, key) } catch { /* ignore quota errors */ }
+}
+export function clearSyncKey() {
+  try { localStorage.removeItem(KEY_STORAGE) } catch { /* ignore quota errors */ }
+}
