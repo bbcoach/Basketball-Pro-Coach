@@ -1,0 +1,11 @@
+name = "basketball-pro-coach-sync"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+account_id = "4641664b05facb1c349ac2b5637534b5"
+
+# Free plan: no route, no custom domain — this deploys to
+# basketball-pro-coach-sync.<your-subdomain>.workers.dev on its own.
+
+[[kv_namespaces]]
+binding = "SYNC_KV"
+id = "86ba1cb67236434fa0b0a8aaf52cc046"

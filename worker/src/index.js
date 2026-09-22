@@ -1,0 +1,78 @@
+// The entire cloud-sync backend. On purpose, it knows nothing about
+// basketball, teams, players, or the app's own data shapes — it stores and
+// returns opaque bytes under a key, nothing else. The app encrypts on one
+// device and decrypts on another; this Worker only ever sees ciphertext, so
+// there's nothing here worth reading even if the key namespace leaked.
+//
+// The key IS the secret. There are no accounts, no passwords, no user
+// database — knowing the sync key is both necessary and sufficient to read
+// or overwrite that key's blob, the same trust model as a strong password
+// shared between a coach's own devices. That's why MIN_KEY_LEN exists: it's
+// the one thing standing between this and a key being guessable at all.
+const MIN_KEY_LEN = 24
+const MAX_KEY_LEN = 128
+// A season's worth of games, plays and a full roster with photos comfortably
+// fits in a few hundred KB even before compression; this is headroom, not a
+// target, and it exists so a stray bug on the client can't turn one team
+// into a multi-megabyte KV write.
+const MAX_BODY_BYTES = 2 * 1024 * 1024
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  // A day is plenty for a browser's own preflight cache and keeps repeat
+  // syncs from paying the OPTIONS round trip every time.
+  'Access-Control-Max-Age': '86400',
+}
+
+function json(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+  })
+}
+
+function validKey(key) {
+  return typeof key === 'string' && key.length >= MIN_KEY_LEN && key.length <= MAX_KEY_LEN && /^[A-Za-z0-9_-]+$/.test(key)
+}
+
+export default {
+  async fetch(request, env) {
+    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS_HEADERS })
+
+    const url = new URL(request.url)
+    // Path is just "/<key>" — nothing here needed a router.
+    const key = decodeURIComponent(url.pathname.replace(/^\//, ''))
+
+    if (url.pathname === '/' || !key) return json(200, { ok: true, service: 'basketball-pro-coach-sync' })
+    if (!validKey(key)) return json(400, { error: 'bad key' })
+
+    if (request.method === 'GET') {
+      const value = await env.SYNC_KV.get(key, 'arrayBuffer')
+      if (value === null) return json(404, { error: 'not found' })
+      return new Response(value, { headers: { 'Content-Type': 'application/octet-stream', ...CORS_HEADERS } })
+    }
+
+    if (request.method === 'PUT') {
+      const len = Number(request.headers.get('Content-Length') || 0)
+      if (len > MAX_BODY_BYTES) return json(413, { error: 'too large' })
+      const body = await request.arrayBuffer()
+      if (body.byteLength === 0) return json(400, { error: 'empty body' })
+      if (body.byteLength > MAX_BODY_BYTES) return json(413, { error: 'too large' })
+      await env.SYNC_KV.put(key, body)
+      return json(200, { ok: true, bytes: body.byteLength })
+    }
+
+    // Lets a coach make a key's data unreachable on request — the nearest
+    // thing to "delete my data" this service can offer, since it never
+    // collected anything else (no email, no account) to delete in the
+    // first place.
+    if (request.method === 'DELETE') {
+      await env.SYNC_KV.delete(key)
+      return json(200, { ok: true })
+    }
+
+    return json(405, { error: 'method not allowed' })
+  },
+}
