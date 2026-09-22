@@ -244,6 +244,20 @@ export default function DeviceSyncModal() {
     pullWith(key, ++attemptRef.current)
   }
 
+  // The key screen's own instructions say "scan this" — this is the other
+  // half of that promise. jsQR hands back whatever text was in the frame on
+  // every tick it manages to read one, same as the multi-frame QR receive
+  // above, so a key only ever gets pulled once even if the same code is
+  // read several times before the mode switch (and the camera stops) lands.
+  const joinScanDoneRef = useRef(false)
+  const openJoinScan = () => { joinScanDoneRef.current = false; setMode('cloud-join') }
+  const onJoinScan = (text) => {
+    if (joinScanDoneRef.current) return
+    if (!/^[A-Za-z0-9_-]{24,128}$/.test(text)) return // not a sync key — some other QR code in frame
+    joinScanDoneRef.current = true
+    pullWith(text, ++attemptRef.current)
+  }
+
   const stopCloudSync = (alsoDelete) => async () => {
     const attempt = ++attemptRef.current
     if (alsoDelete) {
@@ -347,7 +361,7 @@ export default function DeviceSyncModal() {
             Sync over the internet instead of holding two screens together — a random key, generated on this device, is the only thing that links your devices. Nobody without it, including whoever runs the server, can read what's synced.
           </div>
           <BigButton onClick={startCloudSync}>Turn on cloud sync</BigButton>
-          <BigButton onClick={() => setMode('cloud-join')} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>I already have a sync key</BigButton>
+          <BigButton onClick={openJoinScan} style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}>I already have a sync key</BigButton>
           <QuietButton onClick={() => setMode('choose')}>Back</QuietButton>
         </>
       ),
@@ -371,7 +385,9 @@ export default function DeviceSyncModal() {
 
   if (mode === 'cloud-join') {
     return box(
-      <Step title="Paste the sync key from your other device:">
+      <Step title="Point the camera at the sync key's QR code:">
+        <QrScanner onFrame={onJoinScan} />
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', textAlign: 'center', margin: '10px 0 8px' }}>or paste it instead:</div>
         <textarea
           value={joinInput} onChange={(e) => setJoinInput(e.target.value)} placeholder="Sync key" rows={2}
           style={{ width: '100%', ...field(), resize: 'none', fontFamily: 'ui-monospace, monospace', fontSize: 12 }}
