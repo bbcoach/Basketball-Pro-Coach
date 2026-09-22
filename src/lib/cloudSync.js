@@ -19,8 +19,7 @@
 // button will call once the sync model (manual vs automatic, last-write-
 // wins vs merge) is decided.
 
-// Filled in once the Worker is deployed and its workers.dev address known.
-const WORKER_URL = 'REPLACE_WITH_WORKER_URL'
+const WORKER_URL = 'https://basketball-pro-coach-sync.ralph-arnold.workers.dev'
 
 const ENC = new TextEncoder()
 const DEC = new TextDecoder()
