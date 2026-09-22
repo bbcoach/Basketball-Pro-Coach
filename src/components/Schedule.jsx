@@ -4,6 +4,7 @@ import { useApp } from '../state/store'
 import ScreenHeader from './ScreenHeader'
 import Tabs from './Tabs'
 import { downloadIcs, parseIcs } from '../lib/ics'
+import { fetchSchedule, gamesForTeam, SOURCES } from '../lib/scheduleImport'
 import { fmtDate } from '../lib/dates'
 import { raised, keycap, field, centred } from '../theme'
 
@@ -30,7 +31,7 @@ function teamColor(teams, teamId) {
 export default function Schedule() {
   const {
     state, set, closeSchedule, goToSession, goToGame,
-    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
+    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
   } = useApp()
   const { teams, evKind, evTitleIn, evDateIn, evTimeIn, evHome, evLocationIn, evEditId } = state
   const [showPast, setShowPast] = useState(false)
@@ -38,6 +39,37 @@ export default function Schedule() {
   const [icsPreview, setIcsPreview] = useState(null)
   const [icsStatus, setIcsStatus] = useState(null)
   const icsFileRef = useRef(null)
+
+  // League import walks through: pick a source + paste its league id, fetch
+  // and parse it (leagueSchedule), pick which of the teams found is this
+  // one (leagueTeam), then preview+confirm the resulting games.
+  const [leagueOpen, setLeagueOpen] = useState(false)
+  const [leagueSource, setLeagueSource] = useState(SOURCES[0].id)
+  const [leagueIdIn, setLeagueIdIn] = useState('')
+  const [leagueBusy, setLeagueBusy] = useState(false)
+  const [leagueError, setLeagueError] = useState(null)
+  const [leagueSchedule, setLeagueSchedule] = useState(null)
+  const [leagueTeam, setLeagueTeam] = useState(null)
+  const closeLeagueImport = () => {
+    setLeagueOpen(false); setLeagueIdIn(''); setLeagueBusy(false); setLeagueError(null); setLeagueSchedule(null); setLeagueTeam(null)
+  }
+  const lookupLeague = async () => {
+    const id = leagueIdIn.trim()
+    if (!id) return
+    setLeagueBusy(true); setLeagueError(null)
+    try {
+      setLeagueSchedule(await fetchSchedule(leagueSource, id))
+    } catch (err) {
+      setLeagueError(err.message || 'Could not load that schedule.')
+    } finally {
+      setLeagueBusy(false)
+    }
+  }
+  const leaguePreview = leagueSchedule && leagueTeam ? gamesForTeam(leagueSchedule, leagueTeam) : null
+  const confirmLeagueImport = () => {
+    importScheduleGames(leaguePreview)
+    closeLeagueImport()
+  }
   const today = todayStr()
   const multiTeam = teams.length > 1
 
@@ -103,6 +135,7 @@ export default function Schedule() {
           <div onClick={exportIcs} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Export .ics</div>
           <div onClick={pickIcsFile} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Import .ics</div>
           <input ref={icsFileRef} type="file" accept=".ics,text/calendar" onChange={onIcsFile} style={{ display: 'none' }} />
+          <div onClick={() => setLeagueOpen(true)} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Import league</div>
         </div>
         {icsStatus && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', textAlign: 'center', paddingBottom: 10 }}>{icsStatus}</div>}
 
@@ -228,6 +261,71 @@ export default function Schedule() {
               <div onClick={confirmIcsImport} style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Import {icsPreview.length}</div>
               <div onClick={() => setIcsPreview(null)} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {leagueOpen && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
+          <div style={{ width: '100%', maxWidth: 340, background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 18 }}>
+            <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 6 }}>Import league schedule</div>
+
+            {!leagueSchedule && (
+              <>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 14px', lineHeight: 1.5 }}>
+                  Pulls games straight from the federation's own public schedule — nothing is uploaded, this just reads a page they already publish.
+                </div>
+                <select
+                  value={leagueSource} onChange={(e) => setLeagueSource(e.target.value)}
+                  style={{ width: '100%', marginBottom: 8, ...field() }}
+                >
+                  {SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+                <input
+                  type="text" value={leagueIdIn} onChange={(e) => setLeagueIdIn(e.target.value)}
+                  placeholder="League id" style={{ width: '100%', ...field() }}
+                />
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  {SOURCES.find((s) => s.id === leagueSource)?.idHint}
+                </div>
+                {leagueError && <div style={{ fontSize: 12, color: '#d9843c', margin: '10px 0 0', lineHeight: 1.5 }}>{leagueError}</div>}
+                <div
+                  onClick={leagueBusy ? undefined : lookupLeague}
+                  style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginTop: 14, opacity: leagueBusy || !leagueIdIn.trim() ? 0.5 : 1, pointerEvents: leagueBusy || !leagueIdIn.trim() ? 'none' : 'auto' }}
+                >
+                  {leagueBusy ? 'Looking up…' : 'Look up'}
+                </div>
+                <div onClick={closeLeagueImport} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginTop: 8 }}>Cancel</div>
+              </>
+            )}
+
+            {leagueSchedule && !leagueTeam && (
+              <>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 14px', lineHeight: 1.5 }}>
+                  {leagueSchedule.leagueName || 'Found this league.'} Which of these is your team?
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                  {leagueSchedule.teams.map((t) => (
+                    <div key={t} onClick={() => setLeagueTeam(t)} style={{ padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{t}</div>
+                  ))}
+                </div>
+                <div onClick={closeLeagueImport} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginTop: 8 }}>Cancel</div>
+              </>
+            )}
+
+            {leaguePreview && (
+              <>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 16px', lineHeight: 1.5 }}>
+                  {leaguePreview.length
+                    ? `Found ${leaguePreview.length} ${leaguePreview.length === 1 ? 'game' : 'games'} for ${leagueTeam}. These are added to My Schedule — importing again later only adds new ones.`
+                    : `No games found for ${leagueTeam} in this league.`}
+                </div>
+                {leaguePreview.length > 0 && (
+                  <div onClick={confirmLeagueImport} style={{ padding: 11, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Import {leaguePreview.length}</div>
+                )}
+                <div onClick={closeLeagueImport} style={{ padding: 10, borderRadius: 12, color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginTop: 8 }}>{leaguePreview.length ? 'Cancel' : 'Close'}</div>
+              </>
+            )}
           </div>
         </div>
       )}

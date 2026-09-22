@@ -920,6 +920,23 @@ export function AppProvider({ children }) {
     const entries = parsedItems.map((it, i) => ({ id: 'ev' + stamp + '_' + i, title: it.title, date: it.date, time: it.time || '', location: it.location || '' }))
     persistEvents((es) => sortEvents(es.concat(entries)))
   }
+  // Games pulled from a federation's own schedule (see lib/scheduleImport.js)
+  // carry an importId (source + league id + that source's own match number)
+  // so re-running the import after the league adds a few more fixtures only
+  // ever adds the new ones, rather than duplicating everything already here.
+  const importScheduleGames = (entries) => {
+    const s = stateRef.current
+    const existingIds = new Set(s.games.map((g) => g.importId).filter(Boolean))
+    const fresh = entries.filter((e) => !existingIds.has(e.importId))
+    const stamp = Date.now()
+    const made = fresh.map((e, i) => ({
+      id: 'gm' + stamp + '_' + i, date: e.date, type: 'game', opponent: e.opponent || '',
+      time: e.time || '', home: e.home || '', location: e.location || '', log: [], onCourt: [], importId: e.importId,
+    }))
+    if (made.length) persistGames((gs) => made.concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    const skipped = entries.length - made.length
+    showToast(made.length + (made.length === 1 ? ' game imported' : ' games imported') + (skipped ? ` (${skipped} already there)` : ''))
+  }
   // Editing/removing an event persists to whichever team is active at save
   // time — since Schedule can show every team's events at once, switch to
   // the owning team first so the edit lands in the right team's data.
@@ -1043,7 +1060,7 @@ export function AppProvider({ children }) {
     persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
-    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents,
+    addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
     askReset, closeReset, resetGame, resetRoster,
     newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
     toggleTwoTeam, setTeamAName, setTeamBName, setPlayerSide, openImportSheet, closeImportSheet, importTeamRoster, removeImportedPlayer,
