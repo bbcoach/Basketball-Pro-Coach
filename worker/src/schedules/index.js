@@ -7,5 +7,7 @@
 // is source-agnostic.
 import * as germany from './germany.js'
 import * as france from './france.js'
+import * as norway from './norway.js'
+import * as denmark from './denmark.js'
 
-export const SOURCES = { germany, france }
+export const SOURCES = { germany, france, norway, denmark }
