@@ -124,10 +124,10 @@ async function handleSchedule(url) {
   let parsed
   try {
     // Response.text() always decodes as UTF-8 regardless of what the
-    // server's own Content-Type charset says — fine for the sources that
-    // actually are UTF-8, but it would silently mangle Denmark's æ/ø/å,
-    // whose pages declare windows-1252. Adapters that need something other
-    // than UTF-8 say so via their own `encoding` export.
+    // server's own Content-Type charset says — fine for sources that
+    // actually are UTF-8, but it would silently mangle anything served as,
+    // say, windows-1252. Adapters that need something other than UTF-8 say
+    // so via their own `encoding` export.
     const buf = await res.arrayBuffer()
     const text = new TextDecoder(adapter.encoding || 'utf-8').decode(buf)
     parsed = adapter.parse(text)
