@@ -13,7 +13,6 @@ export const SOURCES = [
   { id: 'germany', label: 'Germany — basketball-bund.net', idHint: 'The number after "liga_id=" in your league’s URL on basketball-bund.net' },
   { id: 'france', label: 'France — competitions.ffbb.com', idHint: 'Paste the link to your team’s page on competitions.ffbb.com (find it under Compétitions → your région → comité → club → équipe)' },
   { id: 'norway', label: 'Norway — basket.no', idHint: 'The number after "tournamentId=" in your league’s URL on kamper.basket.no' },
-  { id: 'denmark', label: 'Denmark — resultater.basket.dk', idHint: 'The number after "HoldId=" in your team’s URL on resultater.basket.dk' },
 ]
 
 // A pasted id may be the bare thing the Worker wants (Germany's liga_id) or
