@@ -417,8 +417,41 @@ export function makeBoard(state) {
     return out
   }
 
-  // Defender track: mirrors his man's movement across ALL steps, keeps his own
-  // drawn paths where they exist, and gets stuck on screens for the rest of that step.
+  // Where a half-court view's near hoop sits — see playSvg.js's own rim
+  // circle, which the live board, the preview and the PDF export all crop
+  // to the same top region.
+  const HOOP = { x: 750, y: 157.5 }
+
+  // How far off-ball a defender sags toward the rim, scaled by how far his
+  // own man is from the ball: the "ball-you-man" line every coach teaches —
+  // tight within about one pass, sagging further into help the longer that
+  // pass would be. Since the ball rides with whoever's holding it, a man who
+  // *has* the ball is automatically at distance ~0 and this reduces to the
+  // old tight mirror with no special-casing needed for "who's on-ball".
+  const HELP_ON_DIST = 260
+  const HELP_MAX_DIST = 900
+  const HELP_MAX_SAG = 130
+  const helpAdjustedMan = (manPos, ballPt) => {
+    const manToBall = dist(manPos, ballPt)
+    const blend = Math.max(0, Math.min(1, (manToBall - HELP_ON_DIST) / (HELP_MAX_DIST - HELP_ON_DIST)))
+    if (!blend) return manPos
+    const dx = HOOP.x - manPos.x
+    const dy = HOOP.y - manPos.y
+    const dl = Math.hypot(dx, dy) || 1
+    const sag = HELP_MAX_SAG * blend
+    return { x: manPos.x + (dx / dl) * sag, y: manPos.y + (dy / dl) * sag }
+  }
+
+  // How much of the gap to the ideal shadowing position a defender closes
+  // per SUB-th of a step. Below 1 so a burst of speed from his man opens a
+  // visible step of separation that closes back down once the man slows —
+  // a defender reacting a beat late rather than moving in perfect lockstep.
+  const REACT_EASE = 0.4
+
+  // Defender track: mirrors his man's movement across ALL steps (adjusted
+  // for help positioning), trails that ideal spot by a reaction lag, keeps
+  // his own drawn paths where they exist, and gets stuck on screens for the
+  // rest of that step.
   const entPos = (ent, t, n, marksMap) => {
     if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
     const manId = (marksMap || marks())[ent.id]
@@ -428,16 +461,20 @@ export function makeBoard(state) {
     const SUB = 24
     const total = Math.max(0, Math.min(0.999999, t)) * n
     const steps = Math.ceil(total * SUB)
-    let pos = { x: ent.x, y: ent.y }
-    let prevMan = { x: man.x, y: man.y }
+    // idealPos is where perfect man-to-man shadowing (with help positioning
+    // and screen collisions) says the defender should be; renderPos is what
+    // actually gets drawn, trailing idealPos by the reaction lag above.
+    let idealPos = { x: ent.x, y: ent.y }
+    let renderPos = { x: ent.x, y: ent.y }
+    let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
     for (let i = 1; i <= steps; i++) {
       const u = Math.min(total, i / SUB)
       const k = Math.floor(u) + 1
       const tt = u / n
       const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
-      const mp = posAtTime(man, tt, n)
-      if (own) { pos = posAtTime(ent, tt, n); prevMan = mp; continue }
-      const cand = { x: pos.x + (mp.x - prevMan.x), y: pos.y + (mp.y - prevMan.y) }
+      const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
+      if (own) { idealPos = posAtTime(ent, tt, n); renderPos = idealPos; prevMan = mp; continue }
+      const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
       let hitScreen = null
       state.players.forEach((sp) => {
         if (sp.id === ent.id || sp.team === 'def') return
@@ -445,21 +482,22 @@ export function makeBoard(state) {
         const spp = posAtTime(sp, tt, n)
         if (dist(cand, spp) < 118 && (!hitScreen || dist(cand, spp) < dist(cand, hitScreen))) hitScreen = spp
       })
-      if (!hitScreen) pos = cand
+      if (!hitScreen) idealPos = cand
       else {
-        const vx = cand.x - pos.x
-        const vy = cand.y - pos.y
+        const vx = cand.x - idealPos.x
+        const vy = cand.y - idealPos.y
         const nx = cand.x - hitScreen.x
         const ny = cand.y - hitScreen.y
         const nl = Math.hypot(nx, ny) || 1
         const ux = nx / nl
         const uy = ny / nl
         const along = vx * -uy + vy * ux
-        pos = { x: pos.x + -uy * along * 0.45, y: pos.y + ux * along * 0.45 }
+        idealPos = { x: idealPos.x + -uy * along * 0.45, y: idealPos.y + ux * along * 0.45 }
       }
+      renderPos = { x: renderPos.x + (idealPos.x - renderPos.x) * REACT_EASE, y: renderPos.y + (idealPos.y - renderPos.y) * REACT_EASE }
       prevMan = mp
     }
-    return pos
+    return renderPos
   }
 
   const hit = (p, t) => {
