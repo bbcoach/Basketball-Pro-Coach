@@ -49,6 +49,24 @@ export default function Home() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
+      {/* Film-grain overlay: the gradient alone reads as flat, glowing plastic
+          on an OLED screen. A near-invisible noise texture (an inline SVG
+          feTurbulence filter, no image asset needed) breaks that up into
+          something with a bit of material grain, the way a matte surface
+          catches light unevenly instead of a glossy one. Kept purely
+          decorative — no pointer events, sits behind every real control. */}
+      <div
+        aria-hidden="true"
+        style={{
+          // 'overlay' barely moves a base this dark (it preserves extremes,
+          // and near-black is about as extreme as a colour gets) — 'screen'
+          // actually lightens by the noise value regardless of how dark
+          // what's underneath is, which is the whole point here.
+          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.09, mixBlendMode: 'screen',
+          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'180\' height=\'180\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
+          backgroundSize: '180px 180px',
+        }}
+      />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '54px 24px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 26 }}>
           <Logo size={52} iconSize={38} />
