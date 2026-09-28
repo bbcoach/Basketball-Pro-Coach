@@ -49,22 +49,21 @@ export default function Home() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
-      {/* Film-grain overlay: the gradient alone reads as flat, glowing plastic
-          on an OLED screen. A near-invisible noise texture (an inline SVG
-          feTurbulence filter, no image asset needed) breaks that up into
-          something with a bit of material grain, the way a matte surface
-          catches light unevenly instead of a glossy one. Kept purely
-          decorative — no pointer events, sits behind every real control. */}
+      {/* Pebbled-leather overlay: one small tile of hand-placed dots (not a
+          regular grid, and not several overlapping periodic layers either —
+          both of those beat against themselves into a moiré plaid at this
+          scale) repeated across the screen. Deliberately irregular spacing
+          is what actually reads as basketball pebbling rather than a
+          printed pattern. Kept monochrome (screen-blended highlights) so it
+          reads as material grain rather than competing with the gold accent
+          color. Purely decorative — no pointer events, sits behind every
+          real control. */}
       <div
         aria-hidden="true"
         style={{
-          // 'overlay' barely moves a base this dark (it preserves extremes,
-          // and near-black is about as extreme as a colour gets) — 'screen'
-          // actually lightens by the noise value regardless of how dark
-          // what's underneath is, which is the whole point here.
-          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.09, mixBlendMode: 'screen',
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'180\' height=\'180\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3CfeColorMatrix type=\'saturate\' values=\'0\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-          backgroundSize: '180px 180px',
+          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.16, mixBlendMode: 'screen',
+          backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'40\'%3E%3Cg fill=\'%23fff\'%3E%3Ccircle cx=\'4\' cy=\'6\' r=\'1.7\'/%3E%3Ccircle cx=\'13\' cy=\'3\' r=\'1.4\'/%3E%3Ccircle cx=\'22\' cy=\'7\' r=\'1.6\'/%3E%3Ccircle cx=\'33\' cy=\'4\' r=\'1.3\'/%3E%3Ccircle cx=\'8\' cy=\'15\' r=\'1.5\'/%3E%3Ccircle cx=\'19\' cy=\'17\' r=\'1.8\'/%3E%3Ccircle cx=\'29\' cy=\'14\' r=\'1.4\'/%3E%3Ccircle cx=\'38\' cy=\'18\' r=\'1.6\'/%3E%3Ccircle cx=\'3\' cy=\'25\' r=\'1.4\'/%3E%3Ccircle cx=\'14\' cy=\'27\' r=\'1.7\'/%3E%3Ccircle cx=\'24\' cy=\'24\' r=\'1.5\'/%3E%3Ccircle cx=\'35\' cy=\'28\' r=\'1.4\'/%3E%3Ccircle cx=\'6\' cy=\'35\' r=\'1.6\'/%3E%3Ccircle cx=\'17\' cy=\'37\' r=\'1.4\'/%3E%3Ccircle cx=\'27\' cy=\'34\' r=\'1.7\'/%3E%3Ccircle cx=\'37\' cy=\'37\' r=\'1.5\'/%3E%3C/g%3E%3C/svg%3E")',
+          backgroundSize: '40px 40px',
         }}
       />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '54px 24px 0' }}>
