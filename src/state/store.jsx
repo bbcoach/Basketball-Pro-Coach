@@ -51,6 +51,7 @@ function initialState() {
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     formOpen: false, shareOpen: false,
     shareStatus: 'Sends the current play to your team',
+    videoExporting: false,
     plays: [],
     shareCode: null, // { title, code } — the coach-to-coach export/import sheet
     importOpen: false, importErr: '', importText: '',
@@ -525,6 +526,39 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     exportPlayStepsPdf({ name: s.playName, view: s.view, steps: nSteps(), players: s.players, ball: s.ball })
     set({ shareOpen: false, shareStatus: 'Opening PDF…' })
+  }
+  // Renders off-screen (no capture of the live, already-animating board —
+  // see videoExport.js for why that's what sank the first attempt at this)
+  // and downloads straight to a file, the same way downloadBackup() does.
+  // Keeps the share sheet open with a progress readout for the few seconds
+  // this takes, the same convention DeviceSyncModal's busy screens use,
+  // rather than the instant PDF export's close-immediately. The encoder
+  // library is a genuinely heavy dependency for a feature most sessions
+  // never touch, so it's loaded on demand here rather than bundled into
+  // every page load the way a top-of-file import would.
+  const doExportVideo = async () => {
+    const s = stateRef.current
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef }
+    set({ videoExporting: true, shareStatus: 'Encoding video… 0%' })
+    try {
+      const { renderPlayVideo } = await import('../lib/videoExport')
+      const blob = await renderPlayVideo(play, {
+        onProgress: (frac) => set({ shareStatus: 'Encoding video… ' + Math.round(frac * 100) + '%' }),
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileBase() + '.mp4'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      set({ shareOpen: false, videoExporting: false, shareStatus: 'Sends the current play to your team' })
+      showToast('Video saved')
+    } catch {
+      set({ shareOpen: false, videoExporting: false, shareStatus: 'Sends the current play to your team' })
+      showToast("Couldn't export video on this device")
+    }
   }
 
   // Half-court in full screen wastes the one thing full screen is for —
@@ -1049,7 +1083,7 @@ export function AppProvider({ children }) {
     undo, clearRoutes, resetAll, setTool, toggleAutoDef, applyFormation,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
-    openFormations, closeFormations, openShare, closeShareModal, doExportSteps,
+    openFormations, closeFormations, openShare, closeShareModal, doExportSteps, doExportVideo,
     openShareCode, closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen,
