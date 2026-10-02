@@ -46,7 +46,7 @@ function initialState() {
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
-    autoDef: true, fullScreen: false,
+    autoDef: true, defenseDelay: 0.6, fullScreen: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     formOpen: false, shareOpen: false,
@@ -538,7 +538,7 @@ export function AppProvider({ children }) {
   // every page load the way a top-of-file import would.
   const doExportVideo = async () => {
     const s = stateRef.current
-    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef }
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, defenseDelay: s.defenseDelay }
     set({ videoExporting: true, shareStatus: 'Encoding video… 0%' })
     try {
       const { renderPlayVideo } = await import('../lib/videoExport')

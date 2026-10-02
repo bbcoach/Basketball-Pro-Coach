@@ -446,7 +446,14 @@ export function makeBoard(state) {
   // per SUB-th of a step. Below 1 so a burst of speed from his man opens a
   // visible step of separation that closes back down once the man slows —
   // a defender reacting a beat late rather than moving in perfect lockstep.
-  const REACT_EASE = 0.4
+  // state.defenseDelay (0 = tight, 1 = sluggish) is the coach-facing slider;
+  // it's inverted and scaled into this easing fraction here. Never let it
+  // reach 0 — that would freeze a defender in place for the rest of the
+  // play instead of just trailing further behind.
+  const REACT_EASE_TIGHT = 0.85
+  const REACT_EASE_LAGGY = 0.12
+  const delay = Math.max(0, Math.min(1, state.defenseDelay ?? 0.6))
+  const REACT_EASE = REACT_EASE_TIGHT - delay * (REACT_EASE_TIGHT - REACT_EASE_LAGGY)
 
   // Defender track: mirrors his man's movement across ALL steps (adjusted
   // for help positioning), trails that ideal spot by a reaction lag, keeps

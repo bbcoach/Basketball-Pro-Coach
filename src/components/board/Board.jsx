@@ -178,7 +178,7 @@ function ToolsRow() {
 
 function FooterButtons() {
   const app = useApp()
-  const { state, goHome, openSave, openSheet, enterFullScreen, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
+  const { state, set, goHome, openSave, openSheet, enterFullScreen, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const btn = (label, onClick, active) => (
@@ -199,6 +199,17 @@ function FooterButtons() {
         {btn('Clear paths', askClearRoutes)}
         {btn('Reset', askResetAll)}
       </div>
+      {state.autoDef && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 320, margin: '2px auto 0' }}>
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Tight</div>
+          <input
+            type="range" min="0" max="1" step="0.05" value={state.defenseDelay}
+            onChange={(e) => set({ defenseDelay: parseFloat(e.target.value) })}
+            style={{ flex: 1 }}
+          />
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Laggy</div>
+        </div>
+      )}
     </div>
   )
 }
