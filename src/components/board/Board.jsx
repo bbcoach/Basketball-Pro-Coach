@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
-import { ACCENT, TEAM_NAME } from '../../state/config'
-import {COND, keycap, sunken} from '../../theme'
+import { TEAM_NAME } from '../../state/config'
+import { COMIC_INK, COMIC_PAPER, COMIC_PAPER_HI, COMIC_RED, COMIC_GOLD, COMIC_DISPLAY, COMIC_SANS, comicButton, comicHalftoneBg } from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
-import Logo from '../Logo'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
@@ -66,8 +65,8 @@ function Header({ compact }) {
       onClick={onClick}
       style={{
         flex: compact ? 1 : 'none', textAlign: compact ? 'center' : 'left',
-        padding: compact ? '6px 4px' : '7px 11px', borderRadius: 8, fontSize: compact ? 11 : 12, fontWeight: 600, cursor: 'pointer',
-        background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)',
+        padding: compact ? '6px 4px' : '7px 11px', borderRadius: 7, fontSize: compact ? 11 : 12, fontWeight: 800, cursor: 'pointer', fontFamily: COMIC_SANS,
+        background: active ? COMIC_GOLD : 'transparent', color: COMIC_INK, opacity: active ? 1 : 0.55,
       }}
     >
       {label}
@@ -78,14 +77,11 @@ function Header({ compact }) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '2px 0 8px', flex: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <div onClick={goHome} style={{ cursor: 'pointer' }}>
-            <Logo size={20} iconSize={15} />
-          </div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', color: ACCENT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+          <div onClick={goHome} style={{ cursor: 'pointer', fontFamily: COMIC_DISPLAY, fontSize: 17, lineHeight: 1.1, letterSpacing: '.02em', color: COMIC_INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
             Tactics Board
           </div>
         </div>
-        <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', background: COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, borderRadius: 10, padding: 3, gap: 2 }}>
           {seg(view === 'half', 'Halfcourt', () => setView('half'))}
           {seg(view === 'full', 'Fullcourt', () => setView('full'))}
         </div>
@@ -96,16 +92,13 @@ function Header({ compact }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 16px 8px', flex: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-        <div onClick={goHome} style={{ cursor: 'pointer' }}>
-          <Logo size={26} iconSize={19} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TEAM_NAME}</div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>Tactics Board</div>
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
+        <div onClick={goHome} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div style={{ fontFamily: COMIC_DISPLAY, fontSize: 23, lineHeight: 1.08, letterSpacing: '.01em', color: COMIC_INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TEAM_NAME}</div>
+          <div style={{ fontFamily: COMIC_DISPLAY, fontSize: 20, lineHeight: 1.08, letterSpacing: '.02em', color: COMIC_RED }}>Tactics Board</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b6b63', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
         </div>
       </div>
-      <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2, flex: 'none' }}>
+      <div style={{ display: 'flex', background: COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, borderRadius: 10, padding: 3, gap: 2, flex: 'none' }}>
         {seg(view === 'half', 'Halfcourt', () => setView('half'))}
         {seg(view === 'full', 'Fullcourt', () => setView('full'))}
       </div>
@@ -120,14 +113,14 @@ function PlaybackBar() {
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 16px 2px' }}>
       <div
         onClick={togglePlay}
-        style={{ width: 42, height: 42, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...keycap(), color: '#101012', fontSize: 17, fontWeight: 700 }}
+        style={{ width: 42, height: 42, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...comicButton(COMIC_RED), color: COMIC_PAPER_HI, fontSize: 16, fontWeight: 700 }}
       >
         {playing ? '❙❙' : '▶'}
       </div>
-      <input type="range" min="0" max="1" step="0.002" value={t} onChange={(e) => set({ t: parseFloat(e.target.value), playing: false })} style={{ flex: 1 }} />
+      <input type="range" min="0" max="1" step="0.002" value={t} onChange={(e) => set({ t: parseFloat(e.target.value), playing: false })} style={{ flex: 1, accentColor: COMIC_RED }} />
       <div
         onClick={() => set((s) => ({ speed: s.speed === 1 ? 1.5 : s.speed === 1.5 ? 0.5 : 1 }))}
-        style={{ padding: '7px 9px', borderRadius: 8, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 'none', minWidth: 32, textAlign: 'center' }}
+        style={{ padding: '7px 9px', borderRadius: 8, background: COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, color: COMIC_INK, fontSize: 11, fontWeight: 800, fontFamily: COMIC_SANS, cursor: 'pointer', flex: 'none', minWidth: 32, textAlign: 'center' }}
       >
         {speed}×
       </div>
@@ -141,17 +134,17 @@ function StepBar() {
   const n = nSteps()
   const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
   const chipStyle = (active) => ({
-    minWidth: 27, padding: '5px 6px', borderRadius: 8, textAlign: 'center', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-    background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.72)', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'),
+    minWidth: 27, padding: '5px 6px', borderRadius: 8, textAlign: 'center', fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: COMIC_SANS,
+    background: active ? COMIC_GOLD : COMIC_PAPER_HI, color: COMIC_INK, border: `2px solid ${COMIC_INK}`,
   })
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'center', padding: '4px 12px 8px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginRight: 2 }}>Step</div>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.6px', textTransform: 'uppercase', color: '#6b6b63', marginRight: 2 }}>Step</div>
       {Array.from({ length: n }, (_, i) => i + 1).map((nn) => (
         <div key={nn} onClick={() => gotoStep(nn)} style={chipStyle(nn === editStep)}>{nn}</div>
       ))}
-      <div onClick={addStep} style={{ ...chipStyle(false), color: 'rgba(255,255,255,.78)' }}>＋</div>
-      <div onClick={delStep} style={{ ...chipStyle(false), color: 'rgba(255,255,255,.5)' }}>−</div>
+      <div onClick={addStep} style={chipStyle(false)}>＋</div>
+      <div onClick={delStep} style={{ ...chipStyle(false), opacity: 0.6 }}>−</div>
     </div>
   )
 }
@@ -165,10 +158,10 @@ function ToolsRow() {
         return (
           <div
             key={id} onClick={() => setTool(id)}
-            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
+            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 11, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${COMIC_INK}`, background: active ? COMIC_GOLD : COMIC_PAPER_HI, color: COMIC_INK }}
           >
-            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
+            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COMIC_SANS }}>{icon}</div>
+            <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
           </div>
         )
       })}
@@ -182,15 +175,15 @@ function FooterButtons() {
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const btn = (label, onClick, active) => (
-    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT : 'rgba(255,255,255,.07)', color: active ? '#101012' : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
+    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? COMIC_GOLD : COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, color: COMIC_INK, fontSize: 11, fontWeight: 700, fontFamily: COMIC_SANS, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
   )
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 14px 0' }}>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.42)', letterSpacing: '.2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{state.hint}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#6b6b63', letterSpacing: '.2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{state.hint}</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', flex: '0 1 auto' }}>
         {btn('Menu', goHome)}
         {btn('Save', openSave)}
-        <div onClick={openSheet} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Plays</div>
+        {btn('Plays', openSheet)}
         {btn('Full screen', enterFullScreen)}
         {btn('D follows', toggleAutoDef, state.autoDef)}
         {btn('Setup', openFormations)}
@@ -201,13 +194,13 @@ function FooterButtons() {
       </div>
       {state.autoDef && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 320, margin: '2px auto 0' }}>
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Tight</div>
+          <div style={{ fontSize: 10.5, color: '#6b6b63', fontWeight: 700, whiteSpace: 'nowrap' }}>Tight</div>
           <input
             type="range" min="0" max="1" step="0.05" value={state.defenseDelay}
             onChange={(e) => set({ defenseDelay: parseFloat(e.target.value) })}
-            style={{ flex: 1 }}
+            style={{ flex: 1, accentColor: COMIC_RED }}
           />
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Laggy</div>
+          <div style={{ fontSize: 10.5, color: '#6b6b63', fontWeight: 700, whiteSpace: 'nowrap' }}>Laggy</div>
         </div>
       )}
     </div>
@@ -225,12 +218,12 @@ function FullScreenControls() {
   const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
   const circleBtn = (disabled) => ({
     width: 44, height: 44, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'rgba(255,255,255,.16)', color: disabled ? 'rgba(255,255,255,.3)' : '#fff', fontSize: 19, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
+    background: COMIC_PAPER_HI, border: `2.5px solid ${COMIC_INK}`, color: disabled ? '#b8b8a8' : COMIC_INK, fontSize: 19, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
   })
   return (
     <div style={{ position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', left: 16, zIndex: 60, display: 'flex', alignItems: 'center', gap: 8 }}>
       <div onClick={() => editStep > 1 && gotoStep(editStep - 1)} style={circleBtn(editStep <= 1)}>‹</div>
-      <div style={{ padding: '8px 4px', borderRadius: 99, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
+      <div style={{ padding: '8px 4px', borderRadius: 99, background: COMIC_PAPER_HI, border: `2.5px solid ${COMIC_INK}`, color: COMIC_INK, fontSize: 12.5, fontWeight: 800, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
       <div onClick={() => editStep < n && gotoStep(editStep + 1)} style={circleBtn(editStep >= n)}>›</div>
       <div onClick={addStep} style={{ ...circleBtn(false), width: 38, height: 38, fontSize: 17 }}>＋</div>
     </div>
@@ -403,8 +396,8 @@ function FullScreenTools() {
     display: 'flex', flexDirection: landscape ? 'row' : 'column',
     alignItems: 'center', justifyContent: 'center', gap: landscape ? 5 : 1,
     ...(landscape ? { height: FS_TILE_H, padding: '0 9px' } : { width: FS_TILE_W, padding: '5px 2px' }),
-    borderRadius: 12, cursor: 'pointer', overflow: 'hidden',
-    background: active ? ACCENT : 'rgba(255,255,255,.16)', color: active ? '#101012' : '#fff',
+    borderRadius: 11, cursor: 'pointer', overflow: 'hidden', border: `2px solid ${COMIC_INK}`,
+    background: active ? COMIC_GOLD : COMIC_PAPER_HI, color: COMIC_INK,
   })
 
   return (
@@ -415,12 +408,12 @@ function FullScreenTools() {
     >
       <div
         onPointerDown={onHandleDown}
-        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: landscape ? 'auto' : 18, height: landscape ? 18 : 'auto', alignSelf: 'stretch', borderRadius: 8, background: 'rgba(255,255,255,.1)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
+        style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: landscape ? 'auto' : 18, height: landscape ? 18 : 'auto', alignSelf: 'stretch', borderRadius: 7, background: COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, color: COMIC_INK, fontSize: 12, cursor: dragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
         ⠿
       </div>
       {showHint && (
-        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 8, ...keycap(), color: '#101012', fontSize: 8, fontWeight: 700, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
+        <div style={{ flex: 'none', padding: '4px 6px', borderRadius: 8, ...comicButton(), color: COMIC_INK, fontSize: 8, fontWeight: 700, fontFamily: COMIC_SANS, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>
           Hold to move
         </div>
       )}
@@ -430,14 +423,14 @@ function FullScreenTools() {
           const row = landscape
           return (
             <div key={id} onClick={() => onToolClick(() => setTool(id))} style={tileStyle(active)}>
-              <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-              <div style={{ fontSize: row ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>{label}</div>
+              <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COMIC_SANS }}>{icon}</div>
+              <div style={{ fontSize: row ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 700, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>{label}</div>
             </div>
           )
         })}
         <div onClick={() => onToolClick(undo)} style={tileStyle(false)}>
-          <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COND }}>↺︎</div>
-          <div style={{ fontSize: landscape ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 600, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>Undo</div>
+          <div style={{ fontSize: 12.5, lineHeight: '13px', height: 13, fontWeight: 700, fontFamily: COMIC_SANS }}>↺︎</div>
+          <div style={{ fontSize: landscape ? 9.5 : 8.5, lineHeight: '10px', fontWeight: 700, letterSpacing: '.1px', whiteSpace: 'nowrap' }}>Undo</div>
         </div>
       </ScrollX>
     </div>
@@ -454,10 +447,11 @@ export default function Board() {
   useWakeLock(fullScreen)
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: COMIC_PAPER, padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
+      <div style={{ ...comicHalftoneBg, position: 'absolute', inset: 0, opacity: 0.1, pointerEvents: 'none' }} />
       {fullScreen && (
         <>
-          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
+          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: COMIC_PAPER_HI, border: `2px solid ${COMIC_INK}`, color: COMIC_INK, fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
           <FullScreenTools />
           <FullScreenControls />
           <div
@@ -465,7 +459,7 @@ export default function Board() {
             style={{
               position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', right: 16,
               zIndex: 60, width: 46, height: 46, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer',
+              background: COMIC_RED, border: `2.5px solid ${COMIC_INK}`, color: COMIC_PAPER_HI, fontSize: 16, fontWeight: 700, cursor: 'pointer',
             }}
           >
             {playing ? '❙❙' : '▶'}
@@ -474,7 +468,7 @@ export default function Board() {
       )}
       {!fullScreen && !landscape && <Header />}
 
-      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
+      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: COMIC_PAPER_HI, border: `2.5px solid ${COMIC_INK}`, boxShadow: `4px 4px 0 ${COMIC_INK}`, padding: 9 }}>
         <Court />
       </div>
 
