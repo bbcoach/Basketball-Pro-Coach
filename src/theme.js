@@ -12,49 +12,6 @@ export const ACCENT = '#e8b13c'
 export const COND = "'Barlow Condensed', sans-serif"
 export const SANS = 'Barlow, system-ui, sans-serif'
 
-// ── Retro Comic (in progress — Home screen first, more to follow) ────────
-//
-// A second, additive token set rather than a replacement: screens not yet
-// rebuilt in this style still depend on ACCENT/COND/SANS and the raised()/
-// keycap()/etc. helpers above meaning "gold on near-black soft depth", and
-// changing those out from under them would break every screen in the app at
-// once instead of one at a time. Once every screen has moved over, the old
-// set above can go and these can lose the "COMIC" naming.
-export const COMIC_INK = '#171722'
-export const COMIC_PAPER = '#f3e6c8'
-export const COMIC_PAPER_HI = '#fff8e8'
-export const COMIC_RED = '#e8432f'
-export const COMIC_GOLD = '#f2b705'
-export const COMIC_DISPLAY = "'Bangers', cursive"
-export const COMIC_SANS = "'Nunito', system-ui, sans-serif"
-
-// The comic depth model is a flat offset shadow and a thick ink border —
-// a drawn sticker, not a lit, soft-shadowed surface — so it doesn't reuse
-// raised()'s gradient-and-glow math at all.
-export function comicCard(bg = COMIC_PAPER_HI) {
-  return {
-    background: bg,
-    border: `2.5px solid ${COMIC_INK}`,
-    boxShadow: `4px 4px 0 ${COMIC_INK}`,
-  }
-}
-
-export function comicButton(bg = COMIC_GOLD) {
-  return {
-    background: bg,
-    border: `2.5px solid ${COMIC_INK}`,
-    boxShadow: `4px 4px 0 ${COMIC_INK}`,
-    fontFamily: COMIC_DISPLAY,
-  }
-}
-
-// The halftone-dot ground every comic card sits on — a tiled radial-gradient
-// dot rather than an image, so it scales to any screen size for free.
-export const comicHalftoneBg = {
-  backgroundImage: `radial-gradient(${COMIC_INK} 1.1px, transparent 1.1px)`,
-  backgroundSize: '13px 13px',
-}
-
 export const card = {
   bg: 'rgba(255,255,255,.06)',
   border: 'rgba(255,255,255,.1)',
