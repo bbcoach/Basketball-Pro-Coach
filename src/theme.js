@@ -110,6 +110,16 @@ export function chipSurface(a = 0.1) {
   }
 }
 
+// The logo's halo, as a box-shadow so any rounded element can wear it: a
+// dark gap (`gap` px), then a thin gold ring, then a faint bloom — the same
+// three layers as the halo ring around the ball in Logo.jsx. The gap
+// colour sits close to the page background so it reads as space, not as
+// an extra outline. index.css keeps a copy for the cards' :active state,
+// since a pseudo-class can't come from an inline style.
+export function haloRing(gap = 2.5) {
+  return `0 0 0 ${gap}px #0e0e10, 0 0 0 ${gap + 1.6}px rgba(232,177,60,.85), 0 0 14px ${gap + 2}px rgba(232,177,60,.22)`
+}
+
 // Primary actions as physical keys: lighter at the top, darker at the
 // bottom, with a dark bottom edge doing the work a moulded keycap's would.
 export function keycap(bg = ACCENT) {

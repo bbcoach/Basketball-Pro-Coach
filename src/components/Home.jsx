@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
-import {COND, raised, keycap} from '../theme'
+import {COND, raised, keycap, haloRing} from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
@@ -12,6 +12,18 @@ import { plural } from '../lib/dates'
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
   return (p.view === 'half' ? 'Halfcourt' : 'Fullcourt') + ' · ' + plural(p.players.length, 'player') + ' · ' + (steps === 1 ? '1 step' : steps + ' steps')
+}
+
+// Each card's icon sits in a dark disc wearing the logo's halo ring, so the
+// list echoes the mark at the top of the screen. The glyphs carry U+FE0E
+// (text presentation): without it iOS swaps ⏱ and ☑ for colour emoji,
+// which sat oddly next to the plain symbols on the other cards.
+function CardIcon({ glyph }) {
+  return (
+    <div style={{ width: 38, height: 38, flex: 'none', margin: '0 4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(circle at 35% 30%, #2a2a2e, #141417)', boxShadow: haloRing(), color: ACCENT, fontSize: 17, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>
+      {glyph + '︎'}
+    </div>
+  )
 }
 
 export default function Home() {
@@ -105,10 +117,10 @@ export default function Home() {
         )}
 
         <div
-          onClick={toggleBoardMenu}
+          className="home-card" onClick={toggleBoardMenu}
           style={{ ...cardStyle, background: boardMenu ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.06)', border: boardMenu ? '1px solid rgba(255,255,255,.2)' : '1px solid rgba(255,255,255,.1)', marginBottom: 10 }}
         >
-          <div style={{ fontSize: 24, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>⌗</div>
+          <CardIcon glyph="⌗" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Tactics board</div>
             <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.62 }}>Draw and animate your plays</div>
@@ -167,8 +179,8 @@ export default function Home() {
           </div>
         )}
 
-        <div onClick={openTeams} style={{ ...cardStyle, marginTop: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>☰</div>
+        <div className="home-card" onClick={openTeams} style={{ ...cardStyle, marginTop: 10 }}>
+          <CardIcon glyph="☰" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My roster</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>
@@ -177,32 +189,32 @@ export default function Home() {
           </div>
         </div>
 
-        <div onClick={openSchedule} style={{ ...cardStyle, marginTop: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▦</div>
+        <div className="home-card" onClick={openSchedule} style={{ ...cardStyle, marginTop: 10 }}>
+          <CardIcon glyph="▦" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>My schedule</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{upcoming ? upcoming + (upcoming === 1 ? ' upcoming item' : ' upcoming items') : 'Trainings, games and team events'}</div>
           </div>
         </div>
 
-        <div onClick={openStats} style={{ ...cardStyle, marginTop: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>▥</div>
+        <div className="home-card" onClick={openStats} style={{ ...cardStyle, marginTop: 10 }}>
+          <CardIcon glyph="▥" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Track stats</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{roster.length ? plural(roster.length, 'player') + ' · ' + plural(games.length, 'game') + ' tracked' : 'Set up your roster, then track a game'}</div>
           </div>
         </div>
 
-        <div onClick={openPractice} style={{ ...cardStyle, marginTop: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>⏱</div>
+        <div className="home-card" onClick={openPractice} style={{ ...cardStyle, marginTop: 10 }}>
+          <CardIcon glyph="⏱" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Practice</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{plans.length || drills.length ? drills.length + (drills.length === 1 ? ' drill' : ' drills') + ' · ' + plans.length + (plans.length === 1 ? ' plan' : ' plans') : 'Build your own drills and sessions'}</div>
           </div>
         </div>
 
-        <div onClick={openAttend} style={{ ...cardStyle, marginTop: 10 }}>
-          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 700, fontFamily: COND }}>☑</div>
+        <div className="home-card" onClick={openAttend} style={{ ...cardStyle, marginTop: 10 }}>
+          <CardIcon glyph="☑" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.2px' }}>Training Attendance</div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,.5)' }}>{sessions.length ? sessions.length + (sessions.length === 1 ? ' session' : ' sessions') + ' tracked' : 'Track who showed up'}</div>
