@@ -27,13 +27,20 @@ export default function Logo({ size = 26, iconSize = 19 }) {
             <stop offset="38%" stopColor="#d49a2e" />
             <stop offset="100%" stopColor="#201405" />
           </radialGradient>
+          {/* A true ring, not a glow: fully transparent from the ball's own
+              edge (65%) out to 76% — a visible gap of dark badge showing
+              through — then a sharp rise to a bright band peaking at 86%,
+              fading out by the outer edge. A gradient that starts brightening
+              right at 0% reads as a soft bloom; this one reads as a distinct
+              halo sitting apart from the ball. */}
           <radialGradient id={haloId} cx="50%" cy="50%" r="50%">
-            <stop offset="56%" stopColor="#e8b13c" stopOpacity="0" />
-            <stop offset="82%" stopColor="#e8b13c" stopOpacity="0.55" />
+            <stop offset="65%" stopColor="#e8b13c" stopOpacity="0" />
+            <stop offset="76%" stopColor="#e8b13c" stopOpacity="0" />
+            <stop offset="86%" stopColor="#e8b13c" stopOpacity="0.85" />
             <stop offset="100%" stopColor="#e8b13c" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <circle cx="24" cy="24" r="19" fill={'url(#' + haloId + ')'} />
+        <circle cx="24" cy="24" r="23" fill={'url(#' + haloId + ')'} />
         <circle cx="24" cy="24" r="15" fill={'url(#' + sphereId + ')'} />
         <path d="M9 24H39M24 9V39M14 12.5C21 18 21 30 14 35.5M34 12.5C27 18 27 30 34 35.5" fill="none" stroke="#140d03" strokeWidth="1.3" opacity="0.6" />
       </svg>
