@@ -454,7 +454,7 @@ export default function Board() {
   useWakeLock(fullScreen)
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : '52px 0 30px 0', overflow: 'hidden' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : 'var(--safe-top) 0 calc(var(--safe-bottom) - 4px) 0', overflow: 'hidden' }}>
       {fullScreen && (
         <>
           <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>

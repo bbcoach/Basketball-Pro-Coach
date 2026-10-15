@@ -329,7 +329,7 @@ export default function Attendance() {
   const line = (teamName ? teamName + ' · ' : '') + plural(roster.length, 'player') + ' · ' + plural(sessions.length, 'session')
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="Attendance" line={line} onClose={closeAttend} />
       <Tabs tabs={[['sessions', 'Sessions'], ['roster', 'Roster'], ['summary', 'Summary']]} active={attendTab} onChange={(k) => set({ attendTab: k, openSession: null })} />
       {attendTab === 'sessions' && (openSession ? <SessionOpen /> : <SessionsTab />)}

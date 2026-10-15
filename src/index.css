@@ -23,6 +23,18 @@ html, body {
   min-height: var(--app-height, 100dvh);
 }
 
+/* Breathing room at the top and bottom of every full-screen view, read
+   from the device instead of hard-coded. Screens used to pad a fixed
+   52–60px on top — right for the installed iPhone app, which draws under
+   a translucent status bar, but pure wasted space in a Safari tab,
+   Android or desktop, where the page already starts below the bars.
+   env() reports what's really there (≈59px status bar / 34px home
+   indicator in the iPhone app, 0 in a browser tab), with 20px as a floor. */
+:root {
+  --safe-top: max(20px, env(safe-area-inset-top, 0px));
+  --safe-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+}
+
 /* The app's "card" width on anything that isn't a phone. Plain 480px on
    every screen regardless of monitor size used to mean a tablet or desktop
    browser saw a narrow phone-shaped column with huge black bars either

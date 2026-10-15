@@ -8,7 +8,7 @@ export default function InfoOverlay() {
   const info = INFO[state.infoPage]
   if (!info) return null
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 98, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 24px 40px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 98, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 24px calc(var(--safe-bottom) + 6px)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, paddingBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div onClick={closeInfo} style={{ cursor: 'pointer' }}>

@@ -647,7 +647,7 @@ function TwoTeamModal() {
   )
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.9)', display: 'flex', flexDirection: 'column', padding: '60px 20px 34px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.9)', display: 'flex', flexDirection: 'column', padding: 'calc(var(--safe-top) + 4px) 20px var(--safe-bottom)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 14 }}>
         <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Two teams</div>
         <div onClick={() => set({ twoTeamModalOpen: false, importSheetOpen: false })} style={{ padding: '7px 13px', borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>
@@ -732,7 +732,7 @@ export default function StatTracker() {
   useWakeLock(statsTab === 'live' && !!game)
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px env(safe-area-inset-right, 0px) 10px env(safe-area-inset-left, 0px)' : '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: landscape ? '16px env(safe-area-inset-right, 0px) 10px env(safe-area-inset-left, 0px)' : 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="Stat tracker" line={gameLine} onClose={closeStats} />
       <Tabs tabs={[['games', 'Games'], ['live', 'Live'], ['roster', 'Roster'], ['box', 'Box score'], ['season', 'Season']]} active={statsTab} onChange={(k) => set({ statsTab: k })} />
       {statsTab === 'games' && <GamesTab />}

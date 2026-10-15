@@ -234,7 +234,7 @@ export default function Practice() {
   const line = plural(drills.length, 'drill') + ' · ' + plural(plans.length, 'session plan')
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="Practice" line={line} onClose={closePractice} />
       <Tabs tabs={[['plans', 'Session plans'], ['drills', 'Drills']]} active={practiceTab} onChange={(k) => set({ practiceTab: k, openPlan: null })} />
       {practiceTab === 'plans' && (openId ? <PlanOpen /> : <PlansList />)}

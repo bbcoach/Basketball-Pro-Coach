@@ -49,7 +49,7 @@ export default function PlaysSheet() {
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(9,9,11,.96)', display: 'flex', flexDirection: 'column', padding: '60px 20px 34px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(9,9,11,.96)', display: 'flex', flexDirection: 'column', padding: 'calc(var(--safe-top) + 4px) 20px var(--safe-bottom)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 10 }}>
         <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>My library</div>
         <div onClick={closeSheet} style={{ padding: '7px 13px', borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Done</div>

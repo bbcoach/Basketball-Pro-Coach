@@ -128,7 +128,7 @@ export default function Schedule() {
   }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="My schedule" line={upcoming.length ? (filtered ? upcomingShown.length + ' of ' + upcoming.length + ' upcoming' : upcoming.length + ' upcoming') : undefined} onClose={closeSchedule} />
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
         <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
