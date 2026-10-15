@@ -23,7 +23,7 @@ export default function RunScreen() {
   const clockColor = runLeft === 0 ? '#c0392b' : runLeft <= 30 ? ACCENT : '#fff'
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: '#08080a', display: 'flex', flexDirection: 'column', padding: '60px 24px 40px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 99, background: '#08080a', display: 'flex', flexDirection: 'column', padding: 'calc(var(--safe-top) + 4px) 24px calc(var(--safe-bottom) + 6px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: ACCENT }}>{plan ? plan.name + ' · ' + (runIdx + 1) + '/' + list.length : ''}</div>
         <div onClick={stopRun} style={{ padding: '7px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Exit</div>

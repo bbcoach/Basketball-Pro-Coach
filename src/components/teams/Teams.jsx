@@ -88,7 +88,7 @@ export default function Teams() {
   const line = teams.length + (teams.length === 1 ? ' team' : ' teams')
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 0 46px' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="My roster" line={line} onClose={closeTeams} />
       {teamsDetail ? <TeamDetail /> : <TeamsList />}
       <RemoveTeamModal />

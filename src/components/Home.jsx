@@ -60,8 +60,16 @@ export default function Home() {
   const cardStyle = { display: 'flex', alignItems: 'center', gap: 14, padding: 18, borderRadius: 18, ...raised(.06, .1), color: '#fff', cursor: 'pointer' }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '54px 24px 0' }}>
+    // One scroller for the whole screen, footer included. The footer used to
+    // be pinned below a separately scrolling card list, which on a short
+    // viewport (Safari with its toolbars, a small phone) cut the list off
+    // mid-card with no hint that it scrolled. Now the footer follows the
+    // cards: pushed to the bottom by margin-top:auto when everything fits,
+    // simply scrolled to when it doesn't. The cards keep their own block
+    // wrapper so their vertical margins still collapse as before.
+    <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', overflowY: 'auto' }}>
+      <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 24px calc(var(--safe-bottom) + 6px)' }}>
+      <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 26 }}>
           <Logo size={52} iconSize={38} />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -222,18 +230,19 @@ export default function Home() {
         </div>
       </div>
 
-      <div style={{ padding: '20px 24px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ marginTop: 'auto', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <a href={DONATE_URL} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, borderRadius: 12, ...raised(.06, .12), color: ACCENT, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
           <span style={{ fontSize: 14 }}>♡</span>
           <span>Support this project</span>
         </a>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px 14px' }}>
           <div onClick={() => openInfo('about')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>About</div>
           <div onClick={() => openInfo('imprint')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Legal notice</div>
           <div onClick={() => openInfo('privacy')} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Privacy</div>
           <div onClick={openBackup} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Backup</div>
           <div onClick={openSync} style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.42)', cursor: 'pointer' }}>Sync devices</div>
         </div>
+      </div>
       </div>
     </div>
   )

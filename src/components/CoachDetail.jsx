@@ -33,7 +33,7 @@ export default function CoachDetail() {
   const initial = (coach.name || '?').trim().charAt(0).toUpperCase()
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 98, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: '56px 18px 46px' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 98, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 18px calc(var(--safe-bottom) + 12px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 16 }}>
         <div
           onClick={pickPhoto}
