@@ -211,8 +211,9 @@ function AppShell() {
       >
         <div
           data-app-frame
+          data-wide={wide ? 'true' : 'false'}
           style={{
-            width: '100%', maxWidth: wide ? 'none' : 480, minHeight: 'var(--app-height, 100dvh)', position: 'relative',
+            width: '100%', minHeight: 'var(--app-height, 100dvh)', position: 'relative',
             background: '#0a0a0b', boxShadow: wide ? 'none' : '0 0 60px rgba(0,0,0,.5)', overflow: 'hidden',
           }}
         >

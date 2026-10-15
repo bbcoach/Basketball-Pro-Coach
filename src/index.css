@@ -23,6 +23,28 @@ html, body {
   min-height: var(--app-height, 100dvh);
 }
 
+/* The app's "card" width on anything that isn't a phone. Plain 480px on
+   every screen regardless of monitor size used to mean a tablet or desktop
+   browser saw a narrow phone-shaped column with huge black bars either
+   side — these two breakpoints let it breathe on wider viewports while
+   staying a single centered column (the lightweight fix; a handful of
+   screens with genuinely awkward single-column layouts at that width, like
+   the roster list or the schedule table, can still opt into a true
+   multi-column reflow of their own later). Board/Stat Tracker's own
+   landscape "wide" mode (data-wide="true") already goes edge-to-edge and
+   overrides this entirely.
+   700px / 1100px roughly land at "tablet portrait and up" / "small laptop
+   and up" — comfortably past phone widths, short of fighting the wide mode
+   breakpoint below. */
+[data-app-frame] { max-width: 480px; }
+@media (min-width: 700px) {
+  [data-app-frame]:not([data-wide="true"]) { max-width: 760px; }
+}
+@media (min-width: 1100px) {
+  [data-app-frame]:not([data-wide="true"]) { max-width: 1100px; }
+}
+[data-app-frame][data-wide="true"] { max-width: none; }
+
 a { color: #e8b13c; text-decoration: none; }
 a:hover { color: #f3c760; }
 
