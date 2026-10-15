@@ -8,6 +8,14 @@ import '@fontsource/barlow-condensed/600.css'
 import '@fontsource/barlow-condensed/700.css'
 import '@fontsource/barlow-condensed/700-italic.css'
 import '@fontsource/barlow-condensed/800-italic.css'
+// Retro Comic redesign (Home screen first, more to follow) — Bangers for
+// comic-lettering headlines, Nunito for body text, alongside the Barlow
+// family above rather than replacing it: screens not yet migrated still
+// render in the original look and still need it.
+import '@fontsource/bangers/400.css'
+import '@fontsource/nunito/600.css'
+import '@fontsource/nunito/700.css'
+import '@fontsource/nunito/800.css'
 import './index.css'
 import App from './App.jsx'
 import { registerSW } from 'virtual:pwa-register'
