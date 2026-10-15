@@ -36,6 +36,12 @@ export const card = {
 const HI = 'rgba(255,255,255,.12)' // the lit top edge
 const GRAD = 'rgba(255,255,255,.065)' // fades down the face
 const DROP = '0 2px 7px rgba(0,0,0,.55)'
+// Marks a surface for the sink-in press feedback in index.css. A custom
+// property rather than matching on the shadow itself: browsers re-serialise
+// inline box-shadows ("inset 0 1px 0" reads back as "0px 1px 0px inset"),
+// so a [style*="..."] match on the shadow text never fires — custom
+// property names survive serialisation verbatim.
+const PRESS = { '--press': 'sink' }
 
 // A surface that stands above the page: cards, list rows, buttons.
 // `a` keeps each call site's own fill, since the app deliberately uses a
@@ -47,6 +53,7 @@ export function raised(a = 0.06, borderA = 0.1) {
     backgroundImage: `linear-gradient(${GRAD}, rgba(255,255,255,0))`,
     border: `1px solid rgba(255,255,255,${borderA})`,
     boxShadow: `inset 0 1px 0 ${HI}, ${DROP}`,
+    ...PRESS,
   }
 }
 
@@ -56,6 +63,7 @@ export function raisedBare(a = 0.06) {
     background: `rgba(255,255,255,${a})`,
     backgroundImage: `linear-gradient(${GRAD}, rgba(255,255,255,0))`,
     boxShadow: `inset 0 1px 0 ${HI}, ${DROP}`,
+    ...PRESS,
   }
 }
 
@@ -107,6 +115,7 @@ export function chipSurface(a = 0.1) {
     background: `rgba(255,255,255,${a})`,
     backgroundImage: 'radial-gradient(at 34% 28%, rgba(255,255,255,.26), rgba(0,0,0,.22))',
     boxShadow: `inset 0 1px 0 ${HI}, 0 2px 5px rgba(0,0,0,.55)`,
+    ...PRESS,
   }
 }
 
@@ -127,5 +136,6 @@ export function keycap(bg = ACCENT) {
     background: bg,
     backgroundImage: 'linear-gradient(rgba(255,255,255,.26), rgba(0,0,0,.16))',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.34), 0 2px 7px rgba(0,0,0,.55)',
+    ...PRESS,
   }
 }
