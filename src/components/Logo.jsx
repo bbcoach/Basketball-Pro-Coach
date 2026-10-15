@@ -1,5 +1,17 @@
+import { useId } from 'react'
 import { raised } from '../theme'
-export default function Logo({ size = 26, iconSize = 19, accent = '#e8b13c' }) {
+
+// A gold-shaded sphere with a soft rim-light halo, replacing the old flat
+// ring-and-arrow line art — picked from a round of design exploration as
+// "still unmistakably a basketball, but less like a default icon-font glyph
+// and more like a rendered object." Gradient ids are per-instance (useId)
+// since the badge can appear more than once on screen at a time (e.g. the
+// landscape board header still shows the compact Header's badge alongside
+// nothing else today, but nested modals/overlays have in the past).
+export default function Logo({ size = 26, iconSize = 19 }) {
+  const uid = useId()
+  const sphereId = 'logo-sphere-' + uid
+  const haloId = 'logo-halo-' + uid
   return (
     <div
       style={{
@@ -8,14 +20,29 @@ export default function Logo({ size = 26, iconSize = 19, accent = '#e8b13c' }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
     >
-      <svg viewBox="0 0 48 48" style={{ width: iconSize, height: iconSize, display: 'block' }} aria-hidden="true">
-        <circle cx="21" cy="27" r="15" fill="none" stroke={accent} strokeWidth="2.6" />
-        <path d="M6 27 H36" fill="none" stroke={accent} strokeWidth="1.7" opacity="0.9" />
-        <path d="M21 12 V42" fill="none" stroke={accent} strokeWidth="1.7" opacity="0.9" />
-        <path d="M10.5 16.5 C17 22 17 32 10.5 37.5" fill="none" stroke={accent} strokeWidth="1.7" opacity="0.9" />
-        <path d="M31.5 16.5 C25 22 25 32 31.5 37.5" fill="none" stroke={accent} strokeWidth="1.7" opacity="0.9" />
-        <path d="M30 19 C36 15 38 11 39.5 7.5" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="4 3.4" />
-        <path d="M43 4 L34.5 7 L39.5 12 Z" fill="#ffffff" transform="rotate(-18 39 8)" />
+      <svg viewBox="0 0 48 48" style={{ width: iconSize, height: iconSize, display: 'block', overflow: 'visible' }} aria-hidden="true">
+        <defs>
+          <radialGradient id={sphereId} cx="31%" cy="27%" r="82%">
+            <stop offset="0%" stopColor="#ffe9b0" />
+            <stop offset="38%" stopColor="#d49a2e" />
+            <stop offset="100%" stopColor="#201405" />
+          </radialGradient>
+          {/* A true ring, not a glow: fully transparent from the ball's own
+              edge (65%) out to 76% — a visible gap of dark badge showing
+              through — then a sharp rise to a bright band peaking at 86%,
+              fading out by the outer edge. A gradient that starts brightening
+              right at 0% reads as a soft bloom; this one reads as a distinct
+              halo sitting apart from the ball. */}
+          <radialGradient id={haloId} cx="50%" cy="50%" r="50%">
+            <stop offset="65%" stopColor="#e8b13c" stopOpacity="0" />
+            <stop offset="76%" stopColor="#e8b13c" stopOpacity="0" />
+            <stop offset="86%" stopColor="#e8b13c" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="#e8b13c" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx="24" cy="24" r="23" fill={'url(#' + haloId + ')'} />
+        <circle cx="24" cy="24" r="15" fill={'url(#' + sphereId + ')'} />
+        <path d="M9 24H39M24 9V39M14 12.5C21 18 21 30 14 35.5M34 12.5C27 18 27 30 34 35.5" fill="none" stroke="#140d03" strokeWidth="1.3" opacity="0.6" />
       </svg>
     </div>
   )
