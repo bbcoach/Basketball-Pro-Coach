@@ -27,7 +27,7 @@ function reportStyles(pageSize) {
     body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-variant-numeric:tabular-nums}
     .topbar{height:5px;background:${ACCENT};border-radius:99px;margin:0 0 20px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-    .logo{width:38px;height:38px;flex:none;border-radius:12px;border:1.5px solid ${ACCENT};display:flex;align-items:center;justify-content:center}
+    .logo{width:38px;height:38px;flex:none;border-radius:11px;background:#0a0a0b;display:flex;align-items:center;justify-content:center}
     h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:23px;letter-spacing:.3px;text-transform:uppercase;margin:0;line-height:1.05}
     h2{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;color:${ACCENT};margin:1px 0 0}
     .meta{margin-left:auto;text-align:right;font-size:11px;color:#888;line-height:1.6}
@@ -47,25 +47,30 @@ function reportHead(title) {
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Condensed:ital,wght@0,700;1,800&display=swap" rel="stylesheet">`
 }
 
-// The app's mark, redrawn for paper. Same geometry as Logo.jsx — ball with
-// both curved seams, dashed shaft, arrowhead — but the arrow can't stay the
-// white it is on screen: reports print on white, so a white arrow would be
-// an invisible one, which is how this header ended up showing a bare
-// circle-and-cross for a while. What carries over is the *relationship*
-// (accent ball, arrow in the contrasting foreground colour), not the literal
-// hex, so the arrow takes the same ink as the report's body text.
-// Strokes run heavier than the on-screen original because this renders at
-// a fraction of the size.
-const MARK_INK = '#171717'
+// The app's mark — the same gold sphere and halo ring as Logo.jsx and the
+// app icon. It keeps its dark tile on paper (see .logo) rather than being
+// re-inked for white: the halo is defined by the dark gap between ball and
+// ring, which a white ground would wash out, and a printed report showing
+// the exact app icon is the more recognisable of the two anyway. Seams run
+// slightly heavier than on screen because this renders smaller.
 function markSvg(px) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 48 48">
-    <circle cx="21" cy="27" r="15" fill="none" stroke="${ACCENT}" stroke-width="3.2"/>
-    <path d="M6 27 H36" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
-    <path d="M21 12 V42" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
-    <path d="M10.5 16.5 C17 22 17 32 10.5 37.5" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
-    <path d="M31.5 16.5 C25 22 25 32 31.5 37.5" fill="none" stroke="${ACCENT}" stroke-width="2" opacity=".9"/>
-    <path d="M30 19 C36 15 38 11 39.5 7.5" fill="none" stroke="${MARK_INK}" stroke-width="2.9" stroke-linecap="round" stroke-dasharray="4 3.4"/>
-    <path d="M43 4 L34.5 7 L39.5 12 Z" fill="${MARK_INK}" transform="rotate(-18 39 8)"/>
+    <defs>
+      <radialGradient id="mark-sphere" cx="31%" cy="27%" r="82%">
+        <stop offset="0%" stop-color="#ffe9b0"/>
+        <stop offset="38%" stop-color="#d49a2e"/>
+        <stop offset="100%" stop-color="#201405"/>
+      </radialGradient>
+      <radialGradient id="mark-halo" cx="50%" cy="50%" r="50%">
+        <stop offset="65%" stop-color="${ACCENT}" stop-opacity="0"/>
+        <stop offset="76%" stop-color="${ACCENT}" stop-opacity="0"/>
+        <stop offset="86%" stop-color="${ACCENT}" stop-opacity=".85"/>
+        <stop offset="100%" stop-color="${ACCENT}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="24" cy="24" r="23" fill="url(#mark-halo)"/>
+    <circle cx="24" cy="24" r="15" fill="url(#mark-sphere)"/>
+    <path d="M9 24H39M24 9V39M14 12.5C21 18 21 30 14 35.5M34 12.5C27 18 27 30 34 35.5" fill="none" stroke="#140d03" stroke-width="1.6" opacity=".6"/>
   </svg>`
 }
 
@@ -73,7 +78,7 @@ function reportHeader({ title, subtitle, metaLines }) {
   const meta = metaLines.filter(Boolean).map((l, i) => (i === 0 ? `<span class="headline">${esc(l)}</span>` : esc(l))).join('<br>')
   return `<div class="topbar"></div>
     <header>
-      <div class="logo">${markSvg(28)}</div>
+      <div class="logo">${markSvg(32)}</div>
       <div>
         <h1>${esc(title)}</h1>
         <h2>${esc(subtitle)}</h2>
