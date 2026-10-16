@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
-import { ACCENT, TEAM_NAME } from '../../state/config'
-import {COND, keycap, sunken, goldText} from '../../theme'
+import { ACCENT } from '../../state/config'
+import {COND, keycap, sunken} from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
-import Logo from '../Logo'
+import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
@@ -30,6 +30,11 @@ const TOOLS = [
   ['addCone', '▲︎', 'Cone'],
   ['erase', '⌫︎', 'Erase'],
 ]
+// The normal toolbar shows the tools that draw a play; the ones that put
+// things on the court (or take them off) sit behind one "Players" tile. Eleven
+// tiles in a scrolling strip meant the last few were always out of sight.
+const DRAW_TOOLS = TOOLS.slice(0, 7)
+const PLAYER_TOOLS = TOOLS.slice(7)
 
 // Full screen gets every tool the normal toolbar has — a coach sketching an
 // adjustment while the team watches the big screen shouldn't have to drop out
@@ -59,75 +64,44 @@ const FS_FADE_Y = 28
 const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
 function Header({ compact }) {
-  const { state, setView, goHome } = useApp()
-  const { view, playName } = state
-  const seg = (active, label, onClick) => (
-    <div
-      onClick={onClick}
-      style={{
-        flex: compact ? 1 : 'none', textAlign: compact ? 'center' : 'left',
-        padding: compact ? '6px 4px' : '7px 11px', borderRadius: 8, fontSize: compact ? 11 : 12, fontWeight: 600, cursor: 'pointer',
-        background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)',
-      }}
-    >
-      {label}
-    </div>
-  )
-
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '2px 0 8px', flex: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <div onClick={goHome} style={{ cursor: 'pointer' }}>
-            <Logo size={20} iconSize={15} />
-          </div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', ...goldText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-            Tactics Board
-          </div>
-        </div>
-        <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
-          {seg(view === 'half', 'Halfcourt', () => setView('half'))}
-          {seg(view === 'full', 'Fullcourt', () => setView('full'))}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 16px 8px', flex: 'none' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-        <div onClick={goHome} style={{ cursor: 'pointer' }}>
-          <Logo size={26} iconSize={19} />
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{TEAM_NAME}</div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 22, lineHeight: 1.06, letterSpacing: '.4px', textTransform: 'uppercase', ...goldText }}>Tactics Board</div>
-          <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{playName}</div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2, flex: 'none' }}>
-        {seg(view === 'half', 'Halfcourt', () => setView('half'))}
-        {seg(view === 'full', 'Fullcourt', () => setView('full'))}
-      </div>
-    </div>
-  )
+  const { state, goHome } = useApp()
+  const { playName } = state
+  // Same two-line header as every other screen: brand, title, then the
+  // play's name, with Menu on the right.
+  // In the landscape side panel it sits flush with the controls below it.
+  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} style={compact ? { padding: '0 4px 6px' } : undefined} />
 }
 
+// Play, the steps and the scrubber share one row: the step chips sit where
+// the eye already is when scrubbing, and the row they used to fill is gone.
 function PlaybackBar() {
-  const { state, set, togglePlay } = useApp()
-  const { t, playing, speed } = state
+  const { state, set, togglePlay, gotoStep, addStep, nSteps } = useApp()
+  const { t, playing, speed, step } = state
+  const landscape = useLandscape()
+  const n = nSteps()
+  const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
+  const chip = (active) => ({
+    minWidth: 26, height: 26, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+    background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.72)', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'),
+  })
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 16px 2px' }}>
+    <div style={{ display: 'flex', flexWrap: landscape ? 'wrap' : 'nowrap', alignItems: 'center', gap: 8, padding: landscape ? '6px 4px' : '10px 16px 6px' }}>
       <div
         onClick={togglePlay}
         style={{ width: 42, height: 42, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', ...keycap(), color: '#101012', fontSize: 17, fontWeight: 700 }}
       >
         {playing ? '❙❙' : '▶'}
       </div>
-      <input type="range" min="0" max="1" step="0.002" value={t} onChange={(e) => set({ t: parseFloat(e.target.value), playing: false })} style={{ flex: 1 }} />
+      <div style={landscape ? { display: 'flex', gap: 4, flexWrap: 'wrap', order: 3, width: '100%', justifyContent: 'center' } : { display: 'flex', gap: 4, flex: 'none', maxWidth: '45%', overflowX: 'auto' }} className={landscape ? undefined : 'scrollx'}>
+        {Array.from({ length: n }, (_, i) => i + 1).map((nn) => (
+          <div key={nn} onClick={() => gotoStep(nn)} style={chip(nn === editStep)}>{nn}</div>
+        ))}
+        <div onClick={addStep} style={{ ...chip(false), color: 'rgba(255,255,255,.78)' }}>＋</div>
+      </div>
+      <input type="range" min="0" max="1" step="0.002" value={t} onChange={(e) => set({ t: parseFloat(e.target.value), playing: false })} style={{ flex: 1, minWidth: 50 }} />
       <div
         onClick={() => set((s) => ({ speed: s.speed === 1 ? 1.5 : s.speed === 1.5 ? 0.5 : 1 }))}
-        style={{ padding: '7px 9px', borderRadius: 8, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 'none', minWidth: 32, textAlign: 'center' }}
+        style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', flex: 'none', minWidth: 32, textAlign: 'center' }}
       >
         {speed}×
       </div>
@@ -135,88 +109,112 @@ function PlaybackBar() {
   )
 }
 
-function StepBar() {
-  const { state, gotoStep, addStep, delStep, nSteps } = useApp()
-  const { step, playing, t } = state
-  const n = nSteps()
-  const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
-  const chipStyle = (active) => ({
-    minWidth: 27, padding: '5px 6px', borderRadius: 8, textAlign: 'center', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-    background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.72)', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'),
+function ToolsRow() {
+  const { state, setTool, openFormations } = useApp()
+  const landscape = useLandscape()
+  const [open, setOpen] = useState(false)
+  const playerTool = PLAYER_TOOLS.find(([id]) => id === state.tool)
+  const tile = (active) => ({
+    flex: '1 1 0', minWidth: 0, minHeight: landscape ? 44 : 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 2px', borderRadius: 12, cursor: 'pointer',
+    border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)',
   })
+  const icon = { fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }
+  const label = { fontSize: 10, lineHeight: '13px', fontWeight: 600, letterSpacing: '-.1px', whiteSpace: 'nowrap' }
+  const rowStyle = landscape ? { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 } : { display: 'flex', gap: 5 }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', justifyContent: 'center', padding: '4px 12px 8px' }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', marginRight: 2 }}>Step</div>
-      {Array.from({ length: n }, (_, i) => i + 1).map((nn) => (
-        <div key={nn} onClick={() => gotoStep(nn)} style={chipStyle(nn === editStep)}>{nn}</div>
-      ))}
-      <div onClick={addStep} style={{ ...chipStyle(false), color: 'rgba(255,255,255,.78)' }}>＋</div>
-      <div onClick={delStep} style={{ ...chipStyle(false), color: 'rgba(255,255,255,.5)' }}>−</div>
+    <div style={{ position: 'relative', padding: landscape ? '2px 4px 8px' : '2px 12px 8px' }}>
+      {open && (
+        <div style={{ position: 'absolute', left: landscape ? 4 : 12, right: landscape ? 4 : 12, bottom: '100%', marginBottom: 4, zIndex: 20, ...rowStyle, gap: 6, padding: 8, borderRadius: 16, background: '#17171b', border: '1px solid rgba(255,255,255,.12)', boxShadow: '0 12px 30px rgba(0,0,0,.6)' }}>
+          {PLAYER_TOOLS.map(([id, ic, lb]) => (
+            <div key={id} onClick={() => { setTool(id); setOpen(false) }} style={tile(state.tool === id)}>
+              <div style={icon}>{ic}</div><div style={label}>{lb}</div>
+            </div>
+          ))}
+          <div onClick={() => { setOpen(false); openFormations() }} style={tile(false)}>
+            <div style={icon}>⊞︎</div><div style={label}>Setup</div>
+          </div>
+        </div>
+      )}
+      <div style={rowStyle}>
+        {DRAW_TOOLS.map(([id, ic, lb]) => (
+          <div key={id} onClick={() => { setTool(id); setOpen(false) }} style={tile(state.tool === id)}>
+            <div style={icon}>{ic}</div><div style={label}>{lb}</div>
+          </div>
+        ))}
+        <div onClick={() => setOpen((v) => !v)} style={tile(!!playerTool || open)}>
+          <div style={icon}>{playerTool ? playerTool[1] : '＋︎'}</div><div style={label}>{playerTool ? playerTool[2] : 'Players'}</div>
+        </div>
+      </div>
     </div>
   )
 }
 
-function ToolsRow() {
-  const { state, setTool } = useApp()
+function FooterButtons() {
+  const { undo, openSave, openShare } = useApp()
+  const landscape = useLandscape()
+  const [more, setMore] = useState(false)
+  const btn = { flex: 1, textAlign: 'center', padding: landscape ? '8px 6px' : '10px 6px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.85)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }
   return (
-    <ScrollX style={{ display: 'flex', gap: 6, overflowX: 'auto', touchAction: 'pan-x', padding: '4px 12px 8px' }}>
-      {TOOLS.map(([id, icon, label]) => {
-        const active = state.tool === id
-        return (
-          <div
-            key={id} onClick={() => setTool(id)}
-            style={{ flex: 'none', width: 'auto', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 10px', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)' }}
-          >
-            <div style={{ fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }}>{icon}</div>
-            <div style={{ fontSize: 10.5, lineHeight: '13px', fontWeight: 600, letterSpacing: '.2px', whiteSpace: 'nowrap' }}>{label}</div>
-          </div>
-        )
-      })}
-    </ScrollX>
+    <>
+      <div style={landscape ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '2px 4px 0' } : { display: 'flex', gap: 6, padding: '2px 12px 0' }}>
+        <div onClick={undo} style={btn}>↶ Undo</div>
+        <div onClick={openSave} style={btn}>Save</div>
+        <div onClick={openShare} style={btn}>Share</div>
+        <div onClick={() => setMore(true)} style={btn}>⋯ More</div>
+      </div>
+      {more && <MoreSheet onClose={() => setMore(false)} />}
+    </>
   )
 }
 
-function FooterButtons() {
-  const app = useApp()
-  const { state, set, goHome, openSave, openSheet, enterFullScreen, toggleAutoDef, openFormations, openShare, undo, clearRoutes, resetAll, askConfirm } = app
+// Everything that isn't part of drawing or showing a play, in one place.
+function MoreSheet({ onClose }) {
+  const { state, set, setView, openSheet, enterFullScreen, toggleAutoDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
+  const run = (fn) => () => { onClose(); fn() }
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
-  const btn = (label, onClick, active) => (
-    <div onClick={onClick} style={{ padding: '6px 9px', borderRadius: 8, background: active ? ACCENT : 'rgba(255,255,255,.07)', color: active ? '#101012' : 'rgba(255,255,255,.8)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{label}</div>
+  const row = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }
+  const cap = { fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '10px 4px 2px' }
+  const seg = (active, label, onClick) => (
+    <div onClick={onClick} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)' }}>{label}</div>
   )
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 14px 0' }}>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,.42)', letterSpacing: '.2px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{state.hint}</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', flex: '0 1 auto' }}>
-        {btn('Menu', goHome)}
-        {btn('Save', openSave)}
-        <div onClick={openSheet} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.14)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Plays</div>
-        {btn('Full screen', enterFullScreen)}
-        {btn('D follows', toggleAutoDef, state.autoDef)}
-        {btn('Setup', openFormations)}
-        {btn('Share', openShare)}
-        {btn('Undo', undo)}
-        {btn('Clear paths', askClearRoutes)}
-        {btn('Reset', askResetAll)}
-      </div>
-      {state.autoDef && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 320, margin: '2px auto 0' }}>
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Tight</div>
-          <input
-            type="range" min="0" max="1" step="0.05" value={state.defenseDelay}
-            onChange={(e) => set({ defenseDelay: parseFloat(e.target.value) })}
-            style={{ flex: 1 }}
-          />
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,.45)', fontWeight: 600, whiteSpace: 'nowrap' }}>Laggy</div>
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85%', overflowY: 'auto', background: '#141417', borderRadius: '22px 22px 0 0', border: '1px solid rgba(255,255,255,.1)', padding: '10px 14px calc(var(--safe-bottom) + 10px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', alignSelf: 'center', margin: '2px 0 6px' }} />
+        <div onClick={run(openSheet)} style={row}><span style={{ width: 20, textAlign: 'center' }}>▤</span>My plays &amp; drills</div>
+        <div onClick={run(enterFullScreen)} style={row}><span style={{ width: 20, textAlign: 'center' }}>⤢</span>Full screen</div>
+        <div style={cap}>Court</div>
+        <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
+          {seg(state.view === 'half', 'Halfcourt', () => setView('half'))}
+          {seg(state.view === 'full', 'Fullcourt', () => setView('full'))}
         </div>
-      )}
+        <div style={cap}>Defense</div>
+        <div onClick={toggleAutoDef} style={{ ...row, justifyContent: 'space-between' }}>
+          <span>Defenders follow their man</span>
+          <span style={{ width: 42, height: 24, borderRadius: 99, background: state.autoDef ? ACCENT : 'rgba(255,255,255,.15)', position: 'relative', flex: 'none' }}>
+            <span style={{ position: 'absolute', top: 3, left: state.autoDef ? 21 : 3, width: 18, height: 18, borderRadius: 99, background: '#fff' }} />
+          </span>
+        </div>
+        {state.autoDef && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Tight</span>
+            <input type="range" min="0" max="1" step="0.05" value={state.defenseDelay} onChange={(e) => set({ defenseDelay: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Loose</span>
+          </div>
+        )}
+        <div style={cap}>Edit</div>
+        {nSteps() > 1 && <div onClick={run(delStep)} style={row}><span style={{ width: 20, textAlign: 'center' }}>−</span>Delete last step</div>}
+        <div onClick={run(askClearRoutes)} style={row}><span style={{ width: 20, textAlign: 'center' }}>⌫</span>Clear paths</div>
+        <div onClick={run(askResetAll)} style={{ ...row, color: '#e0806f' }}><span style={{ width: 20, textAlign: 'center' }}>↺</span>Reset board</div>
+      </div>
     </div>
   )
 }
 
 // Full screen strips away everything but the court so a coach can prop the
 // device up during a timeout — but that shouldn't mean losing the ability
-// to step through the play; these mirror the step controls from StepBar in
+// to step through the play; these mirror the step chips of the playback row in
 // a compact, presentation-friendly form.
 function FullScreenControls() {
   const { state, gotoStep, addStep, nSteps } = useApp()
@@ -445,8 +443,18 @@ function FullScreenTools() {
 }
 
 export default function Board() {
-  const { state, exitFullScreen, togglePlay } = useApp()
-  const { fullScreen, playing } = state
+  const { state, exitFullScreen, togglePlay, enterFullScreen } = useApp()
+  const { fullScreen, playing, hint } = state
+  // The hint used to hold a line of its own under the toolbar for good. Now
+  // it shows over the court for a moment whenever it changes, then fades.
+  const [hintOn, setHintOn] = useState(false)
+  useEffect(() => {
+    if (!hint) return undefined
+    setHintOn(true)
+    const id = setTimeout(() => setHintOn(false), 2600)
+    return () => clearTimeout(id)
+  }, [hint])
+
   const landscape = useLandscape()
   // Full screen exists to be propped up and looked at during a timeout —
   // the one place in the app where nobody is touching the device on
@@ -476,18 +484,23 @@ export default function Board() {
 
       <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
         <Court />
+        {!fullScreen && (
+          <div onClick={enterFullScreen} title="Full screen" style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', fontSize: 16, cursor: 'pointer' }}>⤢</div>
+        )}
+        {!fullScreen && hint && (
+          <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', maxWidth: '86%', padding: '8px 14px', borderRadius: 99, background: 'rgba(10,10,12,.78)', color: '#fff', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none', opacity: hintOn ? 1 : 0, transition: 'opacity .4s' }}>{hint}</div>
+        )}
       </div>
 
       {!fullScreen && (
         <div
           className={landscape ? 'scrollx' : undefined}
           style={landscape
-            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 250px', marginLeft: 12, overflowY: 'auto' }
+            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 280px', marginLeft: 12, overflowY: 'auto' }
             : { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}
         >
           {landscape && <Header compact />}
           <PlaybackBar />
-          <StepBar />
           <ToolsRow />
           <FooterButtons />
         </div>

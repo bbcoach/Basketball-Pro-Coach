@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, poly, wavy, isCone, conePath, CONE_COLOR,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, normEnt, poly, wavy, isCone, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from '../../lib/board-geometry'
 
@@ -17,7 +17,7 @@ export default function PlayPreview({ play }) {
   }), [play])
 
   const { tokens, routes, caps } = useMemo(() => {
-    const players = play.players || []
+    const players = (play.players || []).map(normEnt)
     const ball = play.ball || { x: 750, y: 1300, acts: [] }
     const marks = board.marks()
     const tks = []

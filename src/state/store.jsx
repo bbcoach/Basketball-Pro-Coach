@@ -222,7 +222,7 @@ export function AppProvider({ children }) {
       const off = tool === 'addOff'
       const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
       set((st) => ({
-        players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
+        players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'D' + n, x: p.x, y: p.y, acts: [] }]),
         seq: st.seq + 1, tool: 'move', playing: false,
       }))
       return
@@ -410,7 +410,7 @@ export function AppProvider({ children }) {
       // startState()'s players use the same convention) in both views. No
       // view-dependent transform needed: formation coords apply as authored.
       const made = fm.pos.map((c, i) => ({
-        id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'X' + (i + 1),
+        id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'D' + (i + 1),
         x: c[0], y: c[1], acts: [],
       }))
       const ballTo = fm.side === 'off' ? made[0] : null
