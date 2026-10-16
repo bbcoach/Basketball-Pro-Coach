@@ -11,7 +11,7 @@
 // captureStream() timing to go wrong.
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, getFirstEncodableVideoCodec } from 'mediabunny'
 import {
-  actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
+  actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, isBall, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, STEP_SECS,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
@@ -86,8 +86,13 @@ function frameSvg(play, board, cmap, t, vbW, vbH) {
   const TR = 54
 
   const tokens = []
+  const ballTokens = []
   players.forEach((pl) => {
     const p = board.entPos(pl, t, nSteps, marks)
+    if (isBall(pl)) {
+      ballTokens.push({ x: p.x, y: p.y, r: TR * 0.48, fill: 'url(#vballsphere)', stroke: 'rgba(0,0,0,.62)', ball: true })
+      return
+    }
     if (isCone(pl)) {
       tokens.push({ x: p.x, y: p.y, r: TR * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)' })
       return
@@ -100,6 +105,7 @@ function frameSvg(play, board, cmap, t, vbW, vbH) {
   })
   const bp = board.ballPos(t)
   tokens.push({ x: bp.x, y: bp.y, r: TR * 0.48, fill: 'url(#vballsphere)', stroke: 'rgba(0,0,0,.62)', ball: true })
+  tokens.push(...ballTokens)
 
   const routes = []
   const caps = []
@@ -108,7 +114,7 @@ function frameSvg(play, board, cmap, t, vbW, vbH) {
   all.forEach((ent) => {
     actsOf(ent).forEach((act) => {
       if (act.step !== editStep || !act.pts.length) return
-      const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : baseAt(ent, act.step)
+      const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : isBall(ent) ? board.ballStart(act.step, null, ent) : baseAt(ent, act.step)
       const pts = [start].concat(act.pts)
       if (pts.length < 2) return
       const ty = act.type

@@ -8,7 +8,6 @@ import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
-import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
 import ScrollX from '../ScrollX'
 
@@ -28,10 +27,11 @@ const TOOLS = [
   ['addOff', '＋︎', 'Offense'],
   ['addDef', '✕︎', 'Defense'],
   ['addCone', '▲︎', 'Cone'],
+  ['addBall', '●︎', 'Ball'],
   ['erase', '⌫︎', 'Erase'],
 ]
 // The normal toolbar shows the tools that draw a play; the ones that put
-// things on the court (or take them off) sit behind one "Players" tile. Eleven
+// things on the court (or take them off) sit behind one "Add" tile. Twelve
 // tiles in a scrolling strip meant the last few were always out of sight.
 const DRAW_TOOLS = TOOLS.slice(0, 7)
 const PLAYER_TOOLS = TOOLS.slice(7)
@@ -110,7 +110,7 @@ function PlaybackBar() {
 }
 
 function ToolsRow() {
-  const { state, setTool, openFormations } = useApp()
+  const { state, setTool } = useApp()
   const landscape = useLandscape()
   const [open, setOpen] = useState(false)
   const playerTool = PLAYER_TOOLS.find(([id]) => id === state.tool)
@@ -130,9 +130,6 @@ function ToolsRow() {
               <div style={icon}>{ic}</div><div style={label}>{lb}</div>
             </div>
           ))}
-          <div onClick={() => { setOpen(false); openFormations() }} style={tile(false)}>
-            <div style={icon}>⊞︎</div><div style={label}>Setup</div>
-          </div>
         </div>
       )}
       <div style={rowStyle}>
@@ -142,7 +139,7 @@ function ToolsRow() {
           </div>
         ))}
         <div onClick={() => setOpen((v) => !v)} style={tile(!!playerTool || open)}>
-          <div style={icon}>{playerTool ? playerTool[1] : '＋︎'}</div><div style={label}>{playerTool ? playerTool[2] : 'Players'}</div>
+          <div style={icon}>{playerTool ? playerTool[1] : '＋︎'}</div><div style={label}>{playerTool ? playerTool[2] : 'Add'}</div>
         </div>
       </div>
     </div>
@@ -444,7 +441,7 @@ function FullScreenTools() {
 
 export default function Board() {
   const { state, exitFullScreen, togglePlay, enterFullScreen } = useApp()
-  const { fullScreen, playing, hint } = state
+  const { fullScreen, playing, hint, boardNotice } = state
   // The hint used to hold a line of its own under the toolbar for good. Now
   // it shows over the court for a moment whenever it changes, then fades.
   const [hintOn, setHintOn] = useState(false)
@@ -487,6 +484,16 @@ export default function Board() {
         {!fullScreen && (
           <div onClick={enterFullScreen} title="Full screen" style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', fontSize: 16, cursor: 'pointer' }}>⤢</div>
         )}
+        {boardNotice && (
+          // The outer box only centres; toast-pop animates transform, which
+          // would otherwise wipe out a translateX(-50%) centring.
+          <div style={{ position: 'absolute', left: 0, right: 0, top: fullScreen ? 'calc(110px + env(safe-area-inset-top, 0px))' : 16, zIndex: 61, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div key={boardNotice.id} className="toast-pop" style={{ maxWidth: '90%', display: 'flex', alignItems: 'center', gap: 9, padding: '11px 16px', borderRadius: 14, background: 'rgba(14,14,16,.94)', border: '1.5px solid ' + ACCENT, boxShadow: '0 10px 30px rgba(0,0,0,.6), 0 0 24px rgba(232,177,60,.25)', color: '#fff', fontSize: 13.5, fontWeight: 600, pointerEvents: 'none' }}>
+            <span style={{ width: 18, height: 18, flex: 'none', borderRadius: '50%', border: '1.5px solid ' + ACCENT, color: ACCENT, fontSize: 11, fontWeight: 800, lineHeight: '15px', textAlign: 'center' }}>i</span>
+            <span>{boardNotice.text}</span>
+          </div>
+          </div>
+        )}
         {!fullScreen && hint && (
           <div style={{ position: 'absolute', left: '50%', bottom: 16, transform: 'translateX(-50%)', maxWidth: '86%', padding: '8px 14px', borderRadius: 99, background: 'rgba(10,10,12,.78)', color: '#fff', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none', opacity: hintOn ? 1 : 0, transition: 'opacity .4s' }}>{hint}</div>
         )}
@@ -508,7 +515,6 @@ export default function Board() {
 
       <SaveModal />
       <PlaysSheet />
-      <FormationsModal />
       <ShareModal />
     </div>
   )

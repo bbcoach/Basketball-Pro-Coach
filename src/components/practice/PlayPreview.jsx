@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, normEnt, poly, wavy, isCone, conePath, CONE_COLOR,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, normEnt, poly, wavy, isCone, isBall, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from '../../lib/board-geometry'
 
@@ -21,8 +21,13 @@ export default function PlayPreview({ play }) {
     const ball = play.ball || { x: 750, y: 1300, acts: [] }
     const marks = board.marks()
     const tks = []
+    const ballTks = []
     players.forEach((pl) => {
       const p = board.entPos(pl, 0, board.nSteps(), marks)
+      if (isBall(pl)) {
+        ballTks.push({ key: pl.id, x: p.x, y: p.y, r: 26, fill: 'url(#pv-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+        return
+      }
       if (isCone(pl)) {
         tks.push({ key: pl.id, x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' })
         return
@@ -36,6 +41,7 @@ export default function PlayPreview({ play }) {
     })
     const bp = board.ballPos(0)
     tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: 'url(#pv-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+    tks.push(...ballTks)
 
     const rts = []
     const cps = []
@@ -44,7 +50,7 @@ export default function PlayPreview({ play }) {
     all.forEach((ent) => {
       actsOf(ent).forEach((act) => {
         if (!act.pts.length) return
-        const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : baseAt(ent, act.step)
+        const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : isBall(ent) ? board.ballStart(act.step, null, ent) : baseAt(ent, act.step)
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
         const ty = act.type

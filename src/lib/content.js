@@ -38,8 +38,9 @@ export const HINTS = {
   pass: 'Drag from the ball to a team-mate — he then carries it',
   handoff: 'Drag from whoever moves, carrier or receiver — the ball changes hands',
   shot: 'Drag from the ball to the rim — the shot releases the ball',
-  addOff: 'Tap the court to add an offensive player',
-  addDef: 'Tap the court to add a defender',
-  addCone: 'Tap to drop a cone — stays on, so tap for each one',
+  addOff: 'Tap to add offense — tool stays on',
+  addDef: 'Tap to add defenders — tool stays on',
+  addCone: 'Tap to drop cones — tool stays on',
+  addBall: 'Tap to add balls — tool stays on',
   erase: "Tap to remove this step's path, again to remove the player",
 }

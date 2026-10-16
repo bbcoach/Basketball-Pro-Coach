@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   actsOf, baseAt, carrierMap, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
-  CONE_TEAM, isCone, STEP_SECS,
+  CONE_TEAM, isCone, BALL_TEAM, isBall, STEP_SECS,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
@@ -41,6 +41,7 @@ function initialState() {
     boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false, syncOpen: false,
     confirmAsk: null, // { title, message, confirmLabel, onConfirm }
     toast: null, // { id, text }
+    boardNotice: null, // { id, text, focusId } — shown on the court itself
 
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
@@ -49,7 +50,7 @@ function initialState() {
     autoDef: false, defenseDelay: 0, fullScreen: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
-    formOpen: false, shareOpen: false,
+    shareOpen: false,
     shareStatus: 'Sends the current play to your team',
     videoExporting: false,
     plays: [],
@@ -98,6 +99,7 @@ export function AppProvider({ children }) {
   const lastRef = useRef(0)
   const runTimerRef = useRef(0)
   const toastTimerRef = useRef(0)
+  const noticeTimerRef = useRef(0)
 
   // ── load persisted data once ──────────────────────────────
   useEffect(() => {
@@ -220,10 +222,17 @@ export function AppProvider({ children }) {
     if (tool === 'addOff' || tool === 'addDef') {
       snapshot()
       const off = tool === 'addOff'
-      const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
+      // The lowest number not already on the court, so deleting D2 and
+      // adding again gives a new D2 rather than a second D3.
+      const used = new Set(s.players.filter((x) => x.team === (off ? 'off' : 'def')).map((x) => String(x.label).replace(/^D/, '')))
+      let n = 1
+      while (used.has(String(n))) n++
+      // The tool stays on, like the cone and ball tools: setting up a
+      // defence means four or five taps in a row, and dropping back to Move
+      // after each one meant reopening the Add menu every time.
       set((st) => ({
         players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'D' + n, x: p.x, y: p.y, acts: [] }]),
-        seq: st.seq + 1, tool: 'move', playing: false,
+        seq: st.seq + 1, playing: false,
       }))
       return
     }
@@ -234,6 +243,16 @@ export function AppProvider({ children }) {
       // re-picking the tool for every cone of a drill setup.
       set((st) => ({
         players: st.players.concat([{ id: 'c' + st.seq, team: CONE_TEAM, label: '', x: p.x, y: p.y, acts: [] }]),
+        seq: st.seq + 1, playing: false,
+      }))
+      return
+    }
+    if (tool === 'addBall') {
+      snapshot()
+      // Stays selected like the cone tool: a drill with balls usually needs
+      // several of them.
+      set((st) => ({
+        players: st.players.concat([{ id: 'b' + st.seq, team: BALL_TEAM, label: '', x: p.x, y: p.y, acts: [] }]),
         seq: st.seq + 1, playing: false,
       }))
       return
@@ -262,27 +281,47 @@ export function AppProvider({ children }) {
     // and Erase are the only tools that mean anything on one.
     if (isCone(board.entity(id))) return
     const k = s.step
+    const tappedBall = id === 'ball' || isBall(board.entity(id))
+    // A ball can be dribbled, passed or shot, but it doesn't cut or screen.
+    if (tappedBall && !['dribble', 'pass', 'shot'].includes(tool)) return
     const t0 = (k - 1) / nSteps()
     // Dribble, pass and shot belong to whoever has the ball at the start of
     // this step. Pass and shot used to start from the ball no matter which
     // player was tapped, and dribble could be drawn for anyone; now tapping
     // anyone else explains why nothing happens. Tapping the ball itself
     // still works — for a dribble it means its handler.
+    //
+    // With several balls on the court, each has its own holder: a player
+    // holding any of them may dribble, and a pass or shot starts from the
+    // ball that player (or the tapped ball) actually is.
     const BALL_VERB = { dribble: 'dribble', pass: 'pass', shot: 'shoot' }
     let who = id
+    let ballId = null
     if (BALL_VERB[tool]) {
-      const handler = carrierMap(s.players, s.ball, Math.max(nSteps(), k))[k]
-      if (tool === 'dribble' && who === 'ball' && handler) who = handler.id
-      const ok = tool === 'dribble' ? handler && who === handler.id : who === 'ball' || (handler && who === handler.id)
-      if (!ok) { showToast('Only the player with the ball can ' + BALL_VERB[tool], 'info'); return }
+      const nn = Math.max(nSteps(), k)
+      const holders = [{ id: 'ball', ent: s.ball }].concat(s.players.filter(isBall).map((b) => ({ id: b.id, ent: b })))
+        .map((h) => ({ ...h, holder: carrierMap(s.players, h.ent, nn)[k] || null }))
+      const mine = tappedBall ? holders.find((h) => h.id === id) : holders.find((h) => h.holder && h.holder.id === id)
+      if (tool === 'dribble' && tappedBall && mine && mine.holder) who = mine.holder.id
+      const ok = tool === 'dribble' ? !!(mine && mine.holder && who === mine.holder.id) : !!mine
+      // Said on the court, where the coach is looking, rather than as a
+      // toast at the bottom edge — that sat right on top of the very tools
+      // it was about. Whoever does have a ball gets a pulse.
+      if (!ok) {
+        const someone = holders.find((h) => h.holder)
+        showBoardNotice('Only the player with the ball can ' + BALL_VERB[tool], someone ? someone.holder.id : 'ball')
+        return
+      }
+      ballId = mine.id
     }
     if (tool === 'pass' || tool === 'shot') {
       snapshot()
-      drag.current = { id: 'ball', draw: tool, step: k }
-      set((st) => ({ ball: setAct(st.ball, k, tool, p), sel: 'ball', playing: false, t: t0 }))
+      drag.current = { id: ballId, draw: tool, step: k }
+      if (ballId === 'ball') set((st) => ({ ball: setAct(st.ball, k, tool, p), sel: 'ball', playing: false, t: t0 }))
+      else set((st) => ({ players: st.players.map((x) => (x.id === ballId ? setAct(x, k, tool, p) : x)), sel: ballId, playing: false, t: t0 }))
       return
     }
-    if (who === 'ball') return
+    if (tappedBall) return
     snapshot()
     drag.current = { id: who, draw: tool, step: k }
     set((st) => ({ players: st.players.map((x) => (x.id === who ? setAct(x, k, tool, p) : x)), sel: who, playing: false, t: t0 }))
@@ -321,7 +360,7 @@ export function AppProvider({ children }) {
       const ent = board.entity(d.id)
       const a = ent && actsOf(ent).find((z) => z.step === d.step)
       if (a) {
-        const startPos = d.id === 'ball' ? board.ballStart(a.step) : baseAt(ent, a.step)
+        const startPos = d.id === 'ball' ? board.ballStart(a.step) : isBall(ent) ? board.ballStart(a.step, null, ent) : baseAt(ent, a.step)
         const last = a.pts[a.pts.length - 1]
         const tiny = Math.hypot(startPos.x - last.x, startPos.y - last.y) < 45
         if (tiny) {
@@ -399,29 +438,6 @@ export function AppProvider({ children }) {
   const setTool = (id) => set({ tool: id, hint: HINTS[id] })
 
   const toggleAutoDef = () => set((s) => ({ autoDef: !s.autoDef, hint: s.autoDef ? 'Defenders stay put unless you draw their path' : 'Defenders now shadow their nearest attacker' }))
-
-  const applyFormation = (fm) => {
-    snapshot()
-    set((s) => {
-      const keep = s.players.filter((p) => (fm.side === 'off' ? p.team === 'def' : p.team === 'off'))
-      // Fullcourt isn't a separately scaled coordinate space — Court.jsx always
-      // draws the full 2800-tall court and just crops to the top half for
-      // 'half' view, so the near basket sits at the same small-y region (and
-      // startState()'s players use the same convention) in both views. No
-      // view-dependent transform needed: formation coords apply as authored.
-      const made = fm.pos.map((c, i) => ({
-        id: fm.side + 'f' + i, team: fm.side, label: fm.side === 'off' ? String(i + 1) : 'D' + (i + 1),
-        x: c[0], y: c[1], acts: [],
-      }))
-      const ballTo = fm.side === 'off' ? made[0] : null
-      return {
-        players: fm.side === 'off' ? made.concat(keep) : keep.concat(made),
-        ball: ballTo ? { x: ballTo.x + 56, y: ballTo.y + 44, acts: [] } : { ...normEnt(s.ball), acts: [] },
-        formOpen: false, t: 0, step: 1, steps: 1, playing: false, sel: null, tool: 'move',
-        hint: fm.name + ' set — drag anyone to fine-tune',
-      }
-    })
-  }
 
   // ── plays (save / load) ────────────────────────────────────
   const fileBase = () => (stateRef.current.playName || 'play').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
@@ -530,9 +546,7 @@ export function AppProvider({ children }) {
     set({ importOpen: false })
   }
 
-  // ── formations / share modals ──────────────────────────────
-  const openFormations = () => set({ formOpen: true, playing: false })
-  const closeFormations = () => set({ formOpen: false })
+  // ── share modal ──────────────────────────────────────────────
   const openShare = () => set((s) => ({ shareOpen: true, playing: false, shareStatus: 'Step ' + s.step + ' of ' + nSteps() + ' · ' + (s.view === 'half' ? 'Halfcourt' : 'Fullcourt') }))
   const closeShareModal = () => set({ shareOpen: false })
   const doExportSteps = () => {
@@ -629,6 +643,14 @@ export function AppProvider({ children }) {
   // feedback (an export that just opens a new tab or downloads a file, an
   // add that scrolls a long list). Re-showing it resets the clock rather
   // than layering toasts, since only one is ever shown at a time.
+  const showBoardNotice = (text, focusId) => {
+    clearTimeout(noticeTimerRef.current)
+    const id = Date.now()
+    set({ boardNotice: { id, text, focusId } })
+    noticeTimerRef.current = setTimeout(() => {
+      set((s) => (s.boardNotice && s.boardNotice.id === id ? { boardNotice: null } : {}))
+    }, 2300)
+  }
   const showToast = (text, kind) => {
     clearTimeout(toastTimerRef.current)
     const id = Date.now()
@@ -1094,10 +1116,10 @@ export function AppProvider({ children }) {
     nSteps,
     onDown, onMove, onUp,
     togglePlay, setView, addStep, delStep, gotoStep,
-    undo, clearRoutes, resetAll, setTool, toggleAutoDef, applyFormation,
+    undo, clearRoutes, resetAll, setTool, toggleAutoDef,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
-    openFormations, closeFormations, openShare, closeShareModal, doExportSteps, doExportVideo,
+    openShare, closeShareModal, doExportSteps, doExportVideo,
     openShareCode, closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen,
