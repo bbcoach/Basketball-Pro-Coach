@@ -7,7 +7,7 @@ import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 import { kindOf, KIND_LABEL } from '../lib/playKind'
 import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
-import { plural } from '../lib/dates'
+import { plural, todayIso } from '../lib/dates'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
@@ -31,7 +31,7 @@ export default function Home() {
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
   const upcoming = sessions.filter((s) => s.date >= today).length
     + games.filter((g) => g.type === 'game' && g.date >= today).length
     + events.filter((e) => e.date >= today).length

@@ -17,7 +17,7 @@ function isStandalone() {
   }
 }
 
-export function isIOS() {
+function isIOS() {
   const ua = navigator.userAgent || ''
   // iPadOS 13+ reports as a Mac in the UA string — touch points is what
   // actually tells it apart from a real desktop Mac.

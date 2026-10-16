@@ -4,14 +4,14 @@
 
 export const HALF = '0 0 1500 1400'
 export const FULL = '0 0 1500 2800'
-export const BOFF = { x: 56, y: 44 }
+const BOFF = { x: 56, y: 44 }
 
 export function dist(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
 // Point at fraction f (0..1) along a polyline.
-export function ptAt(pts, f) {
+function ptAt(pts, f) {
   if (pts.length < 2) return pts[0]
   const seg = []
   let total = 0
@@ -95,7 +95,7 @@ export function isBall(ent) {
 // and not the other balls. The ball is magnetic (carrierMap follows whoever
 // stands nearest), so without this a cone dropped beside the ball would take
 // possession of it.
-export function movers(players) {
+function movers(players) {
   return players.filter((p) => !isCone(p) && !isBall(p))
 }
 
@@ -126,7 +126,7 @@ export function conePath(cx, cy, r) {
   ].join(' ')
 }
 
-export function nearestPlayer(players, pt, step, max) {
+function nearestPlayer(players, pt, step, max) {
   let best = null
   let bd = max || 240
   players.forEach((pl) => {
@@ -200,7 +200,7 @@ function easeInOut(fr) {
   return fr < 0.5 ? 2 * fr * fr : 1 - Math.pow(-2 * fr + 2, 2) / 2
 }
 
-export function posAtTime(ent, t, n) {
+function posAtTime(ent, t, n) {
   const x = Math.max(0, Math.min(0.999999, t)) * n
   const k = Math.floor(x) + 1
   const fr = x - (k - 1)
@@ -265,7 +265,7 @@ function perpDist(p, a, b) {
 // now-redundant points a smooth curve doesn't need. Endpoints are never
 // touched either way, so where a route starts and ends (a player, a pass
 // target, the hoop) is unaffected.
-export function simplifyPath(pts, epsilon = 14) {
+function simplifyPath(pts, epsilon = 14) {
   if (pts.length < 3) return pts
   let maxD = 0
   let idx = 0

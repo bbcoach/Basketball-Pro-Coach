@@ -3,7 +3,7 @@
 // same count would eventually disagree, and a printed sheet that contradicts
 // the screen is worse than no sheet.
 
-export const ATT_MARKS = {
+const ATT_MARKS = {
   in: { label: 'Present', short: 'IN', color: '#5bbf72' },
   out: { label: 'Absent', short: 'OUT', color: '#c8d1d8' },
   inj: { label: 'Injured', short: 'INJ', color: '#d9843c' },
@@ -11,7 +11,7 @@ export const ATT_MARKS = {
 // A session where nobody recorded this person at all — not the same thing as
 // an absence, and counted separately so the numbers still add up to the
 // total instead of quietly turning "unknown" into "missed".
-export const ATT_UNRECORDED = { label: 'Not recorded', short: '—', color: 'rgba(255,255,255,.35)' }
+const ATT_UNRECORDED = { label: 'Not recorded', short: '—', color: 'rgba(255,255,255,.35)' }
 
 export function markMeta(mark) {
   return ATT_MARKS[mark] || ATT_UNRECORDED
@@ -30,7 +30,6 @@ export function personAttendance(person, kind, sessions, today, plans) {
 
   const rows = (sessions || [])
     .filter((s) => s.date <= today)
-    .slice()
     .sort((a, b) => b.date.localeCompare(a.date) || (b.time || '').localeCompare(a.time || ''))
     .map((s) => ({
       id: s.id,

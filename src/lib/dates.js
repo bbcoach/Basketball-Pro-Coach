@@ -25,3 +25,15 @@ export function fmtDate(iso) {
 export function plural(n, one, many) {
   return n + ' ' + (n === 1 ? one : many || one + 's')
 }
+
+// Today as 'YYYY-MM-DD' in the user's own timezone. toISOString() gives the
+// UTC date instead, which for a coach in Germany is still yesterday until
+// one or two in the morning — a training added then landed on the wrong day
+// and "upcoming"/"past" flipped an hour or two late.
+export function todayIso() {
+  const d = new Date()
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+}
+
+// Newest first, for the games and training sessions lists.
+export const byDateDesc = (a, b) => (b.date || '').localeCompare(a.date || '')

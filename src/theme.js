@@ -10,7 +10,6 @@ export const ACCENT = '#e8b13c'
 // what actually separated it from a filled gold button — the shape, not
 // a different colour. See git history on this file for the turquoise era.
 export const COND = "'Barlow Condensed', sans-serif"
-export const SANS = 'Barlow, system-ui, sans-serif'
 
 export const card = {
   bg: 'rgba(255,255,255,.06)',
@@ -52,16 +51,6 @@ export function raised(a = 0.06, borderA = 0.1) {
     background: `rgba(255,255,255,${a})`,
     backgroundImage: `linear-gradient(${GRAD}, rgba(255,255,255,0))`,
     border: `1px solid rgba(255,255,255,${borderA})`,
-    boxShadow: `inset 0 1px 0 ${HI}, ${DROP}`,
-    ...PRESS,
-  }
-}
-
-// Same, for the many places that carry no border of their own.
-export function raisedBare(a = 0.06) {
-  return {
-    background: `rgba(255,255,255,${a})`,
-    backgroundImage: `linear-gradient(${GRAD}, rgba(255,255,255,0))`,
     boxShadow: `inset 0 1px 0 ${HI}, ${DROP}`,
     ...PRESS,
   }

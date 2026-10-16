@@ -5,12 +5,8 @@ import ScreenHeader from './ScreenHeader'
 import Tabs from './Tabs'
 import { downloadIcs, parseIcs } from '../lib/ics'
 import { fetchSchedule, gamesForTeam, SOURCES } from '../lib/scheduleImport'
-import { fmtDate } from '../lib/dates'
+import { fmtDate, todayIso } from '../lib/dates'
 import { raised, keycap, field, centred } from '../theme'
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
 
 const KIND_META = {
   training: { icon: '☑', color: '#5bbf72', label: 'Training' },
@@ -102,7 +98,7 @@ export default function Schedule() {
     importScheduleGames(leaguePreview)
     closeLeagueImport()
   }
-  const today = todayStr()
+  const today = todayIso()
   const multiTeam = teams.length > 1
 
   // Schedule shows every team at once, not just the active one — a coach

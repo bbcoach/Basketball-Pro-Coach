@@ -61,7 +61,7 @@ async function aesKeyFor(masterKey) {
 // Output is IV || ciphertext as one buffer — the IV isn't secret, it just
 // has to never repeat under the same key, so it travels alongside rather
 // than needing its own channel.
-export async function encryptForCloud(masterKey, data) {
+async function encryptForCloud(masterKey, data) {
   const key = await aesKeyFor(masterKey)
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, ENC.encode(JSON.stringify(data)))
@@ -71,7 +71,7 @@ export async function encryptForCloud(masterKey, data) {
   return out
 }
 
-export async function decryptFromCloud(masterKey, bytes) {
+async function decryptFromCloud(masterKey, bytes) {
   const key = await aesKeyFor(masterKey)
   const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12))
   return JSON.parse(DEC.decode(plaintext))
