@@ -114,7 +114,10 @@ export default function Court() {
 
   return (
     <svg
-      viewBox={displayViewBox} preserveAspectRatio="xMidYMid meet" ref={svgRef}
+      // A half court on a tall phone screen is narrower than its frame is
+      // high. Centred, that left an empty band above the baseline; pinned to
+      // the top, the floor simply carries on past half court instead.
+      viewBox={displayViewBox} preserveAspectRatio={!landscape && view === 'half' ? 'xMidYMin meet' : 'xMidYMid meet'} ref={svgRef}
       style={{
         position: 'absolute', left: 9, top: 9, width: 'calc(100% - 18px)', height: 'calc(100% - 18px)', touchAction: 'none', cursor: 'crosshair',
         // Without this, dragging with a mouse/trackpad (as opposed to a
@@ -166,6 +169,11 @@ export default function Court() {
           <stop offset="55%" stopColor="#fff" stopOpacity="0.04" />
           <stop offset="100%" stopColor="#000" stopOpacity="0.20" />
         </radialGradient>
+        <linearGradient id="backfade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#08080a" stopOpacity="0.15" />
+          <stop offset="35%" stopColor="#08080a" stopOpacity="0.62" />
+          <stop offset="100%" stopColor="#08080a" stopOpacity="0.8" />
+        </linearGradient>
       </defs>
 
       <g ref={contentRef} transform={rotate}>
@@ -197,6 +205,11 @@ export default function Court() {
           <path d="M1410 2786 V2501" />
           <path d="M90 2501 A675 675 0 0 1 1410 2501" />
         </g>
+        {/* Half court pinned to the top shows the floor carrying on past the
+            half-court line; fade that part back so it reads as the rest of
+            the gym, not as part of the play. Under the tokens, so anyone
+            placed back there stays fully visible. */}
+        {view === 'half' && !landscape && <rect x="0" y="1420" width="1500" height="1380" fill="url(#backfade)" pointerEvents="none" />}
 
         {routes.map((r) => (
           <path key={r.key} d={r.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} markerEnd={r.marker} opacity={r.op} />
