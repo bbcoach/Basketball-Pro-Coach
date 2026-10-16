@@ -46,7 +46,7 @@ function initialState() {
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
-    autoDef: false, defenseDelay: 0.6, fullScreen: false,
+    autoDef: false, defenseDelay: 0.6, fullScreen: false, dragging: null,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     formOpen: false, shareOpen: false,
@@ -212,6 +212,15 @@ export function AppProvider({ children }) {
     return { x: q.x, y: q.y }
   }
 
+  // Writes back where a player is actually drawn after board.layout() has
+  // moved it out of everyone's way, so a token dropped onto another lands
+  // beside it for good instead of only looking that way.
+  const settle = (id) => set((st) => {
+    const p = makeBoard(st).layout(0, undefined, id).pos[id]
+    if (!p) return { dragging: null }
+    return { dragging: null, players: st.players.map((x) => (x.id === id ? { ...x, x: p.x, y: p.y } : x)) }
+  })
+
   const onDown = (e) => {
     if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
     const p = pt(e)
@@ -221,10 +230,12 @@ export function AppProvider({ children }) {
       snapshot()
       const off = tool === 'addOff'
       const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
+      const id = 'p' + s.seq
       set((st) => ({
-        players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
+        players: st.players.concat([{ id, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
         seq: st.seq + 1, tool: 'move', playing: false,
       }))
+      settle(id)
       return
     }
     if (tool === 'addCone') {
@@ -256,7 +267,7 @@ export function AppProvider({ children }) {
       return
     }
     if (!id) { set({ sel: null }); return }
-    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
+    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1, dragging: id === 'ball' ? null : id }); return }
     // Everything past here draws a route or moves the ball, and a cone does
     // neither — it has no legs to run a cut and no hands to pass with. Move
     // and Erase are the only tools that mean anything on one.
@@ -302,6 +313,7 @@ export function AppProvider({ children }) {
     const d = drag.current
     drag.current = null
     if (!d) return
+    if (!d.draw && d.id !== 'ball') settle(d.id)
     if (d.draw) {
       const s = stateRef.current
       const board = makeBoard(s)

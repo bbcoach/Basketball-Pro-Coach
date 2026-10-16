@@ -8,16 +8,24 @@ const COURT_W = 1500
 
 export default function Court() {
   const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
-  const { players, ball, t, step, playing, sel, view } = state
+  const { players, ball, t, step, playing, sel, view, dragging } = state
   const landscape = useLandscape()
 
-  const board = useMemo(() => makeBoard(state), [state])
+  // Keyed on the play itself, not on all of state: playback changes `t`
+  // every frame, and a board caches its defender tracks and collision
+  // layout for the whole play — rebuilding it per frame would redo that
+  // work 60 times a second.
+  const { players: bPlayers, ball: bBall, steps: bSteps, autoDef, defenseDelay } = state
+  const board = useMemo(
+    () => makeBoard({ players: bPlayers, ball: bBall, steps: bSteps, autoDef, defenseDelay }),
+    [bPlayers, bBall, bSteps, autoDef, defenseDelay],
+  )
   const nSteps = board.nSteps()
 
   const { tokens, routes, caps, badges } = useMemo(() => {
     const liveStep = stepAtTime(t, nSteps)
     const editStep = playing ? liveStep : step
-    const marks = board.marks()
+    const { pos, ball: bp } = board.layout(t, board.marks(), dragging)
     // Full screen used to draw tokens 37% larger (74 vs 54) on top of the
     // court already filling the whole physical screen instead of a small
     // embedded pane — the two compounded into tokens that felt oversized up
@@ -28,7 +36,7 @@ export default function Court() {
 
     const tks = []
     players.forEach((pl) => {
-      const p = board.entPos(pl, t, nSteps, marks)
+      const p = pos[pl.id]
       if (isCone(pl)) {
         // Smaller than a player token on purpose — it marks a spot on the
         // floor, it doesn't stand in for a person.
@@ -50,7 +58,6 @@ export default function Court() {
         label: SHOW_NUMBERS ? pl.label : '',
       })
     })
-    const bp = board.ballPos(t)
     tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: 'url(#ballsphere)', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
 
     const rts = []
