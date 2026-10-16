@@ -1,5 +1,5 @@
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, isBall, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
@@ -37,7 +37,7 @@ function stepSvg(play, board, cmap, stepIndex) {
   const view = play.view === 'full' ? 'full' : 'half'
   const vb = view === 'half' ? HALF : FULL
 
-  const tokens = players.map((pl) => {
+  const tokens = players.filter((pl) => !isBall(pl)).map((pl) => {
     const p = baseAt(pl, stepIndex)
     if (isCone(pl)) {
       return { x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' }
@@ -51,6 +51,10 @@ function stepSvg(play, board, cmap, stepIndex) {
   })
   const bp = board.ballStart(stepIndex, cmap)
   tokens.push({ x: bp.x, y: bp.y, r: 26, fill: 'url(#step-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+  players.filter(isBall).forEach((b) => {
+    const q = board.ballStart(stepIndex, null, b)
+    tokens.push({ x: q.x, y: q.y, r: 26, fill: 'url(#step-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
+  })
 
   const routes = []
   const caps = []
@@ -58,7 +62,7 @@ function stepSvg(play, board, cmap, stepIndex) {
   all.forEach((ent) => {
     actsOf(ent).forEach((act) => {
       if (act.step !== stepIndex || !act.pts.length) return
-      const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : baseAt(ent, act.step)
+      const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : isBall(ent) ? board.ballStart(act.step, null, ent) : baseAt(ent, act.step)
       const pts = [start].concat(act.pts)
       if (pts.length < 2) return
       const ty = act.type

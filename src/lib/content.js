@@ -41,5 +41,6 @@ export const HINTS = {
   addOff: 'Tap the court to add an offensive player',
   addDef: 'Tap the court to add a defender',
   addCone: 'Tap to drop a cone — stays on, so tap for each one',
+  addBall: 'Tap to add a ball — for drills with more than one',
   erase: "Tap to remove this step's path, again to remove the player",
 }

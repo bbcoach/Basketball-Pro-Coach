@@ -8,7 +8,6 @@ import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
-import FormationsModal from './modals/FormationsModal'
 import ShareModal from './modals/ShareModal'
 import ScrollX from '../ScrollX'
 
@@ -28,10 +27,11 @@ const TOOLS = [
   ['addOff', '＋︎', 'Offense'],
   ['addDef', '✕︎', 'Defense'],
   ['addCone', '▲︎', 'Cone'],
+  ['addBall', '●︎', 'Ball'],
   ['erase', '⌫︎', 'Erase'],
 ]
 // The normal toolbar shows the tools that draw a play; the ones that put
-// things on the court (or take them off) sit behind one "Players" tile. Eleven
+// things on the court (or take them off) sit behind one "More" tile. Twelve
 // tiles in a scrolling strip meant the last few were always out of sight.
 const DRAW_TOOLS = TOOLS.slice(0, 7)
 const PLAYER_TOOLS = TOOLS.slice(7)
@@ -110,7 +110,7 @@ function PlaybackBar() {
 }
 
 function ToolsRow() {
-  const { state, setTool, openFormations } = useApp()
+  const { state, setTool } = useApp()
   const landscape = useLandscape()
   const [open, setOpen] = useState(false)
   const playerTool = PLAYER_TOOLS.find(([id]) => id === state.tool)
@@ -130,9 +130,6 @@ function ToolsRow() {
               <div style={icon}>{ic}</div><div style={label}>{lb}</div>
             </div>
           ))}
-          <div onClick={() => { setOpen(false); openFormations() }} style={tile(false)}>
-            <div style={icon}>⊞︎</div><div style={label}>Setup</div>
-          </div>
         </div>
       )}
       <div style={rowStyle}>
@@ -142,7 +139,7 @@ function ToolsRow() {
           </div>
         ))}
         <div onClick={() => setOpen((v) => !v)} style={tile(!!playerTool || open)}>
-          <div style={icon}>{playerTool ? playerTool[1] : '＋︎'}</div><div style={label}>{playerTool ? playerTool[2] : 'Players'}</div>
+          <div style={icon}>{playerTool ? playerTool[1] : '＋︎'}</div><div style={label}>{playerTool ? playerTool[2] : 'More'}</div>
         </div>
       </div>
     </div>
@@ -518,7 +515,6 @@ export default function Board() {
 
       <SaveModal />
       <PlaysSheet />
-      <FormationsModal />
       <ShareModal />
     </div>
   )

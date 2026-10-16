@@ -80,11 +80,23 @@ export function isCone(ent) {
   return !!ent && ent.team === CONE_TEAM
 }
 
-// Everyone who can hold, receive or carry the ball — i.e. not the furniture.
-// The ball is magnetic (carrierMap follows whoever stands nearest), so
-// without this a cone dropped beside the ball would take possession of it.
+// Extra balls, for drills that run with more than one. They live in the
+// players array the same way cones do — dragging, erasing, undo, saving,
+// sharing and sync all handle them for free — and each behaves exactly like
+// the main ball (state.ball): it's held by whoever stands nearest, rides
+// along on a dribble, and can be passed or shot.
+export const BALL_TEAM = 'ball'
+
+export function isBall(ent) {
+  return !!ent && ent.team === BALL_TEAM
+}
+
+// Everyone who can hold, receive or carry the ball — i.e. not the furniture,
+// and not the other balls. The ball is magnetic (carrierMap follows whoever
+// stands nearest), so without this a cone dropped beside the ball would take
+// possession of it.
 export function movers(players) {
-  return players.filter((p) => !isCone(p))
+  return players.filter((p) => !isCone(p) && !isBall(p))
 }
 
 // One cone silhouette for all three renderers — the live board, the preview
@@ -390,28 +402,38 @@ export function startState() {
 export function makeBoard(state) {
   const nSteps = () => Math.max(1, state.steps, maxStepOf(state.players.concat([state.ball])))
 
-  const carriers = () => carrierMap(state.players, state.ball, nSteps())
+  // Every ball on the board: the main one first, then any extra ones. Each
+  // has its own carrier map, worked out once per board.
+  const balls = () => [state.ball].concat(state.players.filter(isBall))
+  const ballKey = (b) => (b === state.ball ? 'ball' : b.id)
+  const cmaps = {}
+  const carriersOf = (b) => cmaps[ballKey(b)] || (cmaps[ballKey(b)] = carrierMap(state.players, b, nSteps()))
+  const carriers = () => carriersOf(state.ball)
 
-  const ballStart = (k, cmap) => {
-    const c = (cmap || carriers())[k]
+  const ballStart = (k, cmap, b = state.ball) => {
+    const c = (cmap || carriersOf(b))[k]
     if (c) { const p = baseAt(c, k); return { x: p.x + BOFF.x, y: p.y + BOFF.y } }
-    return baseAt(state.ball, k)
+    return baseAt(b, k)
   }
 
-  const ballPos = (t) => {
+  const ballPosOf = (b, t) => {
     const n = nSteps()
     const k = stepAtTime(t, n)
-    const cmap = carriers()
+    const cmap = carriersOf(b)
     const fr = Math.max(0, Math.min(0.999999, t)) * n - (k - 1)
-    const act = actsOf(state.ball).find((a) => a.step === k && a.pts.length)
+    const act = actsOf(b).find((a) => a.step === k && a.pts.length)
     if (act) {
       const e = easeInOut(fr)
-      return ptAt([ballStart(k, cmap)].concat(act.pts), e)
+      return ptAt([ballStart(k, cmap, b)].concat(act.pts), e)
     }
     const c = cmap[k]
     if (c) { const p = posAtTime(c, t, n); return { x: p.x + BOFF.x, y: p.y + BOFF.y } }
-    return baseAt(state.ball, k)
+    return baseAt(b, k)
   }
+  const ballPos = (t) => ballPosOf(state.ball, t)
+
+  // Who holds which ball at the start of step k, as [{ ball, id, holder }].
+  const holdersAt = (k) => balls().map((b) => ({ ball: b, id: ballKey(b), holder: carriersOf(b)[k] || null }))
 
   const marks = () => {
     const out = {}
@@ -476,6 +498,7 @@ export function makeBoard(state) {
   // paths where they exist, and gets stuck on screens for the rest of that
   // step.
   const entPos = (ent, t, n, marksMap) => {
+    if (isBall(ent)) return ballPosOf(ent, t)
     if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
     const manId = (marksMap || marks())[ent.id]
     const man = manId && state.players.find((p) => p.id === manId)
@@ -531,17 +554,23 @@ export function makeBoard(state) {
     let best = null
     let bd = 110
     const mk = marks()
-    state.players.forEach((pl) => { const d = dist(entPos(pl, t, n, mk), p); if (d < bd) { bd = d; best = pl.id } })
-    // The ball only wins a tap that's ambiguous between it and a player when
+    state.players.forEach((pl) => {
+      if (isBall(pl)) return
+      const d = dist(entPos(pl, t, n, mk), p)
+      if (d < bd) { bd = d; best = pl.id }
+    })
+    // A ball only wins a tap that's ambiguous between it and a player when
     // it's the closer of the two — otherwise a player standing near the ball
     // (the starting ball carrier, most commonly) can never be tapped on the
     // half of their token nearest the ball.
-    const ballD = dist(ballPos(t), p)
-    if (ballD < 70 && ballD < bd) return 'ball'
+    balls().forEach((b) => {
+      const ballD = dist(ballPosOf(b, t), p)
+      if (ballD < 70 && ballD < bd) { bd = ballD; best = ballKey(b) }
+    })
     return best
   }
 
   const entity = (id) => (id === 'ball' ? state.ball : state.players.find((p) => p.id === id))
 
-  return { nSteps, carriers, ballStart, ballPos, marks, entPos, hit, entity }
+  return { nSteps, carriers, carriersOf, ballStart, ballPos, ballPosOf, holdersAt, marks, entPos, hit, entity }
 }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
+import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, isBall, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 
 const COURT_W = 1500
@@ -28,8 +28,15 @@ export default function Court() {
     const TR = 54
 
     const tks = []
+    // Extra balls are drawn after everyone, like the main ball, so a ball is
+    // never hidden under the player holding it.
+    const ballTks = []
     players.forEach((pl) => {
       const p = board.entPos(pl, t, nSteps, marks)
+      if (isBall(pl)) {
+        ballTks.push({ key: pl.id, x: p.x, y: p.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: 'url(#ballsphere)', stroke: sel === pl.id ? '#ffffff' : 'rgba(0,0,0,.62)', sw: sel === pl.id ? 6 : 4, tc: '#7a3a10', label: '', ball: true })
+        return
+      }
       if (isCone(pl)) {
         // Smaller than a player token on purpose — it marks a spot on the
         // floor, it doesn't stand in for a person.
@@ -53,6 +60,7 @@ export default function Court() {
     })
     const bp = board.ballPos(t)
     tks.push({ key: 'ball', x: bp.x, y: bp.y, r: TR * 0.48, rHalo: TR * 0.55, fs: 26, fill: 'url(#ballsphere)', stroke: 'rgba(0,0,0,.62)', sw: 4, tc: '#7a3a10', label: '', ball: true })
+    tks.push(...ballTks)
 
     const rts = []
     const cps = []
@@ -62,7 +70,7 @@ export default function Court() {
     all.forEach((ent) => {
       actsOf(ent).forEach((act) => {
         if (!act.pts.length) return
-        const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : baseAt(ent, act.step)
+        const start = ent.id === 'ball' ? board.ballStart(act.step, cmap) : isBall(ent) ? board.ballStart(act.step, null, ent) : baseAt(ent, act.step)
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
         if (act.step !== editStep) return
@@ -93,7 +101,7 @@ export default function Court() {
   const courtH = view === 'half' ? 1400 : 2800
   // In landscape the <g> below carries a 90° rotation so the (portrait-authored)
   // court fills a wide screen properly — the viewBox is swapped to match, but
-  // every coordinate everywhere else in the app (state, hit-testing, formations,
+  // every coordinate everywhere else in the app (state, hit-testing,
   // exports) stays in the original portrait space untouched.
   const displayViewBox = landscape ? '0 0 ' + courtH + ' ' + COURT_W : '0 0 ' + COURT_W + ' ' + courtH
   const rotate = landscape ? 'matrix(0,-1,1,0,0,' + COURT_W + ')' : undefined
