@@ -2,9 +2,9 @@ import { TEAM_NAME } from '../state/config'
 import { COND, goldText } from '../theme'
 import Logo from './Logo'
 
-export default function ScreenHeader({ title, line, onClose, closeLabel = 'Menu' }) {
+export default function ScreenHeader({ title, line, onClose, closeLabel = 'Menu', style }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '0 18px 10px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '0 18px 10px', ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div onClick={onClose} style={{ cursor: 'pointer' }}>
           <Logo size={30} iconSize={22} />

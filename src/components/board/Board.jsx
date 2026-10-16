@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
-import {COND, keycap, sunken, goldText} from '../../theme'
+import {COND, keycap, sunken} from '../../theme'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
-import Logo from '../Logo'
 import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
 import SaveModal from './modals/SaveModal'
@@ -65,43 +64,12 @@ const FS_FADE_Y = 28
 const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
 function Header({ compact }) {
-  const { state, setView, goHome } = useApp()
-  const { view, playName } = state
-  const seg = (active, label, onClick) => (
-    <div
-      onClick={onClick}
-      style={{
-        flex: compact ? 1 : 'none', textAlign: compact ? 'center' : 'left',
-        padding: compact ? '6px 4px' : '7px 11px', borderRadius: 8, fontSize: compact ? 11 : 12, fontWeight: 600, cursor: 'pointer',
-        background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)',
-      }}
-    >
-      {label}
-    </div>
-  )
-
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '2px 0 8px', flex: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <div onClick={goHome} style={{ cursor: 'pointer' }}>
-            <Logo size={20} iconSize={15} />
-          </div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 15, lineHeight: 1.1, letterSpacing: '.3px', textTransform: 'uppercase', ...goldText, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
-            Tactics Board
-          </div>
-        </div>
-        <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
-          {seg(view === 'half', 'Halfcourt', () => setView('half'))}
-          {seg(view === 'full', 'Fullcourt', () => setView('full'))}
-        </div>
-      </div>
-    )
-  }
-
+  const { state, goHome } = useApp()
+  const { playName } = state
   // Same two-line header as every other screen: brand, title, then the
   // play's name, with Menu on the right.
-  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} />
+  // In the landscape side panel it sits flush with the controls below it.
+  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} style={compact ? { padding: '0 4px 6px' } : undefined} />
 }
 
 // Play, the steps and the scrubber share one row: the step chips sit where
@@ -147,7 +115,7 @@ function ToolsRow() {
   const [open, setOpen] = useState(false)
   const playerTool = PLAYER_TOOLS.find(([id]) => id === state.tool)
   const tile = (active) => ({
-    flex: '1 1 0', minWidth: 0, minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 2px', borderRadius: 12, cursor: 'pointer',
+    flex: '1 1 0', minWidth: 0, minHeight: landscape ? 44 : 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 2px', borderRadius: 12, cursor: 'pointer',
     border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)',
   })
   const icon = { fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }
@@ -185,7 +153,7 @@ function FooterButtons() {
   const { undo, openSave, openShare } = useApp()
   const landscape = useLandscape()
   const [more, setMore] = useState(false)
-  const btn = { flex: 1, textAlign: 'center', padding: '10px 6px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.85)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }
+  const btn = { flex: 1, textAlign: 'center', padding: landscape ? '8px 6px' : '10px 6px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.85)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }
   return (
     <>
       <div style={landscape ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '2px 4px 0' } : { display: 'flex', gap: 6, padding: '2px 12px 0' }}>
@@ -211,8 +179,8 @@ function MoreSheet({ onClose }) {
     <div onClick={onClick} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)' }}>{label}</div>
   )
   return (
-    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end' }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxHeight: '85%', overflowY: 'auto', background: '#141417', borderRadius: '22px 22px 0 0', border: '1px solid rgba(255,255,255,.1)', padding: '10px 14px calc(var(--safe-bottom) + 10px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 80, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85%', overflowY: 'auto', background: '#141417', borderRadius: '22px 22px 0 0', border: '1px solid rgba(255,255,255,.1)', padding: '10px 14px calc(var(--safe-bottom) + 10px)', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,.2)', alignSelf: 'center', margin: '2px 0 6px' }} />
         <div onClick={run(openSheet)} style={row}><span style={{ width: 20, textAlign: 'center' }}>▤</span>My plays &amp; drills</div>
         <div onClick={run(enterFullScreen)} style={row}><span style={{ width: 20, textAlign: 'center' }}>⤢</span>Full screen</div>
@@ -528,7 +496,7 @@ export default function Board() {
         <div
           className={landscape ? 'scrollx' : undefined}
           style={landscape
-            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 250px', marginLeft: 12, overflowY: 'auto' }
+            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 280px', marginLeft: 12, overflowY: 'auto' }
             : { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}
         >
           {landscape && <Header compact />}
