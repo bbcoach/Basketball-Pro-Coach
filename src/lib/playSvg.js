@@ -37,11 +37,8 @@ function stepSvg(play, board, cmap, stepIndex) {
   const view = play.view === 'full' ? 'full' : 'half'
   const vb = view === 'half' ? HALF : FULL
 
-  // Each tile is the start of its step, with overlapping players pushed
-  // apart the same way the live board draws them.
-  const { pos, ball: bp } = board.layout((stepIndex - 1) / board.nSteps())
   const tokens = players.map((pl) => {
-    const p = pos[pl.id]
+    const p = baseAt(pl, stepIndex)
     if (isCone(pl)) {
       return { x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' }
     }
@@ -52,6 +49,7 @@ function stepSvg(play, board, cmap, stepIndex) {
       label: SHOW_NUMBERS ? pl.label : '',
     }
   })
+  const bp = board.ballStart(stepIndex, cmap)
   tokens.push({ x: bp.x, y: bp.y, r: 26, fill: 'url(#step-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
 
   const routes = []

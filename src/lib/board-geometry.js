@@ -368,98 +368,6 @@ export function wavy(pts) {
   return out.length > 1 ? poly(out) : poly(pts)
 }
 
-// ── no overlapping players ─────────────────────────────────────────────
-//
-// Player tokens have a 54-unit radius; two centres closer than SEP_MIN
-// would draw one token on top of the other. That happened all the time:
-// auto-defenders shadowing through a teammate, two cutters whose routes
-// cross, a path ending on someone's spot, a token dropped onto another.
-//
-// separate() pushes overlapping pairs apart until none overlap. Who gives
-// way is decided by `tier`: the lower tier moves the whole distance, equal
-// tiers split it. Offense outranks defense, so the drawn plays stay exactly
-// as drawn and the auto-defense bends around them; two offense players
-// whose routes cross each step aside by half. A few relaxation passes
-// settle chains (A pushes B into C). Cones aren't passed in at all — they
-// mark spots on the floor, and a drill dribbling tight past them is the
-// point of the drill.
-//
-// Pure function of positions, so the same t always gives the same layout
-// and an animation stays smooth as tokens slide past each other.
-export const SEP_MIN = 2 * 54 + 6
-const SEP_PASSES = 10
-
-export function separate(items) {
-  const pts = items.map((it) => ({ x: it.x, y: it.y }))
-  for (let pass = 0; pass < SEP_PASSES; pass++) {
-    let moved = false
-    for (let i = 0; i < items.length; i++) {
-      for (let j = i + 1; j < items.length; j++) {
-        const a = pts[i]
-        const b = pts[j]
-        const d = Math.hypot(b.x - a.x, b.y - a.y)
-        if (d >= SEP_MIN - 0.01) continue
-        // Push along the line between them as they stood a moment ago
-        // (`prev`), not as they stand now. Mid-push, a fast cutter can be
-        // shoved past the centre of the player he's colliding with; the
-        // current line would then point the other way and throw each of
-        // them out on the far side in one frame. The previous line keeps
-        // everyone on the side he was on.
-        let dx = b.x - a.x
-        let dy = b.y - a.y
-        const pa = items[i].prev
-        const pb = items[j].prev
-        if (pa && pb && Math.hypot(pb.x - pa.x, pb.y - pa.y) > 1) { dx = pb.x - pa.x; dy = pb.y - pa.y }
-        const dl = Math.hypot(dx, dy)
-        // Exactly on top of each other: no direction to push along, so pick
-        // a fixed one rather than a random one — the layout must not jitter
-        // from frame to frame.
-        if (dl < 0.001) { dx = 1; dy = 0 } else { dx /= dl; dy /= dl }
-        // How far apart they are along that line, which is what has to grow
-        // to SEP_MIN.
-        const along = (b.x - a.x) * dx + (b.y - a.y) * dy
-        const side = Math.abs((b.x - a.x) * dy - (b.y - a.y) * dx)
-        if (Math.hypot(along, side) >= SEP_MIN - 0.01) continue
-        const over = Math.sqrt(Math.max(0, SEP_MIN * SEP_MIN - side * side)) - along
-        const ti = items[i].tier
-        const tj = items[j].tier
-        const wi = ti < tj ? 1 : ti > tj ? 0 : 0.5
-        // Pushing straight apart would hold two players running at each
-        // other nose to nose for good, until their tracks had crossed and
-        // they swapped sides in a single frame. While they're closing in,
-        // they step around instead: sideways, the way their paths are
-        // already veering past each other (or to a fixed side when they're
-        // dead head-on), so they slide past and carry on.
-        let sx = 0
-        let sy = 0
-        const vi = items[i].vel
-        const vj = items[j].vel
-        // Once per call, not once per relaxation pass: the passes only
-        // settle the pushes, and repeating the sidestep in each of them would
-        // swing a player all the way round the other in a single frame.
-        if (pass === 0 && vi && vj) {
-          const vx = vj.x - vi.x
-          const vy = vj.y - vi.y
-          if (vx * dx + vy * dy < -0.001) {
-            const turn = vx * dy - vy * dx > 0 ? -1 : 1
-            sx = -dy * turn * over
-            sy = dx * turn * over
-          }
-        }
-        a.x -= (dx * over + sx) * wi
-        a.y -= (dy * over + sy) * wi
-        b.x += (dx * over + sx) * (1 - wi)
-        b.y += (dy * over + sy) * (1 - wi)
-        moved = true
-      }
-    }
-    if (!moved) break
-  }
-  const out = {}
-  items.forEach((it, i) => { out[it.id] = pts[i] })
-  return out
-}
-
 export function startState() {
   return {
     players: [
@@ -479,10 +387,7 @@ export function startState() {
 export function makeBoard(state) {
   const nSteps = () => Math.max(1, state.steps, maxStepOf(state.players.concat([state.ball])))
 
-  // The board's state never changes underneath one makeBoard() — a new
-  // state gets a new board — so anything derived from it is computed once.
-  let cmapCache = null
-  const carriers = () => cmapCache || (cmapCache = carrierMap(state.players, state.ball, nSteps()))
+  const carriers = () => carrierMap(state.players, state.ball, nSteps())
 
   const ballStart = (k, cmap) => {
     const c = (cmap || carriers())[k]
@@ -505,9 +410,7 @@ export function makeBoard(state) {
     return baseAt(state.ball, k)
   }
 
-  let marksCache = null
   const marks = () => {
-    if (marksCache) return marksCache
     const out = {}
     const offs = state.players.filter((p) => p.team === 'off')
     state.players.filter((p) => p.team === 'def').forEach((d) => {
@@ -516,7 +419,6 @@ export function makeBoard(state) {
       offs.forEach((o) => { const dd = dist(o, d); if (dd < bd) { bd = dd; best = o } })
       if (best && bd < 700) out[d.id] = best.id
     })
-    marksCache = out
     return out
   }
 
@@ -567,26 +469,35 @@ export function makeBoard(state) {
   const lagged = (fr) => (fr <= lag ? 0 : (fr - lag) / (1 - lag))
 
   // Defender track: mirrors his man's movement across ALL steps (adjusted
-  // for help positioning), keeps his own drawn paths where they exist, and
-  // gets stuck on screens for the rest of that step. Simulated once per
-  // board, SUB samples per step, rather than from scratch on every call —
-  // entPos() is asked for every defender on every animation frame, and the
-  // collision layout below asks for every sample along the way.
-  const SUB = 24
-  const idealTracks = {}
-  const idealTrack = (ent, man) => {
-    if (idealTracks[ent.id]) return idealTracks[ent.id]
-    const n = nSteps()
+  // for help positioning), with the reaction lag above, keeps his own drawn
+  // paths where they exist, and gets stuck on screens for the rest of that
+  // step.
+  const entPos = (ent, t, n, marksMap) => {
+    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
+    const manId = (marksMap || marks())[ent.id]
+    const man = manId && state.players.find((p) => p.id === manId)
+    if (!man) return posAtTime(ent, t, n)
+
+    const SUB = 24
+    const now = Math.max(0, Math.min(0.999999, t)) * n
+    const k0 = Math.floor(now)
+    // A path the coach drew for him this step is played as drawn, on time —
+    // the lag is for reacting to his man, not for following instructions.
+    if (actsOf(ent).some((a) => a.step === k0 + 1 && a.pts.length)) return posAtTime(ent, t, n)
+    const total = k0 + lagged(now - k0)
+    const steps = Math.ceil(total * SUB)
+    // idealPos is where perfect man-to-man shadowing (with help positioning
+    // and screen collisions) says the defender should be. It's simulated up
+    // to the lagged time rather than to `t`, and that's what gets drawn.
     let idealPos = { x: ent.x, y: ent.y }
     let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
-    const track = [idealPos]
-    for (let i = 1; i <= n * SUB; i++) {
-      const u = Math.min(i / SUB, n * 0.999999)
+    for (let i = 1; i <= steps; i++) {
+      const u = Math.min(total, i / SUB)
       const k = Math.floor(u) + 1
       const tt = u / n
       const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
       const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
-      if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; track.push(idealPos); continue }
+      if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; continue }
       const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
       let hitScreen = null
       state.players.forEach((sp) => {
@@ -608,153 +519,26 @@ export function makeBoard(state) {
         idealPos = { x: idealPos.x + -uy * along * 0.45, y: idealPos.y + ux * along * 0.45 }
       }
       prevMan = mp
-      track.push(idealPos)
     }
-    idealTracks[ent.id] = track
-    return track
-  }
-
-  const entPos = (ent, t, n, marksMap) => {
-    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
-    const manId = (marksMap || marks())[ent.id]
-    const man = manId && state.players.find((p) => p.id === manId)
-    if (!man) return posAtTime(ent, t, n)
-
-    const now = Math.max(0, Math.min(0.999999, t)) * n
-    const k0 = Math.floor(now)
-    // A path the coach drew for him this step is played as drawn, on time —
-    // the lag is for reacting to his man, not for following instructions.
-    if (actsOf(ent).some((a) => a.step === k0 + 1 && a.pts.length)) return posAtTime(ent, t, n)
-    // What gets drawn is the ideal track at the lagged time, not at `t`.
-    const track = idealTrack(ent, man)
-    const f = (k0 + lagged(now - k0)) * SUB
-    const i = Math.min(track.length - 1, Math.floor(f))
-    const a = track[i]
-    const b = track[Math.min(track.length - 1, i + 1)]
-    const r = f - i
-    return { x: a.x + (b.x - a.x) * r, y: a.y + (b.y - a.y) * r }
-  }
-
-  // Every token's position at time t, as drawn: entPos() for each player,
-  // kept apart from everyone else (see separate()).
-  //
-  // Pushing apart one frame at a time, from nothing, isn't enough: when two
-  // routes cross, the push direction flips the instant their centres pass
-  // and both tokens teleport to the other side. So the layout is walked
-  // forward from the start of the play, LSUB samples per step, and each
-  // player carries his offset from his own track from one sample to the
-  // next — whichever side he stepped around someone on, he stays on until
-  // he's clear. The offset then fades (OFFSET_FADE per sample) so he drifts
-  // back onto the route he was drawn on (about a third of a step to settle
-  // halfway). Frames in between interpolate the
-  // offsets and get one plain separate() pass to tidy up.
-  //
-  // `yieldId` is a player who gives way to everyone — the one being
-  // dragged, so it slides around the others instead of shoving them off
-  // their spots.
-  const LSUB = 48
-  const OFFSET_FADE = 0.9
-  const sims = {}
-  const sim = (yieldId) => {
-    const key = yieldId || ''
-    if (!sims[key]) {
-      const people = state.players.filter((pl) => !isCone(pl))
-      const tiers = people.map((pl) => (pl.id === yieldId ? -1 : pl.team === 'off' ? 1 : 0))
-      sims[key] = { people, tiers, offs: [], raws: [], last: null }
-    }
-    return sims[key]
-  }
-  const rawAt = (people, t) => {
-    const n = nSteps()
-    const mk = marks()
-    return people.map((pl) => entPos(pl, t, n, mk))
-  }
-  // Offsets at sample g, computing (and keeping) every sample up to it.
-  const offsetsAt = (sm, g) => {
-    const total = nSteps() * LSUB
-    while (sm.offs.length <= g && sm.offs.length <= total) {
-      const i = sm.offs.length
-      const raw = rawAt(sm.people, i / total)
-      const prev = i ? sm.offs[i - 1] : null
-      const prevRaw = sm.last
-      // The fade quickens towards each step's end and reaches zero on it, so
-      // nobody is still drifting back onto his route once the step is over
-      // — the same "everyone set when the step ends" rule as the defense
-      // lag. Two players still in contact there just get pushed apart again.
-      const rem = (LSUB - (i % LSUB)) % LSUB
-      const fade = Math.min(OFFSET_FADE, (rem / (rem + 1)) ** 3)
-      const items = sm.people.map((pl, j) => ({
-        id: j,
-        x: raw[j].x + (prev ? prev[j].x * fade : 0),
-        y: raw[j].y + (prev ? prev[j].y * fade : 0),
-        tier: sm.tiers[j],
-        vel: prevRaw ? { x: raw[j].x - prevRaw[j].x, y: raw[j].y - prevRaw[j].y } : null,
-        prev: prev ? { x: prevRaw[j].x + prev[j].x, y: prevRaw[j].y + prev[j].y } : null,
-      }))
-      sm.last = raw
-      sm.raws.push(raw)
-      const out = separate(items)
-      sm.offs.push(sm.people.map((pl, j) => ({ x: out[j].x - raw[j].x, y: out[j].y - raw[j].y })))
-    }
-    return sm.offs[Math.min(g, sm.offs.length - 1)]
-  }
-
-  const layout = (t, marksMap, yieldId) => {
-    const n = nSteps()
-    const tc = Math.max(0, Math.min(0.999999, t))
-    const sm = sim(yieldId)
-    const raw = rawAt(sm.people, tc)
-    const f = tc * n * LSUB
-    const g = Math.floor(f)
-    const o0 = offsetsAt(sm, g)
-    const o1 = offsetsAt(sm, g + 1)
-    const r = f - g
-    const r0 = sm.raws[Math.min(g, sm.raws.length - 1)]
-    const items = sm.people.map((pl, j) => ({
-      id: pl.id,
-      x: raw[j].x + o0[j].x + (o1[j].x - o0[j].x) * r,
-      y: raw[j].y + o0[j].y + (o1[j].y - o0[j].y) * r,
-      tier: sm.tiers[j],
-      prev: { x: r0[j].x + o0[j].x, y: r0[j].y + o0[j].y },
-    }))
-    const pos = separate(items)
-    const rawById = {}
-    sm.people.forEach((pl, j) => { rawById[pl.id] = raw[j] })
-    state.players.forEach((pl) => { if (!pos[pl.id]) pos[pl.id] = entPos(pl, tc, n, marksMap || marks()) })
-
-    let ball = ballPos(tc)
-    const k = stepAtTime(tc, n)
-    const c = carriers()[k]
-    if (c && rawById[c.id]) {
-      const dx = pos[c.id].x - rawById[c.id].x
-      const dy = pos[c.id].y - rawById[c.id].y
-      if (dx || dy) {
-        // In flight, the throw starts from where the carrier was drawn and
-        // the carrier's offset fades out as the ball travels.
-        const act = actsOf(state.ball).find((a) => a.step === k && a.pts.length)
-        const fr = tc * n - (k - 1)
-        const w = act ? 1 - easeInOut(fr) : 1
-        ball = { x: ball.x + dx * w, y: ball.y + dy * w }
-      }
-    }
-    return { pos, ball }
+    return idealPos
   }
 
   const hit = (p, t) => {
+    const n = nSteps()
     let best = null
     let bd = 110
-    const { pos, ball } = layout(t)
-    state.players.forEach((pl) => { const d = dist(pos[pl.id], p); if (d < bd) { bd = d; best = pl.id } })
+    const mk = marks()
+    state.players.forEach((pl) => { const d = dist(entPos(pl, t, n, mk), p); if (d < bd) { bd = d; best = pl.id } })
     // The ball only wins a tap that's ambiguous between it and a player when
     // it's the closer of the two — otherwise a player standing near the ball
     // (the starting ball carrier, most commonly) can never be tapped on the
     // half of their token nearest the ball.
-    const ballD = dist(ball, p)
+    const ballD = dist(ballPos(t), p)
     if (ballD < 70 && ballD < bd) return 'ball'
     return best
   }
 
   const entity = (id) => (id === 'ball' ? state.ball : state.players.find((p) => p.id === id))
 
-  return { nSteps, carriers, ballStart, ballPos, marks, entPos, layout, hit, entity }
+  return { nSteps, carriers, ballStart, ballPos, marks, entPos, hit, entity }
 }
