@@ -8,7 +8,8 @@ const COURT_W = 1500
 
 export default function Court() {
   const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
-  const { players, ball, t, step, playing, sel, view } = state
+  const { players, ball, t, step, playing, sel, view, boardNotice } = state
+  const focusId = boardNotice && boardNotice.focusId
   const landscape = useLandscape()
 
   const board = useMemo(() => makeBoard(state), [state])
@@ -258,6 +259,13 @@ export default function Court() {
             <text key={tk.key} x={tk.x} y={tk.y} dominantBaseline="central" transform={labelRotate(tk.x, tk.y)} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
           ) : null))}
         </g>
+        {/* The player a "not allowed" notice points at, pulsing on top of
+            everything. A CSS animation rather than SMIL: an <animate> added
+            after page load times itself from the page's start and has long
+            finished by then. */}
+        {tokens.filter((tk) => tk.key === focusId).map((tk) => (
+          <circle key={'ring' + boardNotice.id} className="notice-ring" cx={tk.x} cy={tk.y} r={tk.r + 10} fill="none" stroke={ACCENT} strokeWidth="12" pointerEvents="none" />
+        ))}
       </g>
     </svg>
   )

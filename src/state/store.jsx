@@ -41,6 +41,7 @@ function initialState() {
     boardMenu: false, loadOpen: false, infoPage: null, backupOpen: false, syncOpen: false,
     confirmAsk: null, // { title, message, confirmLabel, onConfirm }
     toast: null, // { id, text }
+    boardNotice: null, // { id, text, focusId } — shown on the court itself
 
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
@@ -98,6 +99,7 @@ export function AppProvider({ children }) {
   const lastRef = useRef(0)
   const runTimerRef = useRef(0)
   const toastTimerRef = useRef(0)
+  const noticeTimerRef = useRef(0)
 
   // ── load persisted data once ──────────────────────────────
   useEffect(() => {
@@ -274,7 +276,10 @@ export function AppProvider({ children }) {
       const handler = carrierMap(s.players, s.ball, Math.max(nSteps(), k))[k]
       if (tool === 'dribble' && who === 'ball' && handler) who = handler.id
       const ok = tool === 'dribble' ? handler && who === handler.id : who === 'ball' || (handler && who === handler.id)
-      if (!ok) { showToast('Only the player with the ball can ' + BALL_VERB[tool], 'info'); return }
+      // Said on the court, where the coach is looking, rather than as a
+      // toast at the bottom edge — that sat right on top of the very tools
+      // it was about. The player who does have the ball gets a pulse.
+      if (!ok) { showBoardNotice('Only the player with the ball can ' + BALL_VERB[tool], handler ? handler.id : 'ball'); return }
     }
     if (tool === 'pass' || tool === 'shot') {
       snapshot()
@@ -629,6 +634,14 @@ export function AppProvider({ children }) {
   // feedback (an export that just opens a new tab or downloads a file, an
   // add that scrolls a long list). Re-showing it resets the clock rather
   // than layering toasts, since only one is ever shown at a time.
+  const showBoardNotice = (text, focusId) => {
+    clearTimeout(noticeTimerRef.current)
+    const id = Date.now()
+    set({ boardNotice: { id, text, focusId } })
+    noticeTimerRef.current = setTimeout(() => {
+      set((s) => (s.boardNotice && s.boardNotice.id === id ? { boardNotice: null } : {}))
+    }, 2300)
+  }
   const showToast = (text, kind) => {
     clearTimeout(toastTimerRef.current)
     const id = Date.now()
