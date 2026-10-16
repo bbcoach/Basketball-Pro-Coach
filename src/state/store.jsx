@@ -9,6 +9,7 @@ import { exportPlayStepsPdf } from '../lib/reports'
 import { kindOf } from '../lib/playKind'
 import { playDrillAlert, unlockDrillAlert } from '../lib/drillAlert'
 import { OPP_ID } from '../lib/stats'
+import { byDateDesc, fmtDate, todayIso } from '../lib/dates'
 
 const LS = {
   plays: 'tb.plays.v1',
@@ -119,7 +120,7 @@ export function AppProvider({ children }) {
         const legacy = loadJson(LS.game, null)
         if (legacy && legacy.log && legacy.log.length) {
           games = [{
-            id: 'gm' + Date.now(), date: new Date().toISOString().slice(0, 10), type: 'game',
+            id: 'gm' + Date.now(), date: todayIso(), type: 'game',
             opponent: legacy.opponent || '', log: legacy.log, onCourt: legacy.onCourt || [],
           }]
         }
@@ -191,6 +192,23 @@ export function AppProvider({ children }) {
   // ── board helpers ──────────────────────────────────────────
   const nSteps = () => makeBoard(stateRef.current).nSteps()
 
+  // Pieces added on the board get 'p'/'c'/'b' + seq as their id. A loaded
+  // play brings its own ids, so seq has to move past the highest of them —
+  // otherwise the next added player can share an id with one already on the
+  // court, and dragging one would drag both. Plays saved while that could
+  // happen may already hold a duplicate; it gets a fresh id here.
+  const withLoadedPlayers = (list, seq) => {
+    const ids = new Set()
+    let next = list.reduce((m, x) => Math.max(m, (parseInt(String(x.id).replace(/^\D+/, ''), 10) || 0) + 1), seq)
+    const players = list.map((x) => {
+      const e = normEnt(x)
+      if (ids.has(e.id)) e.id = String(e.id).replace(/\d+$/, '') + next++
+      ids.add(e.id)
+      return e
+    })
+    return { players, seq: next }
+  }
+
   const snapshot = () => {
     const s = stateRef.current
     history.current.push(JSON.stringify({ players: s.players, ball: s.ball, steps: s.steps, step: s.step }))
@@ -238,9 +256,7 @@ export function AppProvider({ children }) {
     }
     if (tool === 'addCone') {
       snapshot()
-      // Unlike the two player tools, this one stays selected. Cones come in
-      // fours and sixes, and dropping back to Move after each would mean
-      // re-picking the tool for every cone of a drill setup.
+      // Stays selected too: cones come in fours and sixes.
       set((st) => ({
         players: st.players.concat([{ id: 'c' + st.seq, team: CONE_TEAM, label: '', x: p.x, y: p.y, acts: [] }]),
         seq: st.seq + 1, playing: false,
@@ -275,7 +291,9 @@ export function AppProvider({ children }) {
       return
     }
     if (!id) { set({ sel: null }); return }
-    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
+    // The undo snapshot waits for the first actual move: a tap that only
+    // selects a player changed nothing, and shouldn't cost an Undo press.
+    if (tool === 'move') { drag.current = { id, moved: false }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
     // Everything past here draws a route or moves the ball, and a cone does
     // neither — it has no legs to run a cut and no hands to pass with. Move
     // and Erase are the only tools that mean anything on one.
@@ -332,6 +350,7 @@ export function AppProvider({ children }) {
     const p = pt(e)
     const d = drag.current
     if (!d.draw) {
+      if (!d.moved) { snapshot(); d.moved = true }
       if (d.id === 'ball') set((s) => ({ ball: { ...s.ball, x: p.x, y: p.y } }))
       else set((s) => ({ players: s.players.map((x) => (x.id === d.id ? { ...x, x: p.x, y: p.y } : x)) }))
       return
@@ -440,7 +459,7 @@ export function AppProvider({ children }) {
   const toggleAutoDef = () => set((s) => ({ autoDef: !s.autoDef, hint: s.autoDef ? 'Defenders stay put unless you draw their path' : 'Defenders now shadow their nearest attacker' }))
 
   // ── plays (save / load) ────────────────────────────────────
-  const fileBase = () => (stateRef.current.playName || 'play').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+  const fileBase = () => (stateRef.current.playName || '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'play'
 
   const openSave = () => set((s) => ({ saveOpen: true, renameId: null, playing: false, nameDraft: s.playName === 'Untitled play' ? '' : s.playName, kindDraft: kindOf(s.plays.find((p) => p.id === s.currentId)) }))
   const closeSave = () => set({ saveOpen: false, renameId: null })
@@ -473,22 +492,22 @@ export function AppProvider({ children }) {
   const openPlayFromHome = (p) => {
     history.current = []
     const d = JSON.parse(JSON.stringify(p))
-    set({
+    set((s) => ({
       screen: 'board', boardMenu: false, loadOpen: false,
-      view: d.view, players: d.players.map(normEnt), ball: normEnt(d.ball),
+      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball),
       steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
       t: 0, playing: false, sel: null, tool: 'move',
-    })
+    }))
   }
   // "load" — from the in-board "My plays" sheet: swaps the board, keeps undo history.
   const loadPlayFromSheet = (p) => {
     snapshot()
     const d = JSON.parse(JSON.stringify(p))
-    set({
-      view: d.view, players: d.players.map(normEnt), ball: normEnt(d.ball),
+    set((s) => ({
+      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball),
       steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
       sheetOpen: false, t: 0, playing: false, sel: null,
-    })
+    }))
   }
   const removePlay = (p) => {
     persistPlays((ps) => ps.filter((x) => x.id !== p.id))
@@ -664,30 +683,29 @@ export function AppProvider({ children }) {
   // Switching teams re-points the flat roster/games/sessions mirror at the
   // newly active team and drops any in-progress game/session view, since
   // those ids belonged to the previous team's data.
-  const switchTeam = (id) => {
-    const s = stateRef.current
-    const t = s.teams.find((x) => x.id === id)
-    if (!t) return
-    saveJson(LS.activeTeam, id)
-    set({
-      activeTeamId: id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
+  // The same reset applies whichever way the active team changes (switch,
+  // new team, removing the active one) — a half-typed edit belongs to the
+  // team it was started in.
+  const activateTeam = (t) => {
+    saveJson(LS.activeTeam, t.id)
+    return {
+      activeTeamId: t.id, roster: t.roster, coaches: t.coaches, games: t.games, sessions: t.sessions, events: t.events,
       activeGameId: null, statsTab: 'games', openSession: null, selPlayer: null, editId: null, nameIn: '', numIn: '', playerDetailId: null,
       coachEditId: null, coachNameIn: '', coachDetailId: null, evEditId: null, evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '',
-    })
+    }
+  }
+  const switchTeam = (id) => {
+    const t = stateRef.current.teams.find((x) => x.id === id)
+    if (t) set(activateTeam(t))
   }
   const selectTeam = (id) => { switchTeam(id); set({ teamsDetail: true }) }
   const backToTeamsList = () => set({ teamsDetail: false })
   const newTeam = () => {
     const s = stateRef.current
-    const id = 'tm' + Date.now()
-    const entry = { id, name: 'New team ' + (s.teams.length + 1), roster: [], coaches: [], games: [], sessions: [], events: [] }
+    const entry = { id: 'tm' + Date.now(), name: 'New team ' + (s.teams.length + 1), roster: [], coaches: [], games: [], sessions: [], events: [] }
     const teams = s.teams.concat([entry])
     saveJson(LS.teams, teams)
-    saveJson(LS.activeTeam, id)
-    set({
-      teams, activeTeamId: id, roster: [], coaches: [], games: [], sessions: [], events: [],
-      activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: true,
-    })
+    set({ teams, ...activateTeam(entry), teamsDetail: true })
   }
   const renameTeam = (v) => {
     const s = stateRef.current
@@ -703,16 +721,8 @@ export function AppProvider({ children }) {
     if (!id || s.teams.length <= 1) { set({ teamRemoveAsk: null }); return }
     const teams = s.teams.filter((t) => t.id !== id)
     saveJson(LS.teams, teams)
-    if (s.activeTeamId === id) {
-      const next = teams[0]
-      saveJson(LS.activeTeam, next.id)
-      set({
-        teams, activeTeamId: next.id, roster: next.roster, coaches: next.coaches, games: next.games, sessions: next.sessions, events: next.events,
-        activeGameId: null, statsTab: 'games', openSession: null, teamsDetail: false, teamRemoveAsk: null,
-      })
-    } else {
-      set({ teams, teamRemoveAsk: null })
-    }
+    if (s.activeTeamId === id) set({ teams, ...activateTeam(teams[0]), teamsDetail: false, teamRemoveAsk: null })
+    else set({ teams, teamRemoveAsk: null })
   }
 
   // ── stat tracker ────────────────────────────────────────────
@@ -840,8 +850,8 @@ export function AppProvider({ children }) {
   // ── games ───────────────────────────────────────────────────
   const newGame = (type) => {
     const id = 'gm' + Date.now()
-    const entry = { id, date: new Date().toISOString().slice(0, 10), type, opponent: '', time: '', home: '', location: '', log: [], onCourt: [] }
-    persistGames((gs) => [entry].concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    const entry = { id, date: todayIso(), type, opponent: '', time: '', home: '', location: '', log: [], onCourt: [] }
+    persistGames((gs) => [entry].concat(gs).sort(byDateDesc))
     set({ activeGameId: id, statsTab: 'live', selPlayer: null })
   }
   const removeGame = (g) => {
@@ -849,12 +859,11 @@ export function AppProvider({ children }) {
     if (stateRef.current.activeGameId === g.id) set({ activeGameId: null })
   }
   const openGame = (id) => set({ activeGameId: id, statsTab: 'live', selPlayer: null })
-  const backToGames = () => set({ activeGameId: null, statsTab: 'games', selPlayer: null })
   const setGameDate = (v) => {
     if (!v) return
     const s = stateRef.current
     persistGames((gs) => gs.map((x) => (x.id === s.activeGameId ? { ...x, date: v } : x))
-      .sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+      .sort(byDateDesc))
   }
   const setGameOpponent = (v) => {
     const s = stateRef.current
@@ -902,9 +911,9 @@ export function AppProvider({ children }) {
   // ── attendance ──────────────────────────────────────────────
   const newSession = () => {
     const id = 'ses' + Date.now()
-    const d = new Date()
-    const entry = { id, date: d.toISOString().slice(0, 10), time: '', label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
-    persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    const date = todayIso()
+    const entry = { id, date, time: '', label: fmtDate(date), marks: {}, coachMarks: {} }
+    persistSessions((ss) => [entry].concat(ss).sort(byDateDesc))
     set({ openSession: id })
   }
   const removeSession = (s) => persistSessions((ss) => ss.filter((x) => x.id !== s.id))
@@ -913,9 +922,8 @@ export function AppProvider({ children }) {
   const setSessionDate = (v) => {
     if (!v) return
     const s = stateRef.current
-    const d = new Date(v + 'T12:00:00')
-    persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, date: v, label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }) } : x))
-      .sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    persistSessions((ss) => ss.map((x) => (x.id === s.openSession ? { ...x, date: v, label: fmtDate(v) } : x))
+      .sort(byDateDesc))
   }
   const setSessionTime = (v) => {
     const s = stateRef.current
@@ -950,14 +958,13 @@ export function AppProvider({ children }) {
   const sortEvents = (es) => es.slice().sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
   const scheduleSession = (date, time) => {
     const id = 'ses' + Date.now()
-    const d = new Date(date + 'T12:00:00')
-    const entry = { id, date, time: time || '', label: d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }), marks: {}, coachMarks: {} }
-    persistSessions((ss) => [entry].concat(ss).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    const entry = { id, date, time: time || '', label: fmtDate(date), marks: {}, coachMarks: {} }
+    persistSessions((ss) => [entry].concat(ss).sort(byDateDesc))
   }
   const scheduleGame = (date, opponent, time, home, location) => {
     const id = 'gm' + Date.now()
     const entry = { id, date, type: 'game', opponent: opponent || '', time: time || '', home: home || '', location: location || '', log: [], onCourt: [] }
-    persistGames((gs) => [entry].concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    persistGames((gs) => [entry].concat(gs).sort(byDateDesc))
   }
   // The add form doubles as training/game/event creation — which one it
   // writes to depends on evKind, except while editing (evEditId set),
@@ -1003,7 +1010,7 @@ export function AppProvider({ children }) {
       id: 'gm' + stamp + '_' + i, date: e.date, type: 'game', opponent: e.opponent || '',
       time: e.time || '', home: e.home || '', location: e.location || '', log: [], onCourt: [], importId: e.importId,
     }))
-    if (made.length) persistGames((gs) => made.concat(gs).sort((a, b) => (b.date || '').localeCompare(a.date || '')))
+    if (made.length) persistGames((gs) => made.concat(gs).sort(byDateDesc))
     const skipped = entries.length - made.length
     showToast(made.length + (made.length === 1 ? ' game imported' : ' games imported') + (skipped ? ` (${skipped} already there)` : ''))
   }
@@ -1088,7 +1095,9 @@ export function AppProvider({ children }) {
     clearInterval(runTimerRef.current)
     set({ runPlanId: planId, runIdx: 0, runLeft: (list[0].min || 5) * 60, runPaused: false })
     runTimerRef.current = setInterval(() => {
-      if (stateRef.current.runPaused) return
+      // Nothing left to count: skip the no-op state update (and re-render)
+      // every second until the coach moves on.
+      if (stateRef.current.runPaused || !stateRef.current.runLeft) return
       // Fires exactly once, on the tick that counts down to zero — a coach
       // mid-explanation needs the buzzer, not a slowly reddening number.
       if (stateRef.current.runLeft === 1) playDrillAlert()
@@ -1120,25 +1129,23 @@ export function AppProvider({ children }) {
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openShare, closeShareModal, doExportSteps, doExportVideo,
-    openShareCode, closeShareCode, sharePlay, shareDrill,
+    closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
-    switchTeam, selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    persistRoster, persistCoaches, persistDrills, persistPlans, persistSessions, persistGames, persistPlays, persistEvents,
+    selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
     addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
     askReset, closeReset, resetGame, resetRoster,
-    newGame, removeGame, openGame, backToGames, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
+    newGame, removeGame, openGame, setGameDate, setGameOpponent, setGameTime, setGameHome, setGameLocation,
     toggleTwoTeam, setTeamAName, setTeamBName, setPlayerSide, openImportSheet, closeImportSheet, importTeamRoster, removeImportedPlayer,
     newSession, removeSession, openSession, backToSessions, setSessionDate, setSessionTime, setSessionPlan, markAttendance, markCoachAttendance,
     planDrills, newPlan, openPlan, backToPlans, removePlan, setPlanName,
     movePlanItem, removePlanItem, addDrillToPlan, addDrill, editDrill, cancelDrill, removeDrill, toggleDrillFavorite, addExampleDrills,
-    startRun, stopRun, gotoDrill, toggleRunPause, runPlanCmd,
-    fileBase,
+    stopRun, gotoDrill, toggleRunPause, runPlanCmd,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [])
 

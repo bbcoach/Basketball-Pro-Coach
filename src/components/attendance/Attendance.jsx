@@ -8,16 +8,12 @@ import RosterEditor from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
 import ActionHint from '../ActionHint'
 import { exportAttendancePdf, exportPersonAttendancePdf } from '../../lib/reports'
-import { fmtDate, plural } from '../../lib/dates'
+import { fmtDate, plural, todayIso } from '../../lib/dates'
 import { personAttendance, personLabel, markMeta } from '../../lib/attendance'
 import { raised, keycap, chipSurface, field } from '../../theme'
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
-}
-
 function TimingBadge({ date }) {
-  const today = todayStr()
+  const today = todayIso()
   if (date > today) return <div style={{ flex: 'none', padding: '2px 7px', borderRadius: 99, background: 'rgba(127,178,224,.16)', color: '#7fb2e0', fontSize: 9.5, fontWeight: 700, letterSpacing: '.3px', textTransform: 'uppercase' }}>Upcoming</div>
   // The padlock used to be the 🔒 emoji — the only colour glyph in an
   // otherwise monochrome interface, and rendered differently on every
@@ -76,7 +72,7 @@ function SessionOpen() {
   const [unlockedId, setUnlockedId] = useState(null)
   if (!session) return null
 
-  const isPast = session.date < todayStr()
+  const isPast = session.date < todayIso()
   const locked = isPast && unlockedId !== session.id
 
   const askUnlock = () => askConfirm({
@@ -189,7 +185,7 @@ function PersonDetail({ person, kind, onBack }) {
   const { state, showToast } = useApp()
   const { sessions, plans, teams, activeTeamId } = state
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
-  const { rows, counts } = personAttendance(person, kind, sessions, todayStr(), plans)
+  const { rows, counts } = personAttendance(person, kind, sessions, todayIso(), plans)
   const isCoach = kind === 'coach'
   const pctColor = !counts.total ? 'rgba(255,255,255,.35)' : counts.pct >= 80 ? '#5bbf72' : counts.pct >= 55 ? ACCENT : '#d9843c'
 
@@ -256,7 +252,7 @@ function SummaryTab() {
   // resets on its own when the tab is switched away and back.
   const [sel, setSel] = useState(null)
   const teamName = teams.find((t) => t.id === activeTeamId)?.name
-  const pastSessions = sessions.filter((s) => s.date <= todayStr())
+  const pastSessions = sessions.filter((s) => s.date <= todayIso())
   const total = pastSessions.length
 
   if (sel) {

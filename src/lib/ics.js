@@ -52,7 +52,7 @@ function foldLine(line) {
 
 const DEFAULT_DURATION_MIN = { training: 90, game: 120, event: 60 }
 
-export function buildIcs(items) {
+function buildIcs(items) {
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Basketball Pro Coach//Schedule//EN', 'CALSCALE:GREGORIAN']
   items.forEach((it) => {
     lines.push('BEGIN:VEVENT')

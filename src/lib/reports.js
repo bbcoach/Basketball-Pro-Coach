@@ -4,6 +4,9 @@ import { download } from './download'
 import { ACCENT } from '../state/config'
 import { playStepSvgs } from './playSvg'
 import { HALF, FULL } from './board-geometry'
+import { todayIso } from './dates'
+
+const longDate = (d) => d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
 function gameSlug(game) {
   if (!game) return 'boxscore'
@@ -198,7 +201,7 @@ function boxTableHtml(head, tr, players, log, title) {
 export function exportBoxPdf(players, log, teamName, game) {
   const head = ['#', 'Player', 'PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
   const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
-  const date = game ? new Date(game.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const date = longDate(game ? new Date(game.date + 'T12:00:00') : new Date())
   const opponent = game ? (game.type === 'practice' ? 'Free play' : (game.opponent ? 'vs ' + game.opponent : 'Game')) : ''
 
   let tablesHtml
@@ -255,8 +258,7 @@ export function exportSeasonPdf(roster, allGames, teamName) {
     avg(t.reb, gp), avg(t.ast, gp), avg(t.stl, gp), avg(t.blk, gp), avg(t.tov, gp), avg(t.pf, gp),
   ], 'td')).join('')
 
-  const now = new Date()
-  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedDate = longDate(new Date())
 
   const html = `<!doctype html><html><head>${reportHead('Season stats')}<style>
       ${reportStyles('A4 landscape')}
@@ -280,7 +282,7 @@ function pctColorFor(pct, hasData) {
 }
 
 export function exportAttendancePdf(roster, coaches, sessions, teamName) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
   const pastSessions = sessions.filter((s) => s.date <= today)
   const total = pastSessions.length
 
@@ -317,7 +319,7 @@ export function exportAttendancePdf(roster, coaches, sessions, teamName) {
     </tr>`).join('')
 
   const now = new Date()
-  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedDate = longDate(now)
   const generatedTime = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
 
   const html = `<!doctype html><html><head>${reportHead('Training attendance')}<style>
@@ -355,7 +357,7 @@ function fmtDateRow(iso) {
 // from the same personAttendance() the on-screen detail uses, so the two
 // cannot disagree about a count.
 export function exportPersonAttendancePdf(person, kind, sessions, teamName, plans) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayIso()
   const { rows, counts } = personAttendance(person, kind, sessions, today, plans)
   const isCoach = kind === 'coach'
 
@@ -381,8 +383,7 @@ export function exportPersonAttendancePdf(person, kind, sessions, teamName, plan
     counts.none ? chip('not recorded', counts.none) : '',
   ].filter(Boolean).join('')
 
-  const now = new Date()
-  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedDate = longDate(new Date())
 
   const html = `<!doctype html><html><head>${reportHead('Attendance — ' + personLabel(person, kind))}<style>
       ${reportStyles('A4 portrait')}
@@ -460,8 +461,7 @@ export function exportPlayStepsPdf(play) {
     return `<div class="${cls}"><div class="tiles">${pageSvgs.map((svg, i) => tileHtml(svg, offset + i)).join('')}</div></div>`
   }).join('')
 
-  const now = new Date()
-  const generatedDate = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const generatedDate = longDate(new Date())
 
   const html = `<!doctype html><html><head>${reportHead(play.name || 'Play')}<style>
       ${reportStyles('A4 portrait')}

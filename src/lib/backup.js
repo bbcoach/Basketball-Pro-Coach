@@ -1,3 +1,5 @@
+import { todayIso } from './dates'
+
 // Everything the app persists lives in these localStorage keys — see
 // state/store.jsx's LS map. A backup is just a snapshot of all of them,
 // downloaded as a JSON file the coach can keep somewhere safe and restore
@@ -29,7 +31,7 @@ export function downloadBackup() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'basketball-pro-coach-backup-' + new Date().toISOString().slice(0, 10) + '.json'
+  a.download = 'basketball-pro-coach-backup-' + todayIso() + '.json'
   document.body.appendChild(a)
   a.click()
   a.remove()
