@@ -222,10 +222,17 @@ export function AppProvider({ children }) {
     if (tool === 'addOff' || tool === 'addDef') {
       snapshot()
       const off = tool === 'addOff'
-      const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
+      // The lowest number not already on the court, so deleting D2 and
+      // adding again gives a new D2 rather than a second D3.
+      const used = new Set(s.players.filter((x) => x.team === (off ? 'off' : 'def')).map((x) => String(x.label).replace(/^D/, '')))
+      let n = 1
+      while (used.has(String(n))) n++
+      // The tool stays on, like the cone and ball tools: setting up a
+      // defence means four or five taps in a row, and dropping back to Move
+      // after each one meant reopening the Add menu every time.
       set((st) => ({
         players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'D' + n, x: p.x, y: p.y, acts: [] }]),
-        seq: st.seq + 1, tool: 'move', playing: false,
+        seq: st.seq + 1, playing: false,
       }))
       return
     }
