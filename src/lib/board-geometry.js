@@ -447,23 +447,31 @@ export function makeBoard(state) {
     return { x: manPos.x + (dx / dl) * sag, y: manPos.y + (dy / dl) * sag }
   }
 
-  // How much of the gap to the ideal shadowing position a defender closes
-  // per SUB-th of a step. Below 1 so a burst of speed from his man opens a
-  // visible step of separation that closes back down once the man slows —
-  // a defender reacting a beat late rather than moving in perfect lockstep.
-  // state.defenseDelay (0 = tight, 1 = sluggish) is the coach-facing slider;
-  // it's inverted and scaled into this easing fraction here. Never let it
-  // reach 0 — that would freeze a defender in place for the rest of the
-  // play instead of just trailing further behind.
-  const REACT_EASE_TIGHT = 0.85
-  const REACT_EASE_LAGGY = 0.12
+  // The reaction lag, as a share of each step: a defender starts moving
+  // that late into the step and still arrives when it ends. state
+  // .defenseDelay (0 = tight, 1 = loose) is the coach-facing slider.
+  //
+  // This used to be an exponential chase — each tick closed a fixed share
+  // of the gap to the ideal spot — which never actually closes the gap. At
+  // the loose end a defender was still ~150px out when the step ended and
+  // kept sliding through the next step, or through the video's final hold,
+  // while his man stood still. Lagging in *time* instead gets the same
+  // reacting-a-beat-late look, but every step ends with the defense set.
+  const MAX_LAG = 0.4
   const delay = Math.max(0, Math.min(1, state.defenseDelay ?? 0.6))
-  const REACT_EASE = REACT_EASE_TIGHT - delay * (REACT_EASE_TIGHT - REACT_EASE_LAGGY)
+  const lag = delay * MAX_LAG
+
+  // Where the defender is `fr` (0..1) into a step: his ideal track replayed
+  // from `lag` onward, compressed into the rest of the step. The ideal track
+  // follows his man, who eases in and out of every step, so the defender
+  // also starts and stops at rest — the compression only shows as him
+  // moving a bit quicker than his man to make up the late start.
+  const lagged = (fr) => (fr <= lag ? 0 : (fr - lag) / (1 - lag))
 
   // Defender track: mirrors his man's movement across ALL steps (adjusted
-  // for help positioning), trails that ideal spot by a reaction lag, keeps
-  // his own drawn paths where they exist, and gets stuck on screens for the
-  // rest of that step.
+  // for help positioning), with the reaction lag above, keeps his own drawn
+  // paths where they exist, and gets stuck on screens for the rest of that
+  // step.
   const entPos = (ent, t, n, marksMap) => {
     if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
     const manId = (marksMap || marks())[ent.id]
@@ -471,13 +479,17 @@ export function makeBoard(state) {
     if (!man) return posAtTime(ent, t, n)
 
     const SUB = 24
-    const total = Math.max(0, Math.min(0.999999, t)) * n
+    const now = Math.max(0, Math.min(0.999999, t)) * n
+    const k0 = Math.floor(now)
+    // A path the coach drew for him this step is played as drawn, on time —
+    // the lag is for reacting to his man, not for following instructions.
+    if (actsOf(ent).some((a) => a.step === k0 + 1 && a.pts.length)) return posAtTime(ent, t, n)
+    const total = k0 + lagged(now - k0)
     const steps = Math.ceil(total * SUB)
     // idealPos is where perfect man-to-man shadowing (with help positioning
-    // and screen collisions) says the defender should be; renderPos is what
-    // actually gets drawn, trailing idealPos by the reaction lag above.
+    // and screen collisions) says the defender should be. It's simulated up
+    // to the lagged time rather than to `t`, and that's what gets drawn.
     let idealPos = { x: ent.x, y: ent.y }
-    let renderPos = { x: ent.x, y: ent.y }
     let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
     for (let i = 1; i <= steps; i++) {
       const u = Math.min(total, i / SUB)
@@ -485,7 +497,7 @@ export function makeBoard(state) {
       const tt = u / n
       const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
       const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
-      if (own) { idealPos = posAtTime(ent, tt, n); renderPos = idealPos; prevMan = mp; continue }
+      if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; continue }
       const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
       let hitScreen = null
       state.players.forEach((sp) => {
@@ -506,10 +518,9 @@ export function makeBoard(state) {
         const along = vx * -uy + vy * ux
         idealPos = { x: idealPos.x + -uy * along * 0.45, y: idealPos.y + ux * along * 0.45 }
       }
-      renderPos = { x: renderPos.x + (idealPos.x - renderPos.x) * REACT_EASE, y: renderPos.y + (idealPos.y - renderPos.y) * REACT_EASE }
       prevMan = mp
     }
-    return renderPos
+    return idealPos
   }
 
   const hit = (p, t) => {
