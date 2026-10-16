@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  actsOf, baseAt, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
+  actsOf, baseAt, carrierMap, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
   CONE_TEAM, isCone, STEP_SECS,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
@@ -46,7 +46,7 @@ function initialState() {
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
-    autoDef: false, defenseDelay: 0.6, fullScreen: false, dragging: null,
+    autoDef: false, defenseDelay: 0, fullScreen: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     formOpen: false, shareOpen: false,
@@ -212,15 +212,6 @@ export function AppProvider({ children }) {
     return { x: q.x, y: q.y }
   }
 
-  // Writes back where a player is actually drawn after board.layout() has
-  // moved it out of everyone's way, so a token dropped onto another lands
-  // beside it for good instead of only looking that way.
-  const settle = (id) => set((st) => {
-    const p = makeBoard(st).layout(0, undefined, id).pos[id]
-    if (!p) return { dragging: null }
-    return { dragging: null, players: st.players.map((x) => (x.id === id ? { ...x, x: p.x, y: p.y } : x)) }
-  })
-
   const onDown = (e) => {
     if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId)
     const p = pt(e)
@@ -230,12 +221,10 @@ export function AppProvider({ children }) {
       snapshot()
       const off = tool === 'addOff'
       const n = s.players.filter((x) => x.team === (off ? 'off' : 'def')).length + 1
-      const id = 'p' + s.seq
       set((st) => ({
-        players: st.players.concat([{ id, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
+        players: st.players.concat([{ id: 'p' + st.seq, team: off ? 'off' : 'def', label: off ? String(n) : 'X' + n, x: p.x, y: p.y, acts: [] }]),
         seq: st.seq + 1, tool: 'move', playing: false,
       }))
-      settle(id)
       return
     }
     if (tool === 'addCone') {
@@ -267,23 +256,36 @@ export function AppProvider({ children }) {
       return
     }
     if (!id) { set({ sel: null }); return }
-    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1, dragging: id === 'ball' ? null : id }); return }
+    if (tool === 'move') { snapshot(); drag.current = { id }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
     // Everything past here draws a route or moves the ball, and a cone does
     // neither — it has no legs to run a cut and no hands to pass with. Move
     // and Erase are the only tools that mean anything on one.
     if (isCone(board.entity(id))) return
     const k = s.step
     const t0 = (k - 1) / nSteps()
+    // Dribble, pass and shot belong to whoever has the ball at the start of
+    // this step. Pass and shot used to start from the ball no matter which
+    // player was tapped, and dribble could be drawn for anyone; now tapping
+    // anyone else explains why nothing happens. Tapping the ball itself
+    // still works — for a dribble it means its handler.
+    const BALL_VERB = { dribble: 'dribble', pass: 'pass', shot: 'shoot' }
+    let who = id
+    if (BALL_VERB[tool]) {
+      const handler = carrierMap(s.players, s.ball, Math.max(nSteps(), k))[k]
+      if (tool === 'dribble' && who === 'ball' && handler) who = handler.id
+      const ok = tool === 'dribble' ? handler && who === handler.id : who === 'ball' || (handler && who === handler.id)
+      if (!ok) { showToast('Only the player with the ball can ' + BALL_VERB[tool], 'info'); return }
+    }
     if (tool === 'pass' || tool === 'shot') {
       snapshot()
       drag.current = { id: 'ball', draw: tool, step: k }
       set((st) => ({ ball: setAct(st.ball, k, tool, p), sel: 'ball', playing: false, t: t0 }))
       return
     }
-    if (id === 'ball') return
+    if (who === 'ball') return
     snapshot()
-    drag.current = { id, draw: tool, step: k }
-    set((st) => ({ players: st.players.map((x) => (x.id === id ? setAct(x, k, tool, p) : x)), sel: id, playing: false, t: t0 }))
+    drag.current = { id: who, draw: tool, step: k }
+    set((st) => ({ players: st.players.map((x) => (x.id === who ? setAct(x, k, tool, p) : x)), sel: who, playing: false, t: t0 }))
   }
 
   const onMove = (e) => {
@@ -313,7 +315,6 @@ export function AppProvider({ children }) {
     const d = drag.current
     drag.current = null
     if (!d) return
-    if (!d.draw && d.id !== 'ball') settle(d.id)
     if (d.draw) {
       const s = stateRef.current
       const board = makeBoard(s)
@@ -628,10 +629,10 @@ export function AppProvider({ children }) {
   // feedback (an export that just opens a new tab or downloads a file, an
   // add that scrolls a long list). Re-showing it resets the clock rather
   // than layering toasts, since only one is ever shown at a time.
-  const showToast = (text) => {
+  const showToast = (text, kind) => {
     clearTimeout(toastTimerRef.current)
     const id = Date.now()
-    set({ toast: { id, text } })
+    set({ toast: { id, text, kind } })
     toastTimerRef.current = setTimeout(() => {
       set((s) => (s.toast && s.toast.id === id ? { toast: null } : {}))
     }, 2200)
