@@ -40,6 +40,9 @@ export function actsOf(ent) {
 export function normEnt(ent) {
   const e = Object.assign({}, ent, { acts: actsOf(ent) })
   delete e.route
+  // Defenders were labelled X1, X2… before they became D1, D2…; plays
+  // saved back then pick up the new label whenever they're loaded.
+  if (e.team === 'def' && /^X\d+$/.test(e.label || '')) e.label = 'D' + e.label.slice(1)
   return e
 }
 export function maxStepOf(list) {
