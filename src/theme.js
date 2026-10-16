@@ -129,6 +129,21 @@ export function haloRing(gap = 2.5) {
   return `0 0 0 ${gap}px #0e0e10, 0 0 0 ${gap + 1.6}px rgba(232,177,60,.85), 0 0 14px ${gap + 2}px rgba(232,177,60,.22)`
 }
 
+// The gold half of the header wordmarks, as polished metal rather than flat
+// paint: light at the top, the accent through the middle, burnt at the
+// bottom — the same top-down light as the ball in Logo.jsx. Flat ACCENT
+// stays as `color`, so a renderer that can't clip to text still shows gold.
+// The small right padding gives an italic last letter room: its slant pokes
+// past the box, and the gradient only paints inside it.
+export const goldText = {
+  color: ACCENT,
+  backgroundImage: 'linear-gradient(180deg, #fff1c9 0%, #e8b13c 46%, #9a6614 100%)',
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  paddingRight: '.12em',
+}
+
 // Primary actions as physical keys: lighter at the top, darker at the
 // bottom, with a dark bottom edge doing the work a moulded keycap's would.
 export function keycap(bg = ACCENT) {
