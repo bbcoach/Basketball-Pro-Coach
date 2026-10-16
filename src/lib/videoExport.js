@@ -12,7 +12,7 @@
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, getFirstEncodableVideoCodec } from 'mediabunny'
 import {
   actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
-  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime,
+  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, STEP_SECS,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -185,13 +185,20 @@ export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
   const vbW = 1500
   const vbH = play.view === 'full' ? 2800 : 1400
 
-  // A fixed, generous pace per step rather than the live board's own
-  // (adjustable) playback speed — an exported video has to stand on its own
-  // without a coach there to hit play/pause, and this keeps a many-step
-  // play's export time bounded instead of however long a slow playback
-  // speed would take.
-  const SECS_PER_STEP = 1.1
-  const totalFrames = Math.max(1, Math.round(totalSteps * SECS_PER_STEP * fps))
+  // The board's own 1× pace, not whatever speed the toggle is on right now —
+  // an exported video has to stand on its own without a coach there to hit
+  // play/pause. This used to be a separate 1.1s per step, less than half the
+  // board's, and the clips came out looking fast-forwarded.
+  //
+  // Plus a still at each end: the opening frame shows step 1's routes before
+  // anything moves, so a viewer can read the plan first, and the closing
+  // frame holds the final positions instead of the clip cutting off the
+  // moment the last player arrives.
+  const HOLD_START = 0.8
+  const HOLD_END = 1.5
+  const leadFrames = Math.round(HOLD_START * fps)
+  const moveFrames = Math.max(1, Math.round(totalSteps * STEP_SECS * fps))
+  const totalFrames = leadFrames + moveFrames + Math.round(HOLD_END * fps)
 
   const outW = 720
   const outH = Math.round((outW * (vbH / vbW)) / 2) * 2 // even height — codecs expect it
@@ -210,7 +217,7 @@ export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
   await output.start()
 
   for (let i = 0; i < totalFrames; i++) {
-    const t = Math.min(0.999999, i / totalFrames)
+    const t = Math.min(0.999999, Math.max(0, (i - leadFrames) / moveFrames))
     const svg = frameSvg(play, board, cmap, t, vbW, vbH)
     // eslint-disable-next-line no-await-in-loop
     const img = await svgToImage(svg)

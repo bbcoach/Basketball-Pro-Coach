@@ -172,6 +172,11 @@ export function carrierMap(allPlayers, ball, n) {
   return out
 }
 
+// How long one step takes at the board's 1× playback speed. The live board
+// and the video export both read it, so an exported clip runs at the pace
+// the coach saw while drawing the play.
+export const STEP_SECS = 1 / 0.42
+
 export function stepAtTime(t, n) {
   return Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1)
 }
