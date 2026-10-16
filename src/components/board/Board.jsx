@@ -439,6 +439,19 @@ function FullScreenTools() {
   )
 }
 
+// Enter and exit full screen are the same pair of arrows, pointing out and
+// pointing in — drawn rather than typed, so both render the same on every
+// platform and font.
+function FsIcon({ exit, size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {exit
+        ? <><path d="M4 14h6v6M20 10h-6V4" /><path d="M14 10l7-7M3 21l7-7" /></>
+        : <><path d="M15 3h6v6M9 21H3v-6" /><path d="M21 3l-7 7M3 21l7-7" /></>}
+    </svg>
+  )
+}
+
 export default function Board() {
   const { state, exitFullScreen, togglePlay, enterFullScreen } = useApp()
   const { fullScreen, playing, hint, boardNotice } = state
@@ -462,7 +475,7 @@ export default function Board() {
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: landscape ? 'row' : 'column', background: '#0b0b0d', padding: fullScreen ? 0 : landscape ? 14 : 'var(--safe-top) 0 calc(var(--safe-bottom) - 4px) 0', overflow: 'hidden' }}>
       {fullScreen && (
         <>
-          <div onClick={exitFullScreen} style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, padding: '10px 15px', borderRadius: 12, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Exit full screen</div>
+          <div onClick={exitFullScreen} title="Exit full screen" aria-label="Exit full screen" role="button" style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top, 0px))', right: 14, zIndex: 60, width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', cursor: 'pointer' }}><FsIcon exit size={20} /></div>
           <FullScreenTools />
           <FullScreenControls />
           <div
@@ -482,7 +495,7 @@ export default function Board() {
       <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
         <Court />
         {!fullScreen && (
-          <div onClick={enterFullScreen} title="Full screen" style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', fontSize: 16, cursor: 'pointer' }}>⤢</div>
+          <div onClick={enterFullScreen} title="Full screen" aria-label="Full screen" role="button" style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', cursor: 'pointer' }}><FsIcon /></div>
         )}
         {boardNotice && (
           // The outer box only centres; toast-pop animates transform, which
