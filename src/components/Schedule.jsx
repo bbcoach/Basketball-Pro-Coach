@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ACCENT } from '../state/config'
 import { useApp } from '../state/store'
 import ScreenHeader from './ScreenHeader'
@@ -19,6 +19,11 @@ const KIND_META = {
 }
 
 const KINDS = ['training', 'game', 'event']
+const KIND_HINT = {
+  training: 'A practice session, with attendance',
+  game: 'Opponent, home or away, then track stats',
+  event: 'Tournament, team meeting, anything else',
+}
 
 // A coach with several teams needs to tell entries apart at a glance — a
 // small color per team, cycling if there are more teams than colors.
@@ -39,6 +44,33 @@ export default function Schedule() {
   const [icsPreview, setIcsPreview] = useState(null)
   const [icsStatus, setIcsStatus] = useState(null)
   const icsFileRef = useRef(null)
+  const scrollRef = useRef(null)
+
+  // Adding starts from one button. The kind of entry used to be picked with
+  // a row of Training / Game / Event buttons sitting right above the
+  // All / Trainings / Games / Events filter — two strips with the same four
+  // words, one setting a form and one narrowing the list, and coaches kept
+  // reading the first as a filter. Now the choice only appears after
+  // tapping Add, as a menu, and the form only once a kind is picked.
+  const [panel, setPanel] = useState(null) // null | 'menu' | 'form'
+  const formOpen = panel === 'form' || !!evEditId
+  const clearForm = () => set({ evTitleIn: '', evDateIn: '', evTimeIn: '', evHome: '', evLocationIn: '' })
+  const closePanel = () => {
+    if (evEditId) cancelEditEvent()
+    else clearForm()
+    setPanel(null)
+  }
+  const pickKind = (k) => { clearForm(); set({ evKind: k }); setPanel('form') }
+  // Editing starts from a row further down the list; bring the form into view.
+  useEffect(() => {
+    if (evEditId) scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [evEditId])
+  const canSave = !!evDateIn && (evKind !== 'event' || !!(evTitleIn || '').trim())
+  const save = () => {
+    if (!canSave) return
+    addScheduleItem()
+    setPanel(null)
+  }
 
   // League import walks through: pick a source + paste its league id, fetch
   // and parse it (leagueSchedule), pick which of the teams found is this
@@ -107,7 +139,7 @@ export default function Schedule() {
   const filtered = kindFilter !== 'all'
 
   const exportIcs = () => downloadIcs(upcoming, 'my-schedule-' + today + '.ics')
-  const pickIcsFile = () => { setIcsStatus(null); icsFileRef.current?.click() }
+  const pickIcsFile = () => { setIcsStatus(null); setPanel(null); icsFileRef.current?.click() }
   const onIcsFile = async (e) => {
     const file = e.target.files && e.target.files[0]
     e.target.value = ''
@@ -130,83 +162,94 @@ export default function Schedule() {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 97, background: '#0b0b0d', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 0 calc(var(--safe-bottom) + 12px)' }}>
       <ScreenHeader title="My schedule" line={upcoming.length ? (filtered ? upcomingShown.length + ' of ' + upcoming.length + ' upcoming' : upcoming.length + ' upcoming') : undefined} onClose={closeSchedule} />
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-        <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
-          <div onClick={exportIcs} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Export .ics</div>
-          <div onClick={pickIcsFile} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Import .ics</div>
-          <input ref={icsFileRef} type="file" accept=".ics,text/calendar" onChange={onIcsFile} style={{ display: 'none' }} />
-          <div onClick={() => setLeagueOpen(true)} style={{ flex: 1, textAlign: 'center', padding: '8px 6px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)' }}>Import league</div>
+      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
+        <div
+          onClick={() => (panel || evEditId ? closePanel() : setPanel('menu'))}
+          style={panel || evEditId
+            ? { padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.75)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }
+            : { padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center', marginBottom: 10 }}
+        >
+          {panel || evEditId ? 'Close' : '＋ Add to schedule'}
         </div>
+        <input ref={icsFileRef} type="file" accept=".ics,text/calendar" onChange={onIcsFile} style={{ display: 'none' }} />
         {icsStatus && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', textAlign: 'center', paddingBottom: 10 }}>{icsStatus}</div>}
 
-        {/* Walled off as its own card: the type buttons below used to sit
-            loose above the list, in the same full-width three-equal-segments
-            shape Tabs uses for real filtering, and got read as a filter for
-            the list rather than a setting for this form. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 14, borderRadius: 16, ...raised(.04, .09) }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
-            {evEditId ? 'Edit event' : 'Schedule ' + (evKind === 'event' ? 'an event' : 'a ' + KIND_META[evKind].label.toLowerCase())}
-          </div>
-          {!evEditId && (
-            // Left-aligned, pill-shaped, only as wide as their labels, behind
-            // a "Type" caption — everything the filter strip is not, so the
-            // two can't be mistaken for each other.
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ flex: 'none', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,.38)' }}>Type</span>
-              {KINDS.map((k) => (
-                <div
-                  key={k} onClick={() => set({ evKind: k })}
-                  style={{ flex: 'none', padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', background: evKind === k ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.07)', color: evKind === k ? '#fff' : 'rgba(255,255,255,.62)', border: '1px solid ' + (evKind === k ? ACCENT : 'transparent') }}
-                >
-                  {KIND_META[k].label}
+        {panel === 'menu' && !evEditId && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 8, marginBottom: 14, borderRadius: 16, ...raised(.04, .09) }}>
+            {KINDS.map((k) => (
+              <div key={k} onClick={() => pickKind(k)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 10px', borderRadius: 12, cursor: 'pointer', background: 'rgba(255,255,255,.05)' }}>
+                <div style={{ ...centred, width: 34, height: 34, flex: 'none', borderRadius: 10, background: 'rgba(255,255,255,.06)', color: KIND_META[k].color, fontSize: 15, fontWeight: 700 }}>{KIND_META[k].icon}{'\uFE0E'}</div>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff' }}>{KIND_META[k].label}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{KIND_HINT[k]}</div>
                 </div>
-              ))}
-            </div>
-          )}
-          {evKind !== 'training' && (
-            <input
-              type="text" value={evTitleIn} onChange={(e) => set({ evTitleIn: e.target.value })}
-              placeholder={evKind === 'game' ? 'Opponent (optional)' : 'e.g. Season tournament'}
-              style={{ ...field() }}
-            />
-          )}
-          {(evKind === 'game' || evKind === 'event') && (
+                <div style={{ flex: 'none', color: 'rgba(255,255,255,.35)', fontSize: 14 }}>›</div>
+              </div>
+            ))}
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '8px 4px 2px' }}>Or import</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              {evKind === 'game' && (
-                <>
-                  <div
-                    onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
-                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'home' ? ACCENT : 'transparent') }}
-                  >
-                    Home
-                  </div>
-                  <div
-                    onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
-                    style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'away' ? ACCENT : 'transparent') }}
-                  >
-                    Away
-                  </div>
-                </>
-              )}
+              <div onClick={() => { setPanel(null); setLeagueOpen(true) }} style={{ flex: 1, textAlign: 'center', padding: '10px 6px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.75)' }}>League schedule</div>
+              <div onClick={pickIcsFile} style={{ flex: 1, textAlign: 'center', padding: '10px 6px', borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.75)' }}>Calendar file (.ics)</div>
+            </div>
+          </div>
+        )}
+
+        {formOpen && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, marginBottom: 14, borderRadius: 16, ...raised(.04, .09) }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ ...centred, width: 26, height: 26, flex: 'none', borderRadius: 8, background: 'rgba(255,255,255,.06)', color: KIND_META[evKind].color, fontSize: 12, fontWeight: 700 }}>{KIND_META[evKind].icon}{'\uFE0E'}</div>
+              <div style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{evEditId ? 'Edit event' : 'New ' + KIND_META[evKind].label.toLowerCase()}</div>
+              {!evEditId && <div onClick={() => setPanel('menu')} style={{ flex: 'none', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', cursor: 'pointer', padding: '4px 2px' }}>Change</div>}
+            </div>
+            {evKind !== 'training' && (
               <input
-                type="text" value={evLocationIn} onChange={(e) => set({ evLocationIn: e.target.value })} placeholder="Location (optional)"
+                type="text" value={evTitleIn} onChange={(e) => set({ evTitleIn: e.target.value })}
+                placeholder={evKind === 'game' ? 'Opponent (optional)' : 'What is it? e.g. Season tournament'}
+                style={{ ...field() }}
+              />
+            )}
+            {(evKind === 'game' || evKind === 'event') && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                {evKind === 'game' && (
+                  <>
+                    <div
+                      onClick={() => set({ evHome: evHome === 'home' ? '' : 'home' })}
+                      style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'home' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'home' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'home' ? ACCENT : 'transparent') }}
+                    >
+                      Home
+                    </div>
+                    <div
+                      onClick={() => set({ evHome: evHome === 'away' ? '' : 'away' })}
+                      style={{ ...centred, flex: 'none', padding: '10px 12px', borderRadius: 12, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: evHome === 'away' ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.06)', color: evHome === 'away' ? '#fff' : 'rgba(255,255,255,.6)', border: '1px solid ' + (evHome === 'away' ? ACCENT : 'transparent') }}
+                    >
+                      Away
+                    </div>
+                  </>
+                )}
+                <input
+                  type="text" value={evLocationIn} onChange={(e) => set({ evLocationIn: e.target.value })} placeholder="Location (optional)"
+                  style={{ flex: 1, minWidth: 0, ...field() }}
+                />
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                type="date" value={evDateIn} onChange={(e) => set({ evDateIn: e.target.value })}
                 style={{ flex: 1, minWidth: 0, ...field() }}
               />
+              <input
+                type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
+                style={{ flex: 'none', width: 104, ...field() }}
+              />
+              <div
+                onClick={save}
+                style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: canSave ? 'pointer' : 'default', flex: 'none', opacity: canSave ? 1 : 0.4 }}
+              >
+                {evEditId ? 'Save' : 'Add'}
+              </div>
             </div>
-          )}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              type="date" value={evDateIn} onChange={(e) => set({ evDateIn: e.target.value })}
-              style={{ flex: 1, minWidth: 0, ...field() }}
-            />
-            <input
-              type="time" value={evTimeIn} onChange={(e) => set({ evTimeIn: e.target.value })}
-              style={{ flex: 'none', width: 104, ...field() }}
-            />
-            <div onClick={addScheduleItem} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{evEditId ? 'Save' : 'Add'}</div>
-            {evEditId && <div onClick={cancelEditEvent} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
           </div>
-        </div>
+        )}
 
         {/* The real filter — deliberately in the app's established Tabs shape,
             which everywhere else means "narrow the list below this". Only
@@ -230,13 +273,20 @@ export default function Schedule() {
                   empty schedule, and a schedule with nothing of this one kind. */}
               {upcoming.length
                 ? 'Nothing coming up in this category — ' + upcoming.length + ' other ' + (upcoming.length === 1 ? 'entry' : 'entries') + ' under “All”.'
-                : 'Nothing coming up — schedule a training, add a game, or note a team event above.'}
+                : 'Nothing coming up yet. Tap “Add to schedule” to plan a training, a game or a team event.'}
             </div>
           )}
         </div>
 
-        <div onClick={() => setShowPast((v) => !v)} style={{ padding: '6px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', cursor: 'pointer', textAlign: 'center' }}>
-          {showPast ? 'Hide past events' : 'Show past events'}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 18 }}>
+          <div onClick={() => setShowPast((v) => !v)} style={{ padding: '6px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', cursor: 'pointer' }}>
+            {showPast ? 'Hide past events' : 'Show past events'}
+          </div>
+          {upcoming.length > 0 && (
+            <div onClick={exportIcs} style={{ padding: '6px 2px', fontSize: 11.5, fontWeight: 600, color: 'rgba(255,255,255,.45)', cursor: 'pointer' }}>
+              Export to calendar (.ics)
+            </div>
+          )}
         </div>
 
         {showPast && (
