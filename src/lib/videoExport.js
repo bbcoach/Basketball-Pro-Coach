@@ -12,7 +12,7 @@
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, getFirstEncodableVideoCodec } from 'mediabunny'
 import {
   actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, conePath, CONE_COLOR,
-  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime,
+  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, STEP_SECS,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -173,25 +173,120 @@ function svgToImage(svgMarkup) {
   })
 }
 
+
+// ── branding ───────────────────────────────────────────────────────────
+//
+// A shared clip travels without the app around it, so it carries its own
+// signature: a small link badge on every frame, and a short end card. Both
+// are drawn on the canvas after the court rather than inside the frame SVG,
+// because an SVG decoded through <img> can't see the page's web fonts —
+// the canvas can, so the wordmark comes out in Barlow Condensed like the app.
+
+const SITE = 'basketballprocoach.com'
+const COND_FONT = "'Barlow Condensed', sans-serif"
+// Logo.jsx's mark as a standalone SVG: same sphere, same halo ring.
+const MARK = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 48 48">
+  <defs>
+    <radialGradient id="s" cx="31%" cy="27%" r="82%"><stop offset="0%" stop-color="#ffe9b0"/><stop offset="38%" stop-color="#d49a2e"/><stop offset="100%" stop-color="#201405"/></radialGradient>
+    <radialGradient id="h" cx="50%" cy="50%" r="50%"><stop offset="65%" stop-color="${ACCENT}" stop-opacity="0"/><stop offset="76%" stop-color="${ACCENT}" stop-opacity="0"/><stop offset="86%" stop-color="${ACCENT}" stop-opacity=".85"/><stop offset="100%" stop-color="${ACCENT}" stop-opacity="0"/></radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="23" fill="url(#h)"/><circle cx="24" cy="24" r="15" fill="url(#s)"/>
+  <path d="M9 24H39M24 9V39M14 12.5C21 18 21 30 14 35.5M34 12.5C27 18 27 30 34 35.5" fill="none" stroke="#140d03" stroke-width="1.6" opacity=".6"/>
+</svg>`
+
+// theme.js's goldText gradient, for canvas text.
+function goldFill(ctx, y0, y1) {
+  const g = ctx.createLinearGradient(0, y0, 0, y1)
+  g.addColorStop(0, '#fff1c9')
+  g.addColorStop(0.46, ACCENT)
+  g.addColorStop(1, '#9a6614')
+  return g
+}
+
+function pill(ctx, x, y, w, h) {
+  const r = h / 2
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
+
+// Bottom-right corner: in a half-court view that's the open floor by the
+// sideline at half court, the spot a play is least likely to use.
+function drawBadge(ctx, mark, W, H) {
+  ctx.font = `600 17px ${COND_FONT}`
+  const tw = ctx.measureText(SITE).width
+  const bw = 50 + tw + 14
+  const bh = 40
+  const x = W - bw - 16
+  const y = H - bh - 16
+  ctx.fillStyle = 'rgba(10,10,12,.74)'
+  pill(ctx, x, y, bw, bh)
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(232,177,60,.45)'
+  ctx.lineWidth = 1.2
+  ctx.stroke()
+  ctx.drawImage(mark, x + 8, y + 4, 32, 32)
+  ctx.textBaseline = 'middle'
+  ctx.textAlign = 'left'
+  ctx.fillStyle = '#fff'
+  ctx.fillText(SITE, x + 50, y + bh / 2 + 1)
+}
+
+// Shown after the final positions have held, so it never covers the play.
+function drawEndCard(ctx, mark, W, H, alpha) {
+  const cy = H / 2
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = 'rgba(10,10,12,.97)'
+  ctx.fillRect(0, 0, W, H)
+  ctx.drawImage(mark, W / 2 - 70, cy - 150, 140, 140)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `italic 800 46px ${COND_FONT}`
+  ctx.fillStyle = '#fff'
+  ctx.fillText('BASKETBALL PRO COACH', W / 2, cy + 30)
+  ctx.font = `600 18px ${COND_FONT}`
+  ctx.fillStyle = 'rgba(255,255,255,.55)'
+  ctx.fillText('DRAW · ANIMATE · SHARE YOUR PLAYS', W / 2, cy + 72)
+  ctx.font = `700 28px ${COND_FONT}`
+  ctx.fillStyle = goldFill(ctx, cy + 100, cy + 140)
+  ctx.fillText(SITE, W / 2, cy + 120)
+  ctx.restore()
+}
+
 // Renders a play (the same { view, steps, players, ball, autoDef } shape
 // doExportSteps() already builds from the live board) to an MP4 Blob.
 // Resolves to the finished file; throws if this browser can't encode video
 // at all, which a caller can show as a plain message rather than a half
 // -finished download.
-export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
+export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } = {}) {
   const totalSteps = Math.max(1, play.steps || 1)
   const board = makeBoard({ players: play.players || [], ball: play.ball || { x: 750, y: 1300, acts: [] }, steps: totalSteps, autoDef: play.autoDef !== false, defenseDelay: play.defenseDelay })
   const cmap = board.carriers()
   const vbW = 1500
   const vbH = play.view === 'full' ? 2800 : 1400
 
-  // A fixed, generous pace per step rather than the live board's own
-  // (adjustable) playback speed — an exported video has to stand on its own
-  // without a coach there to hit play/pause, and this keeps a many-step
-  // play's export time bounded instead of however long a slow playback
-  // speed would take.
-  const SECS_PER_STEP = 1.1
-  const totalFrames = Math.max(1, Math.round(totalSteps * SECS_PER_STEP * fps))
+  // The board's own pace at the speed its toggle is set to, so a coach who
+  // slowed a play down to 0.5× to explain it gets a 0.5× clip — what you
+  // watch is what you export. This used to be a separate 1.1s per step, less
+  // than half the board's 1×, and the clips came out looking fast-forwarded.
+  //
+  // Plus a still at each end: the opening frame shows step 1's routes before
+  // anything moves, so a viewer can read the plan first, and the closing
+  // frame holds the final positions instead of the clip cutting off the
+  // moment the last player arrives. Then the end card fades in on top.
+  const HOLD_START = 0.8
+  const HOLD_END = 1.5
+  const END_CARD = 2.2
+  const END_FADE = 0.4
+  const leadFrames = Math.round(HOLD_START * fps)
+  const moveFrames = Math.max(1, Math.round((totalSteps * STEP_SECS * fps) / speed))
+  const endStart = leadFrames + moveFrames + Math.round(HOLD_END * fps)
+  const totalFrames = endStart + Math.round(END_CARD * fps)
 
   const outW = 720
   const outH = Math.round((outW * (vbH / vbW)) / 2) * 2 // even height — codecs expect it
@@ -204,18 +299,31 @@ export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
   canvas.height = outH
   const ctx = canvas.getContext('2d')
 
+  // The fonts are bundled but load lazily, on first use in the page; the
+  // canvas would silently fall back to sans-serif if they weren't in yet.
+  await Promise.all([`italic 800 46px ${COND_FONT}`, `600 18px ${COND_FONT}`, `700 28px ${COND_FONT}`]
+    .map((f) => document.fonts.load(f).catch(() => {})))
+  const mark = await svgToImage(MARK)
+
   const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() })
   const canvasSource = new CanvasSource(canvas, { codec, quality: new Quality('high') })
   output.addVideoTrack(canvasSource)
   await output.start()
 
+  let img = null
+  let lastT = -1
   for (let i = 0; i < totalFrames; i++) {
-    const t = Math.min(0.999999, i / totalFrames)
-    const svg = frameSvg(play, board, cmap, t, vbW, vbH)
-    // eslint-disable-next-line no-await-in-loop
-    const img = await svgToImage(svg)
+    const t = Math.min(0.999999, Math.max(0, (i - leadFrames) / moveFrames))
+    // The stills at either end repeat one t, so their frame is built once.
+    if (t !== lastT) {
+      // eslint-disable-next-line no-await-in-loop
+      img = await svgToImage(frameSvg(play, board, cmap, t, vbW, vbH))
+      lastT = t
+    }
     ctx.clearRect(0, 0, outW, outH)
     ctx.drawImage(img, 0, 0, outW, outH)
+    drawBadge(ctx, mark, outW, outH)
+    if (i >= endStart) drawEndCard(ctx, mark, outW, outH, Math.min(1, (i - endStart) / (END_FADE * fps)))
     // eslint-disable-next-line no-await-in-loop
     await canvasSource.add(i / fps, 1 / fps)
     if (onProgress) onProgress((i + 1) / totalFrames)

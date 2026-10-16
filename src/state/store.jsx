@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   actsOf, baseAt, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
-  CONE_TEAM, isCone,
+  CONE_TEAM, isCone, STEP_SECS,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
@@ -335,7 +335,7 @@ export function AppProvider({ children }) {
     lastRef.current = now
     const n = nSteps()
     set((s) => {
-      let t = s.t + dt * (0.42 / n) * s.speed
+      let t = s.t + (dt / (STEP_SECS * n)) * s.speed
       if (t >= 1) t -= 1
       return { t }
     })
@@ -543,6 +543,7 @@ export function AppProvider({ children }) {
     try {
       const { renderPlayVideo } = await import('../lib/videoExport')
       const blob = await renderPlayVideo(play, {
+        speed: s.speed,
         onProgress: (frac) => set({ shareStatus: 'Encoding video… ' + Math.round(frac * 100) + '%' }),
       })
       const url = URL.createObjectURL(blob)
