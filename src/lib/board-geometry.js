@@ -458,7 +458,7 @@ export function makeBoard(state) {
   // while his man stood still. Lagging in *time* instead gets the same
   // reacting-a-beat-late look, but every step ends with the defense set.
   const MAX_LAG = 0.4
-  const delay = Math.max(0, Math.min(1, state.defenseDelay ?? 0.6))
+  const delay = Math.max(0, Math.min(1, state.defenseDelay ?? 0))
   const lag = delay * MAX_LAG
 
   // Where the defender is `fr` (0..1) into a step: his ideal track replayed
