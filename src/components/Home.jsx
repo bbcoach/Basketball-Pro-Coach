@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
-import {COND, raised, keycap, haloRing} from '../theme'
+import {COND, raised, keycap, haloRing, goldText} from '../theme'
 import Logo from './Logo'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
@@ -74,7 +74,7 @@ export default function Home() {
           <Logo size={52} iconSize={38} />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase' }}>{TEAM_NAME}</div>
-            <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', color: ACCENT }}>OVERVIEW</div>
+            <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', ...goldText }}>OVERVIEW</div>
           </div>
         </div>
 

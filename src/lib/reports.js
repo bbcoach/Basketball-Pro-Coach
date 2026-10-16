@@ -27,7 +27,7 @@ function reportStyles(pageSize) {
     body{font-family:'Barlow',Arial,sans-serif;color:#171717;margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-variant-numeric:tabular-nums}
     .topbar{height:5px;background:${ACCENT};border-radius:99px;margin:0 0 20px}
     header{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-    .logo{width:38px;height:38px;flex:none;border-radius:11px;background:#0a0a0b;display:flex;align-items:center;justify-content:center}
+    .logo{width:38px;height:38px;flex:none;border-radius:11px;background:${MARK_TILE};display:flex;align-items:center;justify-content:center}
     h1{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:23px;letter-spacing:.3px;text-transform:uppercase;margin:0;line-height:1.05}
     h2{font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;color:${ACCENT};margin:1px 0 0}
     .meta{margin-left:auto;text-align:right;font-size:11px;color:#888;line-height:1.6}
@@ -53,6 +53,14 @@ function reportHead(title) {
 // ring, which a white ground would wash out, and a printed report showing
 // the exact app icon is the more recognisable of the two anyway. Seams run
 // slightly heavier than on screen because this renders smaller.
+//
+// The halo uses fully opaque gradient stops, pre-blended against the tile
+// colour, where the on-screen Logo fades gold in and out with stop-opacity.
+// Safari's print-to-PDF on iOS drops gradient stop-opacity, which turned
+// that transparent gap-and-fade into a solid gold disc. The tile behind is
+// always MARK_TILE, so mixing the gold into it up front (85% gold →
+// #c79835) draws the same ring with no transparency for a renderer to lose.
+const MARK_TILE = '#0a0a0b'
 function markSvg(px) {
   return `<svg width="${px}" height="${px}" viewBox="0 0 48 48">
     <defs>
@@ -62,10 +70,10 @@ function markSvg(px) {
         <stop offset="100%" stop-color="#201405"/>
       </radialGradient>
       <radialGradient id="mark-halo" cx="50%" cy="50%" r="50%">
-        <stop offset="65%" stop-color="${ACCENT}" stop-opacity="0"/>
-        <stop offset="76%" stop-color="${ACCENT}" stop-opacity="0"/>
-        <stop offset="86%" stop-color="${ACCENT}" stop-opacity=".85"/>
-        <stop offset="100%" stop-color="${ACCENT}" stop-opacity="0"/>
+        <stop offset="65%" stop-color="${MARK_TILE}"/>
+        <stop offset="76%" stop-color="${MARK_TILE}"/>
+        <stop offset="86%" stop-color="#c79835"/>
+        <stop offset="100%" stop-color="${MARK_TILE}"/>
       </radialGradient>
     </defs>
     <circle cx="24" cy="24" r="23" fill="url(#mark-halo)"/>
