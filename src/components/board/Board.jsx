@@ -64,12 +64,18 @@ const FS_FADE_Y = 28
 const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
 function Header({ compact }) {
-  const { state, goHome } = useApp()
+  const { state, goHome, enterFullScreen } = useApp()
   const { playName } = state
   // Same two-line header as every other screen: brand, title, then the
   // play's name, with Menu on the right.
   // In the landscape side panel it sits flush with the controls below it.
-  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} style={compact ? { padding: '0 4px 6px' } : undefined} />
+  // Full screen sits up here, beside Menu, rather than in a corner of the
+  // court: a button on the court swallows every tap on a player standing
+  // under it.
+  const fsButton = (
+    <div onClick={enterFullScreen} title="Full screen" aria-label="Full screen" role="button" style={{ width: 32, height: 32, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: '#fff', cursor: 'pointer', flex: 'none' }}><FsIcon size={16} /></div>
+  )
+  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} action={fsButton} style={compact ? { padding: '0 4px 6px' } : undefined} />
 }
 
 // Play, the steps and the scrubber share one row: the step chips sit where
@@ -216,6 +222,7 @@ function MoreSheet({ onClose }) {
 function FullScreenControls() {
   const { state, gotoStep, addStep, nSteps } = useApp()
   const { step, playing, t } = state
+  const landscape = useLandscape()
   const n = nSteps()
   const editStep = playing ? Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1) : step
   const circleBtn = (disabled) => ({
@@ -223,7 +230,9 @@ function FullScreenControls() {
     background: 'rgba(255,255,255,.16)', color: disabled ? 'rgba(255,255,255,.3)' : '#fff', fontSize: 19, fontWeight: 700, cursor: disabled ? 'default' : 'pointer',
   })
   return (
-    <div style={{ position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', left: 16, zIndex: 60, display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={landscape
+      ? { position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: 'calc(10px + env(safe-area-inset-left, 0px))', zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }
+      : { position: 'absolute', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))', left: 16, zIndex: 60, display: 'flex', alignItems: 'center', gap: 8 }}>
       <div onClick={() => editStep > 1 && gotoStep(editStep - 1)} style={circleBtn(editStep <= 1)}>‹</div>
       <div style={{ padding: '8px 4px', borderRadius: 99, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
       <div onClick={() => editStep < n && gotoStep(editStep + 1)} style={circleBtn(editStep >= n)}>›</div>
@@ -453,7 +462,7 @@ function FsIcon({ exit, size = 18 }) {
 }
 
 export default function Board() {
-  const { state, exitFullScreen, togglePlay, enterFullScreen } = useApp()
+  const { state, exitFullScreen, togglePlay } = useApp()
   const { fullScreen, playing, hint, boardNotice } = state
   // The hint used to hold a line of its own under the toolbar for good. Now
   // it shows over the court for a moment whenever it changes, then fades.
@@ -492,11 +501,12 @@ export default function Board() {
       )}
       {!fullScreen && !landscape && <Header />}
 
-      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: 9 }}>
+      {/* In full screen the court gives up strips for its fixed buttons —
+          exit and the step controls; in landscape exit and play on the right,
+          the steps on the left — so no player can ever end up under one. A
+          button over the court eats every tap on whoever is standing there. */}
+      <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: !fullScreen ? 9 : landscape ? '9px 66px 9px 66px' : 'calc(66px + env(safe-area-inset-top, 0px)) 9px calc(70px + env(safe-area-inset-bottom, 0px))' }}>
         <Court />
-        {!fullScreen && (
-          <div onClick={enterFullScreen} title="Full screen" aria-label="Full screen" role="button" style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', cursor: 'pointer' }}><FsIcon /></div>
-        )}
         {boardNotice && (
           // The outer box only centres; toast-pop animates transform, which
           // would otherwise wipe out a translateX(-50%) centring.
@@ -516,7 +526,7 @@ export default function Board() {
         <div
           className={landscape ? 'scrollx' : undefined}
           style={landscape
-            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 280px', marginLeft: 12, overflowY: 'auto' }
+            ? { display: 'flex', flexDirection: 'column', gap: 2, flex: '0 0 312px', marginLeft: 12, overflowY: 'auto' }
             : { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, flex: 'none' }}
         >
           {landscape && <Header compact />}
