@@ -74,20 +74,20 @@ function courtBg(vbW, vbH) {
 }
 
 // One frame at continuous time t (0..1 across the whole play) — the video
-// equivalent of playSvg.js's stepSvg(), but driven by board.entPos()/
-// ballPos() for live, interpolated positions (including auto-defense lag
+// equivalent of playSvg.js's stepSvg(), but driven by board.layout() for
+// live, interpolated positions (including auto-defense lag
 // and help-sag) instead of a step's fixed start position.
 function frameSvg(play, board, cmap, t, vbW, vbH) {
   const nSteps = play.steps || 1
   const editStep = stepAtTime(t, nSteps)
   const players = play.players || []
   const ball = play.ball || { x: 750, y: 1300, acts: [] }
-  const marks = board.marks()
+  const { pos, ball: bp } = board.layout(t)
   const TR = 54
 
   const tokens = []
   players.forEach((pl) => {
-    const p = board.entPos(pl, t, nSteps, marks)
+    const p = pos[pl.id]
     if (isCone(pl)) {
       tokens.push({ x: p.x, y: p.y, r: TR * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)' })
       return
@@ -98,7 +98,6 @@ function frameSvg(play, board, cmap, t, vbW, vbH) {
       tc: off ? '#101012' : '#ffffff', label: SHOW_NUMBERS ? pl.label : '',
     })
   })
-  const bp = board.ballPos(t)
   tokens.push({ x: bp.x, y: bp.y, r: TR * 0.48, fill: 'url(#vballsphere)', stroke: 'rgba(0,0,0,.62)', ball: true })
 
   const routes = []

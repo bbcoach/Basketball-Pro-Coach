@@ -19,10 +19,10 @@ export default function PlayPreview({ play }) {
   const { tokens, routes, caps } = useMemo(() => {
     const players = play.players || []
     const ball = play.ball || { x: 750, y: 1300, acts: [] }
-    const marks = board.marks()
+    const { pos, ball: bp } = board.layout(0)
     const tks = []
     players.forEach((pl) => {
-      const p = board.entPos(pl, 0, board.nSteps(), marks)
+      const p = pos[pl.id]
       if (isCone(pl)) {
         tks.push({ key: pl.id, x: p.x, y: p.y, r: 54 * 0.74, cone: true, fill: CONE_COLOR, stroke: 'rgba(0,0,0,.42)', tc: '', label: '' })
         return
@@ -34,7 +34,6 @@ export default function PlayPreview({ play }) {
         label: SHOW_NUMBERS ? pl.label : '',
       })
     })
-    const bp = board.ballPos(0)
     tks.push({ key: 'ball', x: bp.x, y: bp.y, r: 26, fill: 'url(#pv-ball)', stroke: 'rgba(0,0,0,.62)', tc: '', label: '', ball: true })
 
     const rts = []
