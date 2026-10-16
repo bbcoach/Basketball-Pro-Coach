@@ -543,6 +543,7 @@ export function AppProvider({ children }) {
     try {
       const { renderPlayVideo } = await import('../lib/videoExport')
       const blob = await renderPlayVideo(play, {
+        speed: s.speed,
         onProgress: (frac) => set({ shareStatus: 'Encoding video… ' + Math.round(frac * 100) + '%' }),
       })
       const url = URL.createObjectURL(blob)

@@ -178,17 +178,17 @@ function svgToImage(svgMarkup) {
 // Resolves to the finished file; throws if this browser can't encode video
 // at all, which a caller can show as a plain message rather than a half
 // -finished download.
-export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
+export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } = {}) {
   const totalSteps = Math.max(1, play.steps || 1)
   const board = makeBoard({ players: play.players || [], ball: play.ball || { x: 750, y: 1300, acts: [] }, steps: totalSteps, autoDef: play.autoDef !== false, defenseDelay: play.defenseDelay })
   const cmap = board.carriers()
   const vbW = 1500
   const vbH = play.view === 'full' ? 2800 : 1400
 
-  // The board's own 1× pace, not whatever speed the toggle is on right now —
-  // an exported video has to stand on its own without a coach there to hit
-  // play/pause. This used to be a separate 1.1s per step, less than half the
-  // board's, and the clips came out looking fast-forwarded.
+  // The board's own pace at the speed its toggle is set to, so a coach who
+  // slowed a play down to 0.5× to explain it gets a 0.5× clip — what you
+  // watch is what you export. This used to be a separate 1.1s per step, less
+  // than half the board's 1×, and the clips came out looking fast-forwarded.
   //
   // Plus a still at each end: the opening frame shows step 1's routes before
   // anything moves, so a viewer can read the plan first, and the closing
@@ -197,7 +197,7 @@ export async function renderPlayVideo(play, { fps = 30, onProgress } = {}) {
   const HOLD_START = 0.8
   const HOLD_END = 1.5
   const leadFrames = Math.round(HOLD_START * fps)
-  const moveFrames = Math.max(1, Math.round(totalSteps * STEP_SECS * fps))
+  const moveFrames = Math.max(1, Math.round((totalSteps * STEP_SECS * fps) / speed))
   const totalFrames = leadFrames + moveFrames + Math.round(HOLD_END * fps)
 
   const outW = 720
