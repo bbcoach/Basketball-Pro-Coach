@@ -217,8 +217,9 @@ export default function Court() {
         {/* Half court pinned to the top shows the floor carrying on past the
             half-court line; fade that part back so it reads as the rest of
             the gym, not as part of the play. Under the tokens, so anyone
-            placed back there stays fully visible. */}
-        {view === 'half' && !landscape && <rect x="0" y="1420" width="1500" height="1380" fill="url(#backfade)" pointerEvents="none" />}
+            placed back there stays fully visible. Starts flush with the
+            bottom edge of the half-court line (y 1400 + half its 9 stroke). */}
+        {view === 'half' && !landscape && <rect x="0" y="1404.5" width="1500" height="1395.5" fill="url(#backfade)" pointerEvents="none" />}
 
         {routes.map((r) => (
           <path key={r.key} d={r.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} markerEnd={r.marker} opacity={r.op} />
