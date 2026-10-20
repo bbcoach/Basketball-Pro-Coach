@@ -574,26 +574,6 @@ export function makeBoard(state) {
     return res
   }
 
-  // How far off-ball a defender sags toward the rim, scaled by how far his
-  // own man is from the ball: the "ball-you-man" line every coach teaches —
-  // tight within about one pass, sagging further into help the longer that
-  // pass would be. Since the ball rides with whoever's holding it, a man who
-  // *has* the ball is automatically at distance ~0 and this reduces to the
-  // old tight mirror with no special-casing needed for "who's on-ball".
-  const HELP_ON_DIST = 260
-  const HELP_MAX_DIST = 900
-  const HELP_MAX_SAG = 130
-  const helpAdjustedMan = (manPos, ballPt) => {
-    const manToBall = dist(manPos, ballPt)
-    const blend = Math.max(0, Math.min(1, (manToBall - HELP_ON_DIST) / (HELP_MAX_DIST - HELP_ON_DIST)))
-    if (!blend) return manPos
-    const dx = HOOP.x - manPos.x
-    const dy = HOOP.y - manPos.y
-    const dl = Math.hypot(dx, dy) || 1
-    const sag = HELP_MAX_SAG * blend
-    return { x: manPos.x + (dx / dl) * sag, y: manPos.y + (dy / dl) * sag }
-  }
-
   // The reaction lag, as a share of each step: a defender starts moving
   // that late into the step and still arrives when it ends. state
   // .defenseDelay (0 = tight, 1 = loose) is the coach-facing slider.
@@ -604,12 +584,12 @@ export function makeBoard(state) {
   const lag = delay * MAX_LAG
   const lagged = (fr) => (fr <= lag ? 0 : (fr - lag) / (1 - lag))
 
-  // Defender track: mirrors his man's movement across ALL steps (adjusted
-  // for help positioning), with the reaction lag above, keeps his own drawn
-  // paths where they exist, and gets stuck on screens for the rest of that
-  // step.
+  // Defender track without help defense: copies his man's movement 1:1
+  // across ALL steps — no help, no sag, so the defender of a man who stands
+  // still stands still too, wherever the ball goes. The reaction lag above
+  // is the only thing tight/loose changes. Keeps his own drawn paths where
+  // they exist, and gets stuck on screens for the rest of that step.
   const mirrorPos = (ent, man, t, n) => {
-
     const SUB = 24
     const now = Math.max(0, Math.min(0.999999, t)) * n
     const k0 = Math.floor(now)
@@ -622,13 +602,13 @@ export function makeBoard(state) {
     // and screen collisions) says the defender should be. It's simulated up
     // to the lagged time rather than to `t`, and that's what gets drawn.
     let idealPos = { x: ent.x, y: ent.y }
-    let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
+    let prevMan = { x: man.x, y: man.y }
     for (let i = 1; i <= steps; i++) {
       const u = Math.min(total, i / SUB)
       const k = Math.floor(u) + 1
       const tt = u / n
       const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
-      const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
+      const mp = posAtTime(man, tt, n)
       if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; continue }
       const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
       let hitScreen = null
