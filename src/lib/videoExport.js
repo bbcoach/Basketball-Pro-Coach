@@ -271,7 +271,7 @@ function drawEndCard(ctx, mark, W, H, alpha) {
 // -finished download.
 export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } = {}) {
   const totalSteps = Math.max(1, play.steps || 1)
-  const board = makeBoard({ players: play.players || [], ball: play.ball || { x: 750, y: 1300, acts: [] }, steps: totalSteps, autoDef: play.autoDef !== false, defenseDelay: play.defenseDelay })
+  const board = makeBoard({ players: play.players || [], ball: play.ball || { x: 750, y: 1300, acts: [] }, steps: totalSteps, autoDef: play.autoDef !== false, helpDef: !!play.helpDef, defenseDelay: play.defenseDelay })
   const cmap = board.carriers()
   const vbW = 1500
   const vbH = play.view === 'full' ? 2800 : 1400

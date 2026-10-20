@@ -172,12 +172,17 @@ function FooterButtons() {
 
 // Everything that isn't part of drawing or showing a play, in one place.
 function MoreSheet({ onClose }) {
-  const { state, set, setView, openSheet, enterFullScreen, toggleAutoDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
+  const { state, set, setView, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
   const run = (fn) => () => { onClose(); fn() }
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const row = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }
   const cap = { fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '10px 4px 2px' }
+  const toggle = (on) => (
+    <span style={{ width: 42, height: 24, borderRadius: 99, background: on ? ACCENT : 'rgba(255,255,255,.15)', position: 'relative', flex: 'none' }}>
+      <span style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 18, height: 18, borderRadius: 99, background: '#fff' }} />
+    </span>
+  )
   const seg = (active, label, onClick) => (
     <div onClick={onClick} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', background: active ? 'rgba(255,255,255,.14)' : 'transparent', color: active ? '#fff' : 'rgba(255,255,255,.5)' }}>{label}</div>
   )
@@ -195,10 +200,19 @@ function MoreSheet({ onClose }) {
         <div style={cap}>Defense</div>
         <div onClick={toggleAutoDef} style={{ ...row, justifyContent: 'space-between' }}>
           <span>Defenders follow their man</span>
-          <span style={{ width: 42, height: 24, borderRadius: 99, background: state.autoDef ? ACCENT : 'rgba(255,255,255,.15)', position: 'relative', flex: 'none' }}>
-            <span style={{ position: 'absolute', top: 3, left: state.autoDef ? 21 : 3, width: 18, height: 18, borderRadius: 99, background: '#fff' }} />
-          </span>
+          {toggle(state.autoDef)}
         </div>
+        {state.autoDef && (
+          // Off by default: plain mirroring is what most coaches expect when
+          // they've placed the defense themselves.
+          <div onClick={toggleHelpDef} style={{ ...row, justifyContent: 'space-between' }}>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span>Help defense</span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)' }}>Sag into the lane, deny the pass, close out</span>
+            </span>
+            {toggle(state.helpDef)}
+          </div>
+        )}
         {state.autoDef && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px' }}>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', fontWeight: 600 }}>Tight</span>

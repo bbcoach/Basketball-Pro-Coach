@@ -48,7 +48,7 @@ function initialState() {
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
-    autoDef: false, defenseDelay: 0, fullScreen: false,
+    autoDef: false, helpDef: false, defenseDelay: 0, fullScreen: false,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     shareOpen: false,
@@ -456,6 +456,7 @@ export function AppProvider({ children }) {
 
   const setTool = (id) => set({ tool: id, hint: HINTS[id] })
 
+  const toggleHelpDef = () => set((s) => ({ helpDef: !s.helpDef, hint: s.helpDef ? 'Defenders mirror their man' : 'Defenders now help off the ball' }))
   const toggleAutoDef = () => set((s) => ({ autoDef: !s.autoDef, hint: s.autoDef ? 'Defenders stay put unless you draw their path' : 'Defenders now shadow their nearest attacker' }))
 
   // ── plays (save / load) ────────────────────────────────────
@@ -584,7 +585,7 @@ export function AppProvider({ children }) {
   // every page load the way a top-of-file import would.
   const doExportVideo = async () => {
     const s = stateRef.current
-    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, defenseDelay: s.defenseDelay }
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
     set({ videoExporting: true, shareStatus: 'Encoding video… 0%' })
     try {
       const { renderPlayVideo } = await import('../lib/videoExport')
@@ -1125,7 +1126,7 @@ export function AppProvider({ children }) {
     nSteps,
     onDown, onMove, onUp,
     togglePlay, setView, addStep, delStep, gotoStep,
-    undo, clearRoutes, resetAll, setTool, toggleAutoDef,
+    undo, clearRoutes, resetAll, setTool, toggleAutoDef, toggleHelpDef,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openShare, closeShareModal, doExportSteps, doExportVideo,

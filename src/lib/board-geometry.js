@@ -435,13 +435,26 @@ export function makeBoard(state) {
   // Who holds which ball at the start of step k, as [{ ball, id, holder }].
   const holdersAt = (k) => balls().map((b) => ({ ball: b, id: ballKey(b), holder: carriersOf(b)[k] || null }))
 
-  // Who guards whom, worked out once from where everybody starts. Taken as
-  // the pairing with the shortest total distance rather than each defender
+  // Without help defense: each defender takes whoever starts nearest.
+  const nearestMarks = () => {
+    const out = {}
+    const offs = state.players.filter((p) => p.team === 'off')
+    state.players.filter((p) => p.team === 'def').forEach((d) => {
+      let best = null
+      let bd = 1e9
+      offs.forEach((o) => { const dd = dist(o, d); if (dd < bd) { bd = dd; best = o } })
+      if (best && bd < 700) out[d.id] = best.id
+    })
+    return out
+  }
+
+  // Who guards whom with help defense on, worked out once from where
+  // everybody starts. Taken as the pairing with the shortest total distance rather than each defender
   // grabbing whoever stands nearest — that let two defenders pick the same
   // attacker and run in tandem while somebody else stood wide open.
   const MARK_MAX = 900
   let marksCache = null
-  const marks = () => {
+  const pairMarks = () => {
     if (marksCache) return marksCache
     const offs = state.players.filter((p) => p.team === 'off')
     const defs = state.players.filter((p) => p.team === 'def')
@@ -476,6 +489,8 @@ export function makeBoard(state) {
     }
     return (marksCache = out)
   }
+
+  const marks = () => (state.helpDef ? pairMarks() : nearestMarks())
 
   // Where a half-court view's near hoop sits — see playSvg.js's own rim
   // circle, which the live board, the preview and the PDF export all crop
@@ -559,6 +574,26 @@ export function makeBoard(state) {
     return res
   }
 
+  // How far off-ball a defender sags toward the rim, scaled by how far his
+  // own man is from the ball: the "ball-you-man" line every coach teaches —
+  // tight within about one pass, sagging further into help the longer that
+  // pass would be. Since the ball rides with whoever's holding it, a man who
+  // *has* the ball is automatically at distance ~0 and this reduces to the
+  // old tight mirror with no special-casing needed for "who's on-ball".
+  const HELP_ON_DIST = 260
+  const HELP_MAX_DIST = 900
+  const HELP_MAX_SAG = 130
+  const helpAdjustedMan = (manPos, ballPt) => {
+    const manToBall = dist(manPos, ballPt)
+    const blend = Math.max(0, Math.min(1, (manToBall - HELP_ON_DIST) / (HELP_MAX_DIST - HELP_ON_DIST)))
+    if (!blend) return manPos
+    const dx = HOOP.x - manPos.x
+    const dy = HOOP.y - manPos.y
+    const dl = Math.hypot(dx, dy) || 1
+    const sag = HELP_MAX_SAG * blend
+    return { x: manPos.x + (dx / dl) * sag, y: manPos.y + (dy / dl) * sag }
+  }
+
   // The reaction lag, as a share of each step: a defender starts moving
   // that late into the step and still arrives when it ends. state
   // .defenseDelay (0 = tight, 1 = loose) is the coach-facing slider.
@@ -569,28 +604,72 @@ export function makeBoard(state) {
   const lag = delay * MAX_LAG
   const lagged = (fr) => (fr <= lag ? 0 : (fr - lag) / (1 - lag))
 
+  // Defender track: mirrors his man's movement across ALL steps (adjusted
+  // for help positioning), with the reaction lag above, keeps his own drawn
+  // paths where they exist, and gets stuck on screens for the rest of that
+  // step.
+  const mirrorPos = (ent, man, t, n) => {
+
+    const SUB = 24
+    const now = Math.max(0, Math.min(0.999999, t)) * n
+    const k0 = Math.floor(now)
+    // A path the coach drew for him this step is played as drawn, on time —
+    // the lag is for reacting to his man, not for following instructions.
+    if (actsOf(ent).some((a) => a.step === k0 + 1 && a.pts.length)) return posAtTime(ent, t, n)
+    const total = k0 + lagged(now - k0)
+    const steps = Math.ceil(total * SUB)
+    // idealPos is where perfect man-to-man shadowing (with help positioning
+    // and screen collisions) says the defender should be. It's simulated up
+    // to the lagged time rather than to `t`, and that's what gets drawn.
+    let idealPos = { x: ent.x, y: ent.y }
+    let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
+    for (let i = 1; i <= steps; i++) {
+      const u = Math.min(total, i / SUB)
+      const k = Math.floor(u) + 1
+      const tt = u / n
+      const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
+      const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
+      if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; continue }
+      const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
+      let hitScreen = null
+      state.players.forEach((sp) => {
+        if (sp.id === ent.id || sp.team === 'def') return
+        if (!actsOf(sp).some((a) => a.type === 'screen' && a.step <= k && a.pts.length)) return
+        const spp = posAtTime(sp, tt, n)
+        if (dist(cand, spp) < 118 && (!hitScreen || dist(cand, spp) < dist(cand, hitScreen))) hitScreen = spp
+      })
+      if (!hitScreen) idealPos = cand
+      else {
+        const vx = cand.x - idealPos.x
+        const vy = cand.y - idealPos.y
+        const nx = cand.x - hitScreen.x
+        const ny = cand.y - hitScreen.y
+        const nl = Math.hypot(nx, ny) || 1
+        const ux = nx / nl
+        const uy = ny / nl
+        const along = vx * -uy + vy * ux
+        idealPos = { x: idealPos.x + -uy * along * 0.45, y: idealPos.y + ux * along * 0.45 }
+      }
+      prevMan = mp
+    }
+    return idealPos
+  }
+
   // A screener only gets in the way during the step he sets it; a defender
   // running into him goes around, not through.
   const SCREEN_R = 112
 
-  // Defender track. Each step runs from wherever he stood when it began to
+  // Help-defense track (state.helpDef). Each step runs from wherever he stood when it began to
   // his spot when it ends, following that spot as it moves (so he reacts to
   // his man and to the ball, including on the flight of a pass) while the
   // gap he started with closes out — at rest at both ends, like everyone
   // else. A path the coach drew for him is played as drawn, on time,
   // starting from wherever he actually was.
-  const entPos = (ent, t, n, marksMap) => {
-    if (isBall(ent)) return ballPosOf(ent, t)
-    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
-    const manId = (marksMap || marks())[ent.id]
-    const man = manId && state.players.find((p) => p.id === manId)
-    if (!man) return posAtTime(ent, t, n)
-
+  const helpPos = (ent, man, t, n, mk) => {
     const now = Math.max(0, Math.min(0.999999, t)) * n
     const k0 = Math.floor(now)
     const fr = now - k0
     const drawn = (step) => actsOf(ent).find((a) => a.step === step && a.pts.length)
-    const mk = marksMap || marks()
     const spot = (u) => spotsAt(u, n, mk)[ent.id] || spotFor(posAtTime(man, u / n, n), ballPos(u / n))
 
     let start
@@ -620,6 +699,15 @@ export function makeBoard(state) {
       if (dd < SCREEN_R && dd > 0.01) pos = { x: c.x + ((pos.x - c.x) / dd) * SCREEN_R, y: c.y + ((pos.y - c.y) / dd) * SCREEN_R }
     })
     return pos
+  }
+
+  const entPos = (ent, t, n, marksMap) => {
+    if (isBall(ent)) return ballPosOf(ent, t)
+    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
+    const mk = marksMap || marks()
+    const man = mk[ent.id] && state.players.find((p) => p.id === mk[ent.id])
+    if (!man) return posAtTime(ent, t, n)
+    return state.helpDef ? helpPos(ent, man, t, n, mk) : mirrorPos(ent, man, t, n)
   }
 
   const hit = (p, t) => {
