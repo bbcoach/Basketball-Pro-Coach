@@ -435,7 +435,8 @@ export function makeBoard(state) {
   // Who holds which ball at the start of step k, as [{ ball, id, holder }].
   const holdersAt = (k) => balls().map((b) => ({ ball: b, id: ballKey(b), holder: carriersOf(b)[k] || null }))
 
-  const marks = () => {
+  // Without help defense: each defender takes whoever starts nearest.
+  const nearestMarks = () => {
     const out = {}
     const offs = state.players.filter((p) => p.team === 'off')
     state.players.filter((p) => p.team === 'def').forEach((d) => {
@@ -447,63 +448,148 @@ export function makeBoard(state) {
     return out
   }
 
+  // Who guards whom with help defense on, worked out once from where
+  // everybody starts. Taken as the pairing with the shortest total distance rather than each defender
+  // grabbing whoever stands nearest — that let two defenders pick the same
+  // attacker and run in tandem while somebody else stood wide open.
+  const MARK_MAX = 900
+  let marksCache = null
+  const pairMarks = () => {
+    if (marksCache) return marksCache
+    const offs = state.players.filter((p) => p.team === 'off')
+    const defs = state.players.filter((p) => p.team === 'def')
+    const out = {}
+    if (defs.length <= 7) {
+      // Exhaustive with pruning — five on five is a few thousand branches.
+      let best = { cost: Infinity, pick: [] }
+      const pick = []
+      const used = new Set()
+      const go = (i, cost) => {
+        if (cost >= best.cost) return
+        if (i === defs.length) { best = { cost, pick: pick.slice() }; return }
+        offs.forEach((o, j) => {
+          const dd = dist(defs[i], o)
+          if (used.has(j) || dd > MARK_MAX) return
+          used.add(j); pick[i] = j; go(i + 1, cost + dd); used.delete(j)
+        })
+        pick[i] = -1; go(i + 1, cost + MARK_MAX)
+      }
+      go(0, 0)
+      best.pick.forEach((j, i) => { if (j >= 0) out[defs[i].id] = offs[j].id })
+    } else {
+      // A big drill setup: closest pairs first, each player used once.
+      const pairs = []
+      defs.forEach((d) => offs.forEach((o) => { const dd = dist(d, o); if (dd <= MARK_MAX) pairs.push({ d, o, dd }) }))
+      const taken = new Set()
+      pairs.sort((a, b) => a.dd - b.dd).forEach(({ d, o }) => {
+        if (out[d.id] || taken.has(o.id)) return
+        out[d.id] = o.id
+        taken.add(o.id)
+      })
+    }
+    return (marksCache = out)
+  }
+
+  const marks = () => (state.helpDef ? pairMarks() : nearestMarks())
+
   // Where a half-court view's near hoop sits — see playSvg.js's own rim
   // circle, which the live board, the preview and the PDF export all crop
   // to the same top region.
   const HOOP = { x: 750, y: 157.5 }
 
-  // How far off-ball a defender sags toward the rim, scaled by how far his
-  // own man is from the ball: the "ball-you-man" line every coach teaches —
-  // tight within about one pass, sagging further into help the longer that
-  // pass would be. Since the ball rides with whoever's holding it, a man who
-  // *has* the ball is automatically at distance ~0 and this reduces to the
-  // old tight mirror with no special-casing needed for "who's on-ball".
-  const HELP_ON_DIST = 260
-  const HELP_MAX_DIST = 900
-  const HELP_MAX_SAG = 130
-  const helpAdjustedMan = (manPos, ballPt) => {
-    const manToBall = dist(manPos, ballPt)
-    const blend = Math.max(0, Math.min(1, (manToBall - HELP_ON_DIST) / (HELP_MAX_DIST - HELP_ON_DIST)))
-    if (!blend) return manPos
-    const dx = HOOP.x - manPos.x
-    const dy = HOOP.y - manPos.y
-    const dl = Math.hypot(dx, dy) || 1
-    const sag = HELP_MAX_SAG * blend
-    return { x: manPos.x + (dx / dl) * sag, y: manPos.y + (dy / dl) * sag }
+  // Where a defender belongs, given where his man and the ball are. Worked
+  // out from scratch at every moment — the old model only copied his man's
+  // movement, so whatever offset he started with stayed fixed in screen
+  // terms: placed "above" a wing, he ended up between his man and the
+  // baseline once that man cut to the corner, and a defender who lost a
+  // step on a screen never got it back.
+  //
+  // The rules every coach teaches, blended smoothly so nobody jumps:
+  // - on the ball: a body's width in front of his man, on the line to the rim
+  // - ball side, off the ball: in the passing lane, ball side and rim side
+  //   of his man, sagging off a little more the longer that pass would be
+  // - help side (man and ball on opposite halves of the split line through
+  //   the rim): one foot in the lane — just off the middle on his man's
+  //   side, a third of the way from his man's depth to the rim.
+  const ON_BALL = 110
+  const DENY = 120
+  const NEAR = 260 // ball this close → he's (about to be) on the ball
+  const FAR = 1200 // the longest pass on the ball side → most sag
+  const SPLIT = 200 // how far each side of the middle counts as full help side
+  const clamp01 = (v) => Math.max(0, Math.min(1, v))
+  const lerpPt = (a, b, f) => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f })
+  const unit = (x, y) => { const l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l } }
+  const spotFor = (m, b) => {
+    const d = dist(m, b)
+    const toH = unit(HOOP.x - m.x, HOOP.y - m.y)
+    const toB = unit(b.x - m.x, b.y - m.y)
+    // Right under the rim the spot can't be further in than the rim itself.
+    const front = Math.min(ON_BALL, dist(m, HOOP) * 0.6)
+    const onBall = { x: m.x + toH.x * front, y: m.y + toH.y * front }
+    // Ball straight behind him (away from the rim): the two directions
+    // cancel, so fall back to plain rim side.
+    const sx = toB.x + toH.x
+    const sy = toB.y + toH.y
+    const lane = Math.hypot(sx, sy) < 0.2 ? toH : unit(sx, sy)
+    const deny = { x: m.x + lane.x * DENY, y: m.y + lane.y * DENY }
+    const sag = lerpPt(lerpPt(m, b, 0.25), HOOP, 0.15)
+    const ballSide = lerpPt(deny, sag, 0.6 * clamp01((d - NEAR) / (FAR - NEAR)))
+    const helpSide = { x: HOOP.x + (m.x - HOOP.x) * 0.35, y: m.y + (HOOP.y - m.y) * 0.3 }
+    // Both clearly off the middle, on opposite sides → full help side.
+    const across = clamp01(-((b.x - HOOP.x) * (m.x - HOOP.x)) / (SPLIT * SPLIT))
+    const offBall = lerpPt(ballSide, helpSide, across)
+    const firm = clamp01((NEAR - d) / (NEAR - 120))
+    const p = lerpPt(offBall, onBall, firm)
+    return { x: Math.max(40, Math.min(1460, p.x)), y: Math.max(40, Math.min(2760, p.y)), firm }
+  }
+
+  // Everyone's spot at time u (in steps), with helpers kept a body apart:
+  // two or three of them collapsing into the lane otherwise end up stacked
+  // on one spot. The defender on the ball never gives way — the helper
+  // does. One gentle pass, so the spots still move smoothly.
+  const SEP = 116
+  const spotsAt = (u, n, mk) => {
+    const k = Math.floor(u) + 1
+    const out = {}
+    state.players.forEach((d) => {
+      if (d.team !== 'def' || actsOf(d).some((a) => a.step === k && a.pts.length)) return
+      const man = mk[d.id] && state.players.find((p) => p.id === mk[d.id])
+      if (man) out[d.id] = spotFor(posAtTime(man, u / n, n), ballPos(u / n))
+    })
+    const ids = Object.keys(out)
+    const res = {}
+    ids.forEach((id) => { res[id] = { x: out[id].x, y: out[id].y } })
+    ids.forEach((a, i) => ids.slice(i + 1).forEach((b) => {
+      const A = out[a]
+      const B = out[b]
+      const dd = dist(A, B)
+      const give = (1 - A.firm) + (1 - B.firm)
+      if (dd >= SEP || give < 0.01) return
+      const ux = dd > 0.01 ? (A.x - B.x) / dd : 1
+      const uy = dd > 0.01 ? (A.y - B.y) / dd : 0
+      const push = SEP - dd
+      res[a].x += ux * push * ((1 - A.firm) / give); res[a].y += uy * push * ((1 - A.firm) / give)
+      res[b].x -= ux * push * ((1 - B.firm) / give); res[b].y -= uy * push * ((1 - B.firm) / give)
+    }))
+    return res
   }
 
   // The reaction lag, as a share of each step: a defender starts moving
   // that late into the step and still arrives when it ends. state
   // .defenseDelay (0 = tight, 1 = loose) is the coach-facing slider.
-  //
-  // This used to be an exponential chase — each tick closed a fixed share
-  // of the gap to the ideal spot — which never actually closes the gap. At
-  // the loose end a defender was still ~150px out when the step ended and
-  // kept sliding through the next step, or through the video's final hold,
-  // while his man stood still. Lagging in *time* instead gets the same
-  // reacting-a-beat-late look, but every step ends with the defense set.
+  // Lagging in time (rather than chasing a share of the gap each tick,
+  // which never closes it) means every step ends with the defense set.
   const MAX_LAG = 0.4
   const delay = Math.max(0, Math.min(1, state.defenseDelay ?? 0))
   const lag = delay * MAX_LAG
-
-  // Where the defender is `fr` (0..1) into a step: his ideal track replayed
-  // from `lag` onward, compressed into the rest of the step. The ideal track
-  // follows his man, who eases in and out of every step, so the defender
-  // also starts and stops at rest — the compression only shows as him
-  // moving a bit quicker than his man to make up the late start.
   const lagged = (fr) => (fr <= lag ? 0 : (fr - lag) / (1 - lag))
 
-  // Defender track: mirrors his man's movement across ALL steps (adjusted
-  // for help positioning), with the reaction lag above, keeps his own drawn
-  // paths where they exist, and gets stuck on screens for the rest of that
-  // step.
-  const entPos = (ent, t, n, marksMap) => {
-    if (isBall(ent)) return ballPosOf(ent, t)
-    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
-    const manId = (marksMap || marks())[ent.id]
-    const man = manId && state.players.find((p) => p.id === manId)
-    if (!man) return posAtTime(ent, t, n)
-
+  // Defender track without help defense: copies his man's movement 1:1
+  // across ALL steps — no help, no sag, so the defender of a man who stands
+  // still stands still too, wherever the ball goes. The reaction lag above
+  // is the only thing tight/loose changes. Keeps his own drawn paths where
+  // they exist, and gets stuck on screens for the rest of that step.
+  const mirrorPos = (ent, man, t, n) => {
     const SUB = 24
     const now = Math.max(0, Math.min(0.999999, t)) * n
     const k0 = Math.floor(now)
@@ -516,13 +602,13 @@ export function makeBoard(state) {
     // and screen collisions) says the defender should be. It's simulated up
     // to the lagged time rather than to `t`, and that's what gets drawn.
     let idealPos = { x: ent.x, y: ent.y }
-    let prevMan = helpAdjustedMan({ x: man.x, y: man.y }, ballPos(0))
+    let prevMan = { x: man.x, y: man.y }
     for (let i = 1; i <= steps; i++) {
       const u = Math.min(total, i / SUB)
       const k = Math.floor(u) + 1
       const tt = u / n
       const own = actsOf(ent).find((a) => a.step === k && a.pts.length)
-      const mp = helpAdjustedMan(posAtTime(man, tt, n), ballPos(tt))
+      const mp = posAtTime(man, tt, n)
       if (own) { idealPos = posAtTime(ent, tt, n); prevMan = mp; continue }
       const cand = { x: idealPos.x + (mp.x - prevMan.x), y: idealPos.y + (mp.y - prevMan.y) }
       let hitScreen = null
@@ -547,6 +633,61 @@ export function makeBoard(state) {
       prevMan = mp
     }
     return idealPos
+  }
+
+  // A screener only gets in the way during the step he sets it; a defender
+  // running into him goes around, not through.
+  const SCREEN_R = 112
+
+  // Help-defense track (state.helpDef). Each step runs from wherever he stood when it began to
+  // his spot when it ends, following that spot as it moves (so he reacts to
+  // his man and to the ball, including on the flight of a pass) while the
+  // gap he started with closes out — at rest at both ends, like everyone
+  // else. A path the coach drew for him is played as drawn, on time,
+  // starting from wherever he actually was.
+  const helpPos = (ent, man, t, n, mk) => {
+    const now = Math.max(0, Math.min(0.999999, t)) * n
+    const k0 = Math.floor(now)
+    const fr = now - k0
+    const drawn = (step) => actsOf(ent).find((a) => a.step === step && a.pts.length)
+    const spot = (u) => spotsAt(u, n, mk)[ent.id] || spotFor(posAtTime(man, u / n, n), ballPos(u / n))
+
+    let start
+    if (k0 === 0) start = { x: ent.x, y: ent.y }
+    else {
+      const prev = drawn(k0)
+      start = prev ? prev.pts[prev.pts.length - 1] : spot(k0 - 1e-6)
+    }
+
+    const own = drawn(k0 + 1)
+    if (own) {
+      const base = baseAt(ent, k0 + 1)
+      const p = posAtTime(ent, t, n)
+      const w = 1 - easeInOut(fr)
+      return { x: p.x + (start.x - base.x) * w, y: p.y + (start.y - base.y) * w }
+    }
+
+    const g = lagged(fr)
+    const from = spot(k0)
+    const to = spot(k0 + Math.min(g, 0.999999))
+    const w = 1 - easeInOut(g)
+    let pos = { x: to.x + (start.x - from.x) * w, y: to.y + (start.y - from.y) * w }
+    state.players.forEach((sp) => {
+      if (sp.team !== 'off' || !actsOf(sp).some((a) => a.type === 'screen' && a.step === k0 + 1 && a.pts.length)) return
+      const c = posAtTime(sp, t, n)
+      const dd = dist(pos, c)
+      if (dd < SCREEN_R && dd > 0.01) pos = { x: c.x + ((pos.x - c.x) / dd) * SCREEN_R, y: c.y + ((pos.y - c.y) / dd) * SCREEN_R }
+    })
+    return pos
+  }
+
+  const entPos = (ent, t, n, marksMap) => {
+    if (isBall(ent)) return ballPosOf(ent, t)
+    if (ent.team !== 'def' || !state.autoDef) return posAtTime(ent, t, n)
+    const mk = marksMap || marks()
+    const man = mk[ent.id] && state.players.find((p) => p.id === mk[ent.id])
+    if (!man) return posAtTime(ent, t, n)
+    return state.helpDef ? helpPos(ent, man, t, n, mk) : mirrorPos(ent, man, t, n)
   }
 
   const hit = (p, t) => {
