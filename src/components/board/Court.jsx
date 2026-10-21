@@ -139,10 +139,10 @@ export default function Court() {
     >
       <defs>
         <pattern id="wood" width="216" height="2800" patternUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="216" height="2800" fill="#dcae72" />
-          <rect x="0" y="0" width="54" height="2800" fill="#d5a465" />
-          <rect x="108" y="0" width="54" height="2800" fill="#e4bb82" />
-          <rect x="162" y="0" width="54" height="2800" fill="#cf9c5c" />
+          <rect x="0" y="0" width="216" height="2800" fill="#e4c597" />
+          <rect x="0" y="0" width="54" height="2800" fill="#dcbb8b" />
+          <rect x="108" y="0" width="54" height="2800" fill="#e9cda2" />
+          <rect x="162" y="0" width="54" height="2800" fill="#e1c193" />
           <rect x="53" y="0" width="2" height="2800" fill="rgba(90,55,20,.22)" />
           <rect x="107" y="0" width="2" height="2800" fill="rgba(90,55,20,.18)" />
           <rect x="161" y="0" width="2" height="2800" fill="rgba(90,55,20,.22)" />
