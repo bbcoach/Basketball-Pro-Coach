@@ -201,7 +201,13 @@ export function stepAtTime(t, n) {
 // second). Then the step is stretched until nobody has to move faster than
 // these paces, in court units (centimetres) a second. A step with nothing
 // long in it keeps its usual length, so ordinary plays are unchanged.
-const PACE = { dribble: 480, cut: 650, screen: 480, handoff: 480 }
+//
+// A path is walked with a smooth start and stop (see moveEase): a ramp up, a
+// steady run, a ramp down. The ramps take RAMP seconds each, so a long path
+// is mostly the steady run, and the PACE below is that run's speed — the
+// fastest anyone goes, not the average.
+const RAMP = STEP_SECS / 2
+const PACE = { dribble: 600, cut: 750, screen: 500, handoff: 500 }
 export function stepSecs(players, k) {
   let secs = STEP_SECS
   players.forEach((ent) => {
@@ -211,7 +217,7 @@ export function stepSecs(players, k) {
     const pts = [baseAt(ent, k)].concat(a.pts)
     let len = 0
     for (let i = 1; i < pts.length; i++) len += dist(pts[i - 1], pts[i])
-    secs = Math.max(secs, len / (PACE[a.type] || PACE.cut))
+    secs = Math.max(secs, len / (PACE[a.type] || PACE.cut) + RAMP)
   })
   return secs
 }
@@ -237,14 +243,28 @@ function easeInOut(fr) {
   return fr < 0.5 ? 2 * fr * fr : 1 - Math.pow(-2 * fr + 2, 2) / 2
 }
 
-function posAtTime(ent, t, n) {
+// How far along its path a mover is, fraction fr of the way through a step
+// lasting `secs`. A normal step eases in and out over its whole length. A
+// stretched one (a long path) ramps up and down over the same RAMP at either
+// end and runs steadily in between — easing over the whole of a 50 m path
+// would have it doubling its speed in the middle.
+function moveEase(fr, secs) {
+  const r = Math.min(0.5, RAMP / secs)
+  if (r >= 0.5) return easeInOut(fr)
+  const v = 1 / (1 - r) // the steady speed, in paths per step
+  if (fr < r) return (v * fr * fr) / (2 * r)
+  if (fr > 1 - r) { const u = 1 - fr; return 1 - (v * u * u) / (2 * r) }
+  return v * (r / 2 + (fr - r))
+}
+
+function posAtTimePaced(ent, t, n, secsOf) {
   const x = Math.max(0, Math.min(0.999999, t)) * n
   const k = Math.floor(x) + 1
   const fr = x - (k - 1)
   const base = baseAt(ent, k)
   const a = actsOf(ent).find((z) => z.step === k && z.pts.length)
   if (!a) return base
-  const e = easeInOut(fr)
+  const e = secsOf ? moveEase(fr, secsOf(k)) : easeInOut(fr)
   return ptAt([base].concat(a.pts), e)
 }
 
@@ -437,6 +457,10 @@ export function startState() {
 // state (players/ball/autoDef) so they can be reused by both the live board
 // and the frame-by-frame exporter.
 export function makeBoard(state) {
+  // positions follow the pace of each step (see stepSecs)
+  const secsMemo = {}
+  const secsOf = (k) => secsMemo[k] ?? (secsMemo[k] = stepSecs(state.players, k))
+  const posAtTime = (ent, t, n) => posAtTimePaced(ent, t, n, secsOf)
   const nSteps = () => Math.max(1, state.steps, maxStepOf(state.players.concat([state.ball])))
 
   // Every ball on the board: the main one first, then any extra ones. Each
