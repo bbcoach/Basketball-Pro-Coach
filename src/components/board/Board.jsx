@@ -6,6 +6,8 @@ import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
 import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
+import Court3D from './Court3D'
+import { webgl3dSupported } from '../../board3d/support'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
 import ShareModal from './modals/ShareModal'
@@ -64,7 +66,7 @@ const FS_FADE_Y = 28
 const fsCap = (tile, fade) => FS_MAX_VISIBLE * tile + FS_MAX_VISIBLE * FS_GAP + fade
 
 function Header({ compact }) {
-  const { state, goHome, enterFullScreen } = useApp()
+  const { state, goHome, enterFullScreen, setView3d } = useApp()
   const { playName } = state
   // Same two-line header as every other screen: brand, title, then the
   // play's name, with Menu on the right.
@@ -75,7 +77,12 @@ function Header({ compact }) {
   const fsButton = (
     <div onClick={enterFullScreen} title="Full screen" aria-label="Full screen" role="button" style={{ width: 32, height: 32, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.08)', color: '#fff', cursor: 'pointer', flex: 'none' }}><FsIcon size={16} /></div>
   )
-  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} action={fsButton} style={compact ? { padding: '0 4px 6px' } : undefined} />
+  // 2D top view ⇄ 3D view. One button, lit while 3D is on; next to full
+  // screen rather than on the court, for the same reason.
+  const viewButton = webgl3dSupported() && (
+    <div onClick={() => setView3d(!state.view3d)} title="3D view" aria-label="3D view" role="button" aria-pressed={state.view3d} style={{ height: 32, minWidth: 38, padding: '0 8px', boxSizing: 'border-box', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: state.view3d ? ACCENT : 'rgba(255,255,255,.08)', color: state.view3d ? '#101012' : '#fff', fontSize: 12.5, fontWeight: 700, letterSpacing: '.3px', cursor: 'pointer', flex: 'none' }}>3D</div>
+  )
+  return <ScreenHeader title="Tactics Board" line={playName} onClose={goHome} action={<>{viewButton}{fsButton}</>} style={compact ? { padding: '0 4px 6px' } : undefined} />
 }
 
 // Play, the steps and the scrubber share one row: the step chips sit where
@@ -115,18 +122,50 @@ function PlaybackBar() {
   )
 }
 
+// The tiles of the row under the playback bar — the drawing tools in 2D, the
+// camera choices in 3D — look and size alike, so the layout doesn't jump.
+const tileStyle = (active, landscape) => ({
+  flex: '1 1 0', minWidth: 0, minHeight: landscape ? 44 : 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 2px', borderRadius: 12, cursor: 'pointer',
+  border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)',
+})
+const TILE_ICON = { fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }
+const TILE_LABEL = { fontSize: 10, lineHeight: '13px', fontWeight: 600, letterSpacing: '-.1px', whiteSpace: 'nowrap' }
+const tileRowStyle = (landscape) => (landscape ? { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 } : { display: 'flex', gap: 5 })
+
+// In the 3D view the drawing tools do nothing, so their row becomes the
+// camera: low on the court, or through one attacker's eyes (tap again for
+// the next one) — and a way back to 2D to change the play.
+function CameraRow() {
+  const { state, setCam3d, cyclePov, setView3d } = useApp()
+  const landscape = useLandscape()
+  const pov = state.players.find((p) => p.id === state.povId) || state.players.find((p) => p.team === 'off')
+  const tile = (active) => tileStyle(active, landscape)
+  return (
+    <div style={{ padding: landscape ? '2px 4px 8px' : '2px 12px 8px' }}>
+      <div style={tileRowStyle(landscape)}>
+        <div onClick={() => setCam3d('court')} style={tile(state.cam3d === 'court')}>
+          <div style={TILE_ICON}>▤︎</div><div style={TILE_LABEL}>Court</div>
+        </div>
+        <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={tile(state.cam3d === 'pov')}>
+          <div style={TILE_ICON}>◉︎</div><div style={TILE_LABEL}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
+        </div>
+        <div onClick={() => setView3d(false)} style={tile(false)}>
+          <div style={TILE_ICON}>✥︎</div><div style={TILE_LABEL}>Edit in 2D</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ToolsRow() {
   const { state, setTool } = useApp()
   const landscape = useLandscape()
   const [open, setOpen] = useState(false)
   const playerTool = PLAYER_TOOLS.find(([id]) => id === state.tool)
-  const tile = (active) => ({
-    flex: '1 1 0', minWidth: 0, minHeight: landscape ? 44 : 50, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, padding: '7px 2px', borderRadius: 12, cursor: 'pointer',
-    border: '1px solid ' + (active ? ACCENT : 'rgba(255,255,255,.09)'), background: active ? ACCENT : 'rgba(255,255,255,.06)', color: active ? '#101012' : 'rgba(255,255,255,.78)',
-  })
-  const icon = { fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }
-  const label = { fontSize: 10, lineHeight: '13px', fontWeight: 600, letterSpacing: '-.1px', whiteSpace: 'nowrap' }
-  const rowStyle = landscape ? { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 } : { display: 'flex', gap: 5 }
+  const tile = (active) => tileStyle(active, landscape)
+  const icon = TILE_ICON
+  const label = TILE_LABEL
+  const rowStyle = tileRowStyle(landscape)
   return (
     <div style={{ position: 'relative', padding: landscape ? '2px 4px 8px' : '2px 12px 8px' }}>
       {open && (
@@ -172,7 +211,7 @@ function FooterButtons() {
 
 // Everything that isn't part of drawing or showing a play, in one place.
 function MoreSheet({ onClose }) {
-  const { state, set, setView, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
+  const { state, set, setView, setView3d, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
   const run = (fn) => () => { onClose(); fn() }
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
@@ -197,6 +236,12 @@ function MoreSheet({ onClose }) {
           {seg(state.view === 'half', 'Halfcourt', () => setView('half'))}
           {seg(state.view === 'full', 'Fullcourt', () => setView('full'))}
         </div>
+        {webgl3dSupported() && (
+          <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
+            {seg(!state.view3d, 'Top view', () => setView3d(false))}
+            {seg(state.view3d, '3D view', () => setView3d(true))}
+          </div>
+        )}
         <div style={cap}>Defense</div>
         <div onClick={toggleAutoDef} style={{ ...row, justifyContent: 'space-between' }}>
           <span>Defenders follow their man</span>
@@ -251,6 +296,22 @@ function FullScreenControls() {
       <div style={{ padding: '8px 4px', borderRadius: 99, background: 'rgba(255,255,255,.16)', color: '#fff', fontSize: 12.5, fontWeight: 700, minWidth: 44, textAlign: 'center' }}>{editStep} / {n}</div>
       <div onClick={() => editStep < n && gotoStep(editStep + 1)} style={circleBtn(editStep >= n)}>›</div>
       <div onClick={addStep} style={{ ...circleBtn(false), width: 38, height: 38, fontSize: 17 }}>＋</div>
+    </div>
+  )
+}
+
+// Full screen in 3D: the camera choice where the drawing tools would be.
+function FullScreenCamera() {
+  const { state, setCam3d, cyclePov } = useApp()
+  const landscape = useLandscape()
+  const pov = state.players.find((p) => p.id === state.povId) || state.players.find((p) => p.team === 'off')
+  const pill = (active) => ({ padding: '9px 14px', borderRadius: 99, background: active ? ACCENT : 'rgba(10,10,12,.62)', color: active ? '#101012' : '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' })
+  return (
+    <div style={landscape
+      ? { position: 'absolute', top: 'calc(64px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }
+      : { position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 60, display: 'flex', gap: 8 }}>
+      <div onClick={() => setCam3d('court')} style={pill(state.cam3d === 'court')}>Court</div>
+      <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={pill(state.cam3d === 'pov')}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
     </div>
   )
 }
@@ -476,8 +537,9 @@ function FsIcon({ exit, size = 18 }) {
 }
 
 export default function Board() {
-  const { state, exitFullScreen, togglePlay } = useApp()
+  const { state, exitFullScreen, togglePlay, setView3d } = useApp()
   const { fullScreen, playing, hint, boardNotice } = state
+  const use3d = state.view3d && webgl3dSupported()
   // The hint used to hold a line of its own under the toolbar for good. Now
   // it shows over the court for a moment whenever it changes, then fades.
   const [hintOn, setHintOn] = useState(false)
@@ -499,7 +561,8 @@ export default function Board() {
       {fullScreen && (
         <>
           <div onClick={exitFullScreen} title="Exit full screen" aria-label="Exit full screen" role="button" style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top, 0px))', right: 14, zIndex: 60, width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', cursor: 'pointer' }}><FsIcon exit size={20} /></div>
-          <FullScreenTools />
+          <div onClick={() => setView3d(!state.view3d)} title="3D view" aria-label="3D view" role="button" aria-pressed={use3d} style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top, 0px))', right: 62, zIndex: 60, display: webgl3dSupported() ? 'flex' : 'none', width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', background: use3d ? ACCENT : 'rgba(10,10,12,.62)', color: use3d ? '#101012' : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>3D</div>
+          {use3d ? <FullScreenCamera /> : <FullScreenTools />}
           <FullScreenControls />
           <div
             onClick={togglePlay}
@@ -520,7 +583,7 @@ export default function Board() {
           the steps on the left — so no player can ever end up under one. A
           button over the court eats every tap on whoever is standing there. */}
       <div style={{ display: 'flex', flex: '1 1 0', alignSelf: 'stretch', position: 'relative', overflow: 'hidden', margin: landscape ? 0 : '0 12px', borderRadius: 18, background: '#08080a', border: '1px solid rgba(255,255,255,.1)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.07),0 8px 24px rgba(0,0,0,.5)', padding: !fullScreen ? 9 : landscape ? '9px 66px 9px 66px' : 'calc(66px + env(safe-area-inset-top, 0px)) 9px calc(70px + env(safe-area-inset-bottom, 0px))' }}>
-        <Court />
+        {use3d ? <Court3D /> : <Court />}
         {boardNotice && (
           // The outer box only centres; toast-pop animates transform, which
           // would otherwise wipe out a translateX(-50%) centring.
@@ -545,7 +608,7 @@ export default function Board() {
         >
           {landscape && <Header compact />}
           <PlaybackBar />
-          <ToolsRow />
+          {use3d ? <CameraRow /> : <ToolsRow />}
           <FooterButtons />
         </div>
       )}

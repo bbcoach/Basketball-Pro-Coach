@@ -49,6 +49,8 @@ function initialState() {
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
     autoDef: false, helpDef: false, defenseDelay: 0, fullScreen: false,
+    // the 3D view of the board (view only): on/off is remembered on this device
+    view3d: loadJson('tb.view3d.v1', false) === true, cam3d: 'court', povId: null,
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     shareOpen: false,
@@ -613,6 +615,17 @@ export function AppProvider({ children }) {
   // showing the whole play as big as possible — so it always switches to
   // full court, and restores whatever view the coach had been editing in
   // once they exit rather than silently changing their preference for good.
+  // 3D view: a way of looking at the play, not part of it — never saved with
+  // a play, and switching it leaves the time and the step where they are.
+  const setView3d = (on) => { saveJson('tb.view3d.v1', !!on); set({ view3d: !!on }) }
+  const setCam3d = (cam3d) => set({ cam3d })
+  // through the next attacker's eyes (the first, if none was chosen yet)
+  const cyclePov = () => set((st) => {
+    const offs = st.players.filter((q) => q.team === 'off')
+    if (!offs.length) return {}
+    const i = offs.findIndex((q) => q.id === st.povId)
+    return { cam3d: 'pov', povId: offs[(i + 1) % offs.length].id }
+  })
   const enterFullScreen = () => set((s) => ({ fullScreen: true, playing: false, view: 'full', preFullScreenView: s.view }))
   const exitFullScreen = () => set((s) => ({ fullScreen: false, view: s.preFullScreenView || s.view }))
 
@@ -1132,7 +1145,7 @@ export function AppProvider({ children }) {
     openShare, closeShareModal, doExportSteps, doExportVideo,
     closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
-    enterFullScreen, exitFullScreen,
+    enterFullScreen, exitFullScreen, setView3d, setCam3d, cyclePov,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
