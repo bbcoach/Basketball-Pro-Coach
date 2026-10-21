@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
-import { makeBoard, stepAtTime, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
+import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
 import { ROUTE_COLORS } from './routeColors'
 
@@ -34,6 +34,7 @@ let board = null
 let N = 1
 let MARKS = {}
 let CARRIERS = {}
+let STEPD = [STEP_SECS] // how long each step takes, in seconds (long paths stretch it)
 
 // Court units are centimetres: 1500 × 2800 = 15 m × 28 m.
 const toX = (x) => (x - 750) / 100
@@ -1391,7 +1392,9 @@ function simulate(t, dt) {
       const TOP = 0.86
       // each bounce: pushed down out of the hand, speeding up under gravity
       // to the floor, slowing again on the way back up into the hand
-      const ph = (fr * 4) % 1; const half = ph < 0.5 ? ph * 2 : (1 - ph) * 2
+      // four bounces to a normal step, more in a long one, so it stays a dribble
+      const bounces = Math.max(2, Math.round((4 * STEPD[k - 1]) / STEP_SECS))
+      const ph = (fr * bounces) % 1; const half = ph < 0.5 ? ph * 2 : (1 - ph) * 2
       const drop = 0.3 * half + 0.7 * half * half
       // a slight squash as it hits the floor
       squash = half > 0.93 ? 1 - 0.14 * (half - 0.93) / 0.07 : 1
@@ -1509,12 +1512,14 @@ function simulate(t, dt) {
   nets.forEach((nt) => {
     const inside = Math.hypot(ball.position.x, ball.position.z - nt.z) < 0.25 && ball.position.y < 3.08 && ball.position.y > 2.45
     // stretch: pulled open while the ball is in it, springs back after
-    nt.vs += ((inside ? 140 * (1 - nt.swish) : -55 * nt.swish) - 7 * nt.vs) * dt
-    nt.swish += nt.vs * dt
+    // (small steps of its own: a long step has more time per sample than the spring's integration can take)
+    const h = Math.min(dt, 0.04)
+    nt.vs += ((inside ? 140 * (1 - nt.swish) : -55 * nt.swish) - 7 * nt.vs) * h
+    nt.swish += nt.vs * h
     // swing: kicked along by the ball, then a few dying swings
-    if (inside) { nt.vx += (mv.x / dt) * 2.2 * dt; nt.vz += (mv.z / dt) * 2.2 * dt }
-    nt.vx += (-48 * nt.sx - 3.2 * nt.vx) * dt; nt.sx += nt.vx * dt
-    nt.vz += (-48 * nt.sz - 3.2 * nt.vz) * dt; nt.sz += nt.vz * dt
+    if (inside) { nt.vx += mv.x * 2.2; nt.vz += mv.z * 2.2 }
+    nt.vx += (-48 * nt.sx - 3.2 * nt.vx) * h; nt.sx += nt.vx * h
+    nt.vz += (-48 * nt.sz - 3.2 * nt.vz) * h; nt.sz += nt.vz * h
     nt.sx = Math.max(-1.2, Math.min(1.2, nt.sx)); nt.sz = Math.max(-1.2, Math.min(1.2, nt.sz))
     updateNet(nt)
   })
@@ -1546,9 +1551,10 @@ function bake() {
   const figs = new Float32Array(SAMPLES * FIGS.length * PER_FIG)
   const balls = new Float32Array(SAMPLES * PER_BALL)
   const swish = new Float32Array(SAMPLES * nets.length * 3)
-  const dt = STEP_SECS / SPS
   for (let i = 0; i < SAMPLES; i++) {
-    simulate(Math.min(0.999999, i / (SAMPLES - 1)), dt)
+    const ts = Math.min(0.999999, i / (SAMPLES - 1))
+    // the samples are an equal share of each step; a longer step is more time per sample
+    simulate(ts, STEPD[stepAtTime(ts, N) - 1] / SPS)
     let o = i * FIGS.length * PER_FIG
     FIGS.forEach((f) => {
       f.root.position.toArray(figs, o); f.root.quaternion.toArray(figs, o + 3); o += 7
@@ -1966,6 +1972,7 @@ return {
     courtView = s.view || 'half'
     board = makeBoard(s)
     N = board.nSteps(); MARKS = board.marks(); CARRIERS = board.carriers()
+    STEPD = Array.from({ length: N }, (_, i) => stepSecs(s.players, i + 1))
     const people = s.players.filter((p) => p.team === 'off' || p.team === 'def')
     const key = people.map((p) => p.id + ':' + p.team + ':' + p.label).join('|')
     if (key !== figKey) { buildFigures(people); figKey = key }

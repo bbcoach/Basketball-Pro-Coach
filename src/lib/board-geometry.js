@@ -196,6 +196,43 @@ export function stepAtTime(t, n) {
   return Math.min(n, Math.floor(Math.max(0, Math.min(0.999999, t)) * n) + 1)
 }
 
+// A step takes STEP_SECS — unless a path drawn in it is so long that walking
+// it in that time would be absurd (a full-court cut in 2.4 s is 12 m a
+// second). Then the step is stretched until nobody has to move faster than
+// these paces, in court units (centimetres) a second. A step with nothing
+// long in it keeps its usual length, so ordinary plays are unchanged.
+const PACE = { dribble: 480, cut: 650, screen: 480, handoff: 480 }
+export function stepSecs(players, k) {
+  let secs = STEP_SECS
+  players.forEach((ent) => {
+    if (isCone(ent) || isBall(ent)) return
+    const a = actsOf(ent).find((z) => z.step === k && z.pts.length)
+    if (!a) return
+    const pts = [baseAt(ent, k)].concat(a.pts)
+    let len = 0
+    for (let i = 1; i < pts.length; i++) len += dist(pts[i - 1], pts[i])
+    secs = Math.max(secs, len / (PACE[a.type] || PACE.cut))
+  })
+  return secs
+}
+// the whole play, in seconds at 1×
+export function totalSecs(players, n) {
+  let s = 0
+  for (let k = 1; k <= n; k++) s += stepSecs(players, k)
+  return s
+}
+// where on the 0…1 timeline `secs` seconds into the play are, steps of
+// different lengths taken into account
+export function timeAtSecs(players, n, secs) {
+  let left = Math.max(0, secs)
+  for (let k = 1; k <= n; k++) {
+    const d = stepSecs(players, k)
+    if (left < d) return (k - 1 + left / d) / n
+    left -= d
+  }
+  return 1
+}
+
 function easeInOut(fr) {
   return fr < 0.5 ? 2 * fr * fr : 1 - Math.pow(-2 * fr + 2, 2) / 2
 }

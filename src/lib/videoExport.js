@@ -12,7 +12,7 @@
 import { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, getFirstEncodableVideoCodec } from 'mediabunny'
 import {
   actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, isBall, conePath, CONE_COLOR,
-  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, STEP_SECS,
+  BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, totalSecs, timeAtSecs,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
 
@@ -290,7 +290,7 @@ export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } 
   const END_CARD = 2.2
   const END_FADE = 0.4
   const leadFrames = Math.round(HOLD_START * fps)
-  const moveFrames = Math.max(1, Math.round((totalSteps * STEP_SECS * fps) / speed))
+  const moveFrames = Math.max(1, Math.round((totalSecs(play.players || [], totalSteps) * fps) / speed))
   const endStart = leadFrames + moveFrames + Math.round(HOLD_END * fps)
   const totalFrames = endStart + Math.round(END_CARD * fps)
 
@@ -319,7 +319,7 @@ export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } 
   let img = null
   let lastT = -1
   for (let i = 0; i < totalFrames; i++) {
-    const t = Math.min(0.999999, Math.max(0, (i - leadFrames) / moveFrames))
+    const t = Math.min(0.999999, timeAtSecs(play.players || [], totalSteps, Math.max(0, ((i - leadFrames) / fps) * speed)))
     // The stills at either end repeat one t, so their frame is built once.
     if (t !== lastT) {
       // eslint-disable-next-line no-await-in-loop

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   actsOf, baseAt, carrierMap, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
-  CONE_TEAM, isCone, BALL_TEAM, isBall, STEP_SECS,
+  CONE_TEAM, isCone, BALL_TEAM, isBall, stepSecs,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
@@ -409,7 +409,8 @@ export function AppProvider({ children }) {
     lastRef.current = now
     const n = nSteps()
     set((s) => {
-      let t = s.t + (dt / (STEP_SECS * n)) * s.speed
+      // the step it is in sets the pace: a long path takes longer
+      let t = s.t + (dt / (stepSecs(s.players, stepAtTime(s.t, n)) * n)) * s.speed
       if (t >= 1) t -= 1
       return { t }
     })
