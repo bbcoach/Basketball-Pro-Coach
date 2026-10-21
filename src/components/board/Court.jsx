@@ -189,9 +189,9 @@ export default function Court() {
         <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#wood)" />
         <rect x="0" y="0" width="1500" height="2800" rx="14" fill="url(#sheen)" />
         {/* painted keys and centre circle in the same charcoal as the 3D court */}
-        <rect x="505" y="14" width="490" height="566" fill="#70707a" />
-        <rect x="505" y="2220" width="490" height="566" fill="#70707a" />
-        <circle cx="750" cy="1400" r="180" fill="#70707a" />
+        <rect x="505" y="14" width="490" height="566" fill="#8c8c96" />
+        <rect x="505" y="2220" width="490" height="566" fill="#8c8c96" />
+        <circle cx="750" cy="1400" r="180" fill="#8c8c96" />
         <circle cx="750" cy="1400" r="140" fill="none" stroke="#e8b13c" strokeWidth="10" />
 
         <g fill="none" stroke="#ffffff" strokeWidth="9" strokeLinecap="round" opacity="0.94">
