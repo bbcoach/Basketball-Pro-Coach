@@ -8,6 +8,7 @@ import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import { makeBoard, stepAtTime, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
+import { ROUTE_COLORS } from './routeColors'
 
 // The 3D view of the tactics board: the same play, seen from the court.
 // View only — editing stays in the 2D top view. It reads the board the way
@@ -885,7 +886,11 @@ function pose(f, ampF, ampL, lean, defense, hold) {
     // T-pose → arms down (z), then swing (x). The elbow bends about its y
     // axis; for the forearm to come FORWARD that's +angle on the right side
     // of the body (−x) and −angle on the left, i.e. −side × angle.
-    A.sh.rotation.set(defense ? -0.35 : -sw * 0.8 * Math.abs(ampF), 0, -side * (defense ? 0.95 : 1.3 - 0.15 * lean))
+    // The arm swings forward freely but back only a little: further and the
+    // elbow ends up behind the torso, the arm looking pulled out of the
+    // shoulder (+x rotation is backwards).
+    const swing = -sw * 0.8 * Math.abs(ampF)
+    A.sh.rotation.set(defense ? -0.35 : Math.min(swing, 0.2), 0, -side * (defense ? 0.95 : 1.3 - 0.15 * lean))
     A.el.rotation.set(0, -side * (defense ? 1.05 : 0.25 + 0.9 * lean), 0)
   }
   if (hold === 'hold') {
@@ -1731,21 +1736,23 @@ const frame = (t) => { applyBaked(t); view(t) }
 // What the 2D court draws for the step being played, laid on the floor: each
 // action's route (a wavy line for a dribble, dashes for a pass, dots for a
 // shot, a long-short dash for a handoff, a bar across the end of a screen),
-// sky blue with a dark edge and a soft glow, so it reads on light wood and on
-// the painted key alike. One group per step; only the current step's is shown.
+// in a colour per kind of action, with a dark edge and a soft glow, so it reads
+// on light wood and on the painted key alike. One group per step; only the current step's is shown.
 let routeGroups = []
 let showPaths = true
-// the soft sky blue the app already uses (schedule events, a team colour, the
-// "upcoming" badge in attendance)
-const ROUTE_BLUE = 0x7fb2e0
-const glowMat = new THREE.MeshBasicMaterial({ color: ROUTE_BLUE, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
-const inkMat = new THREE.MeshBasicMaterial({ color: ROUTE_BLUE, transparent: true, opacity: 0.98, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
-const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
+// each kind of action has its own colour (see routeColors.js): a line, and a
+// faint glow of the same colour round it, over one shared dark edge
+const routeMats = {}
+const matsFor = (type) => routeMats[type] || (routeMats[type] = {
+  ink: new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.98, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  glow: new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
+})
+const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
 // Laid as thin tubes, not flat ribbons: a flat line seen from a low camera
 // shrinks to almost nothing, a tube looks the same thickness from anywhere.
 const ROUTE_Y = 0.05
 const ROUTE_R = 0.08 // the line's radius, metres
-const EDGE = 0.035 // the dark edge round it
+const EDGE = 0.04 // the dark edge round it
 const GLOW = 0.085 // and a soft glow outside that
 // the 2D board's own curve: a quadratic through each point to the next midpoint
 function curveSample(pts) {
@@ -1851,17 +1858,19 @@ function buildRoutes() {
   const cmap = CARRIERS
   const all = play.players.filter((p) => !isCone(p)).concat([Object.assign({ id: 'ball' }, play.ball)])
   for (let k = 1; k <= N; k++) {
-    const ink = []; const edge = []; const glow = []
+    const edge = []
+    const ink = {}; const glow = {} // by kind of action
     all.forEach((ent) => {
       actsOf(ent).forEach((act) => {
         if (act.step !== k || !act.pts.length) return
         const start = ent.id === 'ball' ? board.ballStart(k, cmap) : isBall(ent) ? board.ballStart(k, null, ent) : baseAt(ent, k)
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
-        const ty = act.type
+        const ty = act.type in ROUTE_COLORS ? act.type : 'pass'
+        const inkA = ink[ty] || (ink[ty] = []); const glowA = glow[ty] || (glow[ty] = [])
         const line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
         const dash = ty === 'pass' ? [0.34, 0.26] : ty === 'shot' ? [0.06, 0.26] : ty === 'handoff' ? [0.02, 0.12, 0.22, 0.12] : null
-        for (const [arr, hw] of [[glow, ROUTE_R + EDGE + GLOW], [edge, ROUTE_R + EDGE], [ink, ROUTE_R]]) {
+        for (const [arr, hw] of [[glowA, ROUTE_R + EDGE + GLOW], [edge, ROUTE_R + EDGE], [inkA, ROUTE_R]]) {
           addStroke(arr, line, hw, dash)
           if (ty !== 'screen') addArrow(arr, line, hw)
         }
@@ -1870,12 +1879,14 @@ function buildRoutes() {
           const l = Math.hypot(b.x - a.x, b.y - a.y) || 1
           const nx = -(b.y - a.y) / l; const ny = (b.x - a.x) / l
           const bar = toLine([{ x: b.x - nx * 46, y: b.y - ny * 46 }, { x: b.x + nx * 46, y: b.y + ny * 46 }])
-          addTube(glow, bar, ROUTE_R + EDGE + GLOW); addTube(edge, bar, ROUTE_R + EDGE); addTube(ink, bar, ROUTE_R)
+          addTube(glowA, bar, ROUTE_R + EDGE + GLOW); addTube(edge, bar, ROUTE_R + EDGE); addTube(inkA, bar, ROUTE_R)
         }
       })
     })
     const g = new THREE.Group()
-    ;[[glow, glowMat, 1], [edge, edgeMat, 2], [ink, inkMat, 3]].forEach(([arr, mat, order]) => {
+    const layers = [[edge, edgeMat, 2]]
+    Object.keys(ink).forEach((ty) => { layers.push([glow[ty], matsFor(ty).glow, 1], [ink[ty], matsFor(ty).ink, 3]) })
+    layers.forEach(([arr, mat, order]) => {
       if (!arr.length) return
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3))
