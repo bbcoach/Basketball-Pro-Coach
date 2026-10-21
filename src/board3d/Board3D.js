@@ -1492,7 +1492,20 @@ function simulate(t, dt) {
       // caught with the arms out a little towards the pass; the next step
       // starts by pulling it in to the chest
       const toPasser = rc && passer ? passer.root.position.clone().sub(rc.root.position).setY(0).normalize() : null
-      const catchPt = rc ? chestPoint(rc, toPasser).addScaledVector(toPasser || new THREE.Vector3(), 0.14) : new THREE.Vector3(toX(end.x), 1.2, toZ(end.y))
+      // A pass from behind him (into his run) isn't taken behind his back: it
+      // is led out in front of him, to the side the passer is on, the way
+      // you'd take it running — the less the passer is in front of him, the
+      // more so.
+      let catchDir = toPasser
+      if (rc && toPasser) {
+        const ahead = toPasser.dot(fwdOf(rc))
+        const w = clampN((0.5 - ahead) / 0.6, 0, 1)
+        if (w > 0) {
+          const lead = fwdOf(rc).addScaledVector(sideOf(rc), (toPasser.dot(sideOf(rc)) < 0 ? -1 : 1) * 0.7).normalize()
+          catchDir = toPasser.clone().lerp(lead, w).normalize()
+        }
+      }
+      const catchPt = rc ? chestPoint(rc, catchDir).addScaledVector(catchDir || new THREE.Vector3(), 0.14) : new THREE.Vector3(toX(end.x), 1.2, toZ(end.y))
       if (passer && fr < G) {
         // gather: the ball comes up into both hands at the chest
         const g = easeInOut(fr / G)
