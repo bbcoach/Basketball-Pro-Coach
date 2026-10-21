@@ -28,6 +28,7 @@ export default function Court3D() {
         const s = latest.current
         c.setBoard(s)
         c.setCamera(s.cam3d, s.povId)
+        c.setPaths(s.paths3d)
         c.render(s.t)
         ro = new ResizeObserver(() => c.resize())
         ro.observe(host.current)
@@ -46,6 +47,7 @@ export default function Court3D() {
   useEffect(() => { if (view.current) view.current.setBoard(state) }, [state.players, state.ball, state.steps, state.autoDef, state.helpDef, state.defenseDelay]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view.current) view.current.setCourtView(state.view) }, [state.view])
   useEffect(() => { if (view.current) view.current.setCamera(state.cam3d, state.povId) }, [state.cam3d, state.povId])
+  useEffect(() => { if (view.current) view.current.setPaths(state.paths3d) }, [state.paths3d])
   useEffect(() => { if (view.current) view.current.render(state.t) }, [state.t, status])
 
   const note = status === 'loading' ? 'Loading 3D…' : status === 'error' ? "3D view isn't available on this device" : null

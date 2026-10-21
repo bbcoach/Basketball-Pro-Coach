@@ -51,6 +51,7 @@ function initialState() {
     autoDef: false, helpDef: false, defenseDelay: 0, fullScreen: false,
     // the 3D view of the board (view only): on/off is remembered on this device
     view3d: loadJson('tb.view3d.v1', false) === true, cam3d: 'court', povId: null,
+    paths3d: loadJson('tb.paths3d.v1', true) !== false, // the step's routes drawn on the 3D floor
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
     shareOpen: false,
@@ -619,6 +620,7 @@ export function AppProvider({ children }) {
   // a play, and switching it leaves the time and the step where they are.
   const setView3d = (on) => { saveJson('tb.view3d.v1', !!on); set({ view3d: !!on }) }
   const setCam3d = (cam3d) => set({ cam3d })
+  const setPaths3d = (on) => { saveJson('tb.paths3d.v1', !!on); set({ paths3d: !!on }) }
   // through the next attacker's eyes (the first, if none was chosen yet)
   const cyclePov = () => set((st) => {
     const offs = st.players.filter((q) => q.team === 'off')
@@ -1145,7 +1147,7 @@ export function AppProvider({ children }) {
     openShare, closeShareModal, doExportSteps, doExportVideo,
     closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
-    enterFullScreen, exitFullScreen, setView3d, setCam3d, cyclePov,
+    enterFullScreen, exitFullScreen, setView3d, setCam3d, setPaths3d, cyclePov,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,

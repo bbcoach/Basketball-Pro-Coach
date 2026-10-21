@@ -6,7 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
-import { makeBoard, stepAtTime, actsOf, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
+import { makeBoard, stepAtTime, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
 
 // The 3D view of the tactics board: the same play, seen from the court.
@@ -17,6 +17,7 @@ import { COND } from '../theme'
 //   const view = await createBoard3D(containerElement)
 //   view.setBoard(state)          // players, ball, steps … (re-bakes)
 //   view.setCourtView('half' | 'full')
+//   view.setPaths(true | false)   // the step's routes drawn on the floor
 //   view.setCamera('court' | 'pov', playerId)
 //   view.render(t)                // t in 0…1 along the play; drawn soon
 //   view.dispose()
@@ -153,7 +154,9 @@ function sizeComposer() {
   maskRT.setSize(Math.round(W * pr), Math.round(H * pr))
   netRT.setSize(Math.round(W * pr), Math.round(H * pr))
   outlinePass.uniforms.resolution.value.set(W * pr, H * pr)
-  outlinePass.uniforms.px.value = 2.4 * pr
+  // the line is 2.4 px on a picture about 1130 px across the diagonal; on a
+  // phone, where everything is smaller, it shrinks with it (never below half)
+  outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
   fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr))
   const bw = Math.max(1, Math.round((W * pr) / 2)); const bh = Math.max(1, Math.round((H * pr) / 2))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
@@ -1646,10 +1649,194 @@ function view(t) {
     f.root.traverse((c) => { if (c.isMesh && c.material === f.mats[1]) c.renderOrder = faded ? ro + 1.5 : 0 })
   })
   updateEyes(t)
+  const kStep = stepAtTime(t, N)
+  routeGroups.forEach((g, i) => { g.visible = showPaths && i === kStep - 1 })
+  const holder = holderAt(t)
+  carrierRing.visible = !!holder && holder.root.visible
+  if (holder) carrierRing.position.set(holder.root.position.x, 0.014, holder.root.position.z)
   renderFrame()
 }
 let camPosZ = null
 const frame = (t) => { applyBaked(t); view(t) }
+
+// ── paths on the floor ────────────────────────────────────────────────
+// What the 2D court draws for the step being played, laid on the floor: each
+// action's route (a wavy line for a dribble, dashes for a pass, dots for a
+// shot, a long-short dash for a handoff, a bar across the end of a screen),
+// white with a dark edge so it reads on light wood and on the painted key
+// alike. One group per step; only the current step's is shown.
+let routeGroups = []
+let showPaths = true
+const inkMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
+const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
+// Laid as thin tubes, not flat ribbons: a flat line seen from a low camera
+// shrinks to almost nothing, a tube looks the same thickness from anywhere.
+const ROUTE_Y = 0.05
+const ROUTE_R = 0.065 // the line's radius, metres
+const EDGE = 0.035 // the dark edge round it
+// the 2D board's own curve: a quadratic through each point to the next midpoint
+function curveSample(pts) {
+  if (pts.length < 3) return pts
+  const out = [pts[0]]
+  let a = pts[0]
+  for (let i = 1; i < pts.length - 1; i++) {
+    const c = pts[i]; const m = { x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2 }
+    for (let j = 1; j <= 10; j++) { const u = j / 10; out.push({ x: (1 - u) * (1 - u) * a.x + 2 * (1 - u) * u * c.x + u * u * m.x, y: (1 - u) * (1 - u) * a.y + 2 * (1 - u) * u * c.y + u * u * m.y }) }
+    a = m
+  }
+  out.push(pts[pts.length - 1])
+  return out
+}
+// a squiggle laid along the path (court units, as the 2D board's wavy())
+function waveSample(pts) {
+  const d = (p, q) => Math.hypot(p.x - q.x, p.y - q.y)
+  const total = pts.slice(1).reduce((n, p, i) => n + d(pts[i], p), 0)
+  const out = []
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]; const b = pts[i]; const len = d(a, b)
+    if (!len) continue
+    const nx = -(b.y - a.y) / len; const ny = (b.x - a.x) / len
+    for (let u = 0; u < len; u += 4) {
+      const k = acc + u
+      const fade = Math.max(0, Math.min(1, k / 24, (total - k) / 24))
+      const amp = 10 * fade * Math.sin((k / 46) * Math.PI * 2)
+      out.push({ x: a.x + (b.x - a.x) * (u / len) + nx * amp, y: a.y + (b.y - a.y) * (u / len) + ny * amp })
+    }
+    acc += len
+  }
+  out.push(pts[pts.length - 1])
+  return out
+}
+// a tube of radius r along a polyline (world x/z), six-sided
+const TUBE_SIDES = 6
+function addTube(arr, line, r) {
+  const ring = (i) => {
+    const a = line[Math.max(0, i - 1)]; const b = line[Math.min(line.length - 1, i + 1)]
+    const dx = b.x - a.x; const dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1
+    const sx = -dz / l; const sz = dx / l
+    const out = []
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const th = (k / TUBE_SIDES) * Math.PI * 2
+      out.push([line[i].x + sx * Math.cos(th) * r, ROUTE_Y + Math.sin(th) * r, line[i].z + sz * Math.cos(th) * r])
+    }
+    return out
+  }
+  let prev = ring(0)
+  for (let i = 1; i < line.length; i++) {
+    const cur = ring(i)
+    for (let k = 0; k < TUBE_SIDES; k++) {
+      const k2 = (k + 1) % TUBE_SIDES
+      arr.push(...prev[k], ...prev[k2], ...cur[k], ...prev[k2], ...cur[k2], ...cur[k])
+    }
+    prev = cur
+  }
+}
+// the part of a polyline between arc lengths s0 and s1
+function slice(line, cum, s0, s1) {
+  const at = (s) => { let i = 1; while (i < cum.length - 1 && cum[i] < s) i++; const u = (s - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); return { x: line[i - 1].x + (line[i].x - line[i - 1].x) * u, z: line[i - 1].z + (line[i].z - line[i - 1].z) * u } }
+  const out = [at(s0)]
+  for (let i = 1; i < line.length - 1; i++) if (cum[i] > s0 && cum[i] < s1) out.push(line[i])
+  out.push(at(s1))
+  return out
+}
+function addStroke(arr, line, hw, dash) {
+  if (line.length < 2) return
+  if (!dash) { addTube(arr, line, hw); return }
+  const cum = [0]
+  for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z))
+  const total = cum[cum.length - 1]
+  const period = dash.reduce((n, v) => n + v, 0)
+  for (let s = 0; s < total;) {
+    let on = true
+    for (const v of dash) {
+      if (on) addTube(arr, slice(line, cum, s, Math.min(total, s + v)), hw)
+      s += v; on = !on
+      if (s >= total) break
+    }
+    if (period <= 0) break
+  }
+}
+function addArrow(arr, line, hw) {
+  const a = line[line.length - 2]; const b = line[line.length - 1]
+  const l = Math.hypot(b.x - a.x, b.z - a.z)
+  if (l < 1e-6) return
+  const dx = (b.x - a.x) / l; const dz = (b.z - a.z) / l
+  const grow = hw - ROUTE_R
+  const tip = [b.x + dx * (0.2 + grow), ROUTE_Y, b.z + dz * (0.2 + grow)]
+  const base = { x: b.x - dx * 0.16, z: b.z - dz * 0.16 }
+  const rr = 0.13 + grow
+  const sx = -dz; const sz = dx
+  const rim = []
+  for (let k = 0; k < 8; k++) { const th = (k / 8) * Math.PI * 2; rim.push([base.x + sx * Math.cos(th) * rr, ROUTE_Y + Math.sin(th) * rr, base.z + sz * Math.cos(th) * rr]) }
+  for (let k = 0; k < 8; k++) arr.push(...tip, ...rim[k], ...rim[(k + 1) % 8])
+}
+const toLine = (pts) => pts.map((p) => ({ x: toX(p.x), z: toZ(p.y) }))
+function buildRoutes() {
+  routeGroups.forEach((g) => { scene.remove(g); g.traverse((o) => { if (o.geometry) o.geometry.dispose() }) })
+  routeGroups = []
+  const cmap = CARRIERS
+  const all = play.players.filter((p) => !isCone(p)).concat([Object.assign({ id: 'ball' }, play.ball)])
+  for (let k = 1; k <= N; k++) {
+    const ink = []; const edge = []
+    all.forEach((ent) => {
+      actsOf(ent).forEach((act) => {
+        if (act.step !== k || !act.pts.length) return
+        const start = ent.id === 'ball' ? board.ballStart(k, cmap) : isBall(ent) ? board.ballStart(k, null, ent) : baseAt(ent, k)
+        const pts = [start].concat(act.pts)
+        if (pts.length < 2) return
+        const ty = act.type
+        const line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
+        const dash = ty === 'pass' ? [0.34, 0.26] : ty === 'shot' ? [0.06, 0.26] : ty === 'handoff' ? [0.02, 0.12, 0.22, 0.12] : null
+        for (const [arr, hw] of [[edge, ROUTE_R + EDGE], [ink, ROUTE_R]]) {
+          addStroke(arr, line, hw, dash)
+          if (ty !== 'screen') addArrow(arr, line, hw)
+        }
+        if (ty === 'screen') {
+          const a = pts[pts.length - 2]; const b = pts[pts.length - 1]
+          const l = Math.hypot(b.x - a.x, b.y - a.y) || 1
+          const nx = -(b.y - a.y) / l; const ny = (b.x - a.x) / l
+          const bar = toLine([{ x: b.x - nx * 46, y: b.y - ny * 46 }, { x: b.x + nx * 46, y: b.y + ny * 46 }])
+          addTube(edge, bar, ROUTE_R + EDGE); addTube(ink, bar, ROUTE_R)
+        }
+      })
+    })
+    const g = new THREE.Group()
+    ;[[edge, edgeMat, 2], [ink, inkMat, 3]].forEach(([arr, mat, order]) => {
+      if (!arr.length) return
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3))
+      const m = new THREE.Mesh(geo, mat)
+      m.renderOrder = order; m.frustumCulled = false
+      g.add(m)
+    })
+    g.visible = false
+    scene.add(g)
+    routeGroups.push(g)
+  }
+}
+
+// ── who has the ball: a ring on the floor ──────────────────────────────
+const ringGeo = new THREE.RingGeometry(0.52, 0.62, 48).rotateX(-Math.PI / 2)
+const discGeo = new THREE.CircleGeometry(0.52, 48).rotateX(-Math.PI / 2)
+const carrierRing = new THREE.Group()
+carrierRing.add(new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.2, depthWrite: false })))
+carrierRing.add(new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.95, depthWrite: false })))
+carrierRing.children.forEach((m) => { m.renderOrder = 3; m.frustumCulled = false })
+carrierRing.visible = false
+scene.add(carrierRing)
+// the holder: whoever carries it; on a pass, the passer until half way, then
+// the one it is going to; on a shot, the shooter until it has left his hands
+function holderAt(t) {
+  const k = stepAtTime(t, N)
+  const fr = Math.max(0, Math.min(0.999999, t)) * N - (k - 1)
+  const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
+  let who = null
+  if (!act) who = CARRIERS[k]
+  else if (act.type === 'shot') who = fr < 0.3 ? CARRIERS[k] : null
+  else who = fr < 0.5 ? CARRIERS[k] : CARRIERS[k + 1]
+  return who ? figures[who.id] || null : null
+}
 
 // ── playback in the app ────────────────────────────────────────────────
 // At most 30 frames a second (plenty for a tactics replay, and it halves
@@ -1701,9 +1888,11 @@ return {
     buildExtras(s.players)
     FIGS = Object.values(figures)
     bake()
+    buildRoutes()
     camPosZ = null; look = null
     dirty = true; schedule()
   },
+  setPaths(on) { showPaths = !!on; dirty = true; schedule() },
   setCourtView(v) { if (v !== courtView) { courtView = v; camPosZ = null; look = null; dirty = true; schedule() } },
   setCamera(mode, povId) { cam.mode = mode; cam.povId = povId || null; look = null; dirty = true; schedule() },
   render(t) { target = Math.max(0, Math.min(1, t)); dirty = true; schedule() },
