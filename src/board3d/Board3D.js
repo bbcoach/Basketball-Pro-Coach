@@ -19,6 +19,7 @@ import { ROUTE_COLORS } from './routeColors'
 //   view.setBoard(state)          // players, ball, steps … (re-bakes)
 //   view.setCourtView('half' | 'full')
 //   view.setPaths(true | false)   // the step's routes drawn on the floor
+//   view.setQuality('high' | 'medium' | 'low')
 //   view.setCamera('court' | 'pov' | 'free', playerId)
 //   view.render(t)                // t in 0…1 along the play; drawn soon
 //   view.dispose()
@@ -75,10 +76,10 @@ const netRT = new THREE.WebGLRenderTarget(1, 1)
 netRT.depthTexture = maskRT.depthTexture
 const netCovMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false })
 const OutlineShader = {
-  uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tNet: { value: null }, resolution: { value: new THREE.Vector2() }, px: { value: 1.6 }, near: { value: 0.05 }, far: { value: 160 }, ink: { value: new THREE.Color(0x08080a) } },
+  uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tNet: { value: null }, resolution: { value: new THREE.Vector2() }, px: { value: 1.6 }, taps: { value: 8 }, near: { value: 0.05 }, far: { value: 160 }, ink: { value: new THREE.Color(0x08080a) } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: `
-    uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform sampler2D tNet; uniform vec2 resolution; uniform float px; uniform float near; uniform float far; uniform vec3 ink;
+    uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform sampler2D tNet; uniform vec2 resolution; uniform float px; uniform float taps; uniform float near; uniform float far; uniform vec3 ink;
     varying vec2 vUv;
     float lin(float d) { return (near * far) / (far - d * (far - near)); }
     void main() {
@@ -89,7 +90,8 @@ const OutlineShader = {
       // a neighbour clearly NEARER than this pixel puts the line here — so
       // the line sits just outside each silhouette, one line wide
       for (int i = 0; i < 8; i++) {
-        float a = float(i) * 0.785398;
+        if (float(i) >= taps) break;
+        float a = float(i) * 6.283185 / taps;
         float zn = lin(texture2D(tDepth, vUv + o * vec2(cos(a), sin(a))).r);
         float thr = 0.03 * zn + 0.06;
         e = max(e, smoothstep(thr, thr * 1.8, zc - zn));
@@ -99,8 +101,8 @@ const OutlineShader = {
       if (zc < nearF) {
         float rr = px * 3.5 * (1.0 - zc / nearF);
         vec4 acc = col;
-        for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398 + 0.39; acc += texture2D(tDiffuse, vUv + rr / resolution * vec2(cos(a), sin(a))); }
-        col = acc / 9.0;
+        for (int i = 0; i < 8; i++) { if (float(i) >= taps) break; float a = float(i) * 6.283185 / taps + 0.39; acc += texture2D(tDiffuse, vUv + rr / resolution * vec2(cos(a), sin(a))); }
+        col = acc / (taps + 1.0);
         e *= zc / nearF;
       }
       // the net's strands sit in front of whatever line is behind them
@@ -108,6 +110,9 @@ const OutlineShader = {
       gl_FragColor = vec4(mix(col.rgb, ink, e * 0.9), col.a);
     }`,
 }
+// what the quality level switches (see QUALITY further down): the soft
+// background's resolution and blur, whether the nets get their own pass
+const qual = { bgScale: 0.5, bgBlur: true, nets: true }
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -160,7 +165,7 @@ function sizeComposer() {
   // phone, where everything is smaller, it shrinks with it (never below half)
   outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
   fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr))
-  const bw = Math.max(1, Math.round((W * pr) / 2)); const bh = Math.max(1, Math.round((H * pr) / 2))
+  const bw = Math.max(1, Math.round(W * pr * qual.bgScale)); const bh = Math.max(1, Math.round(H * pr * qual.bgScale))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
   bgTexel.set(1 / bw, 1 / bh)
 }
@@ -172,20 +177,25 @@ function renderFrame() {
   camera.layers.set(BG_LAYER)
   renderer.setRenderTarget(bgRT); renderer.setClearColor(bg || 0x000000, 1); renderer.clear(); scene.background = bg; renderer.render(scene, camera)
   renderer.setClearColor(0x000000, 0)
-  const spread = BG_BLUR / 2 / 3 // half-res texels, gaussian sigma ≈ 3 taps
-  blurMat.uniforms.t.value = bgRT.texture; blurMat.uniforms.dir.value.set(bgTexel.x * spread, 0)
-  renderer.setRenderTarget(blurRT); blurQuad.render(renderer)
-  blurMat.uniforms.t.value = blurRT.texture; blurMat.uniforms.dir.value.set(0, bgTexel.y * spread)
-  renderer.setRenderTarget(bgRT); blurQuad.render(renderer)
+  // (the low level skips the blur: a small picture stretched up is soft anyway)
+  if (qual.bgBlur) {
+    const spread = BG_BLUR / 2 / 3 // half-res texels, gaussian sigma ≈ 3 taps
+    blurMat.uniforms.t.value = bgRT.texture; blurMat.uniforms.dir.value.set(bgTexel.x * spread, 0)
+    renderer.setRenderTarget(blurRT); blurQuad.render(renderer)
+    blurMat.uniforms.t.value = blurRT.texture; blurMat.uniforms.dir.value.set(0, bgTexel.y * spread)
+    renderer.setRenderTarget(bgRT); blurQuad.render(renderer)
+  }
   compositePass.uniforms.tBg.value = bgRT.texture
   // 1) depth of the outlined things only — no shadows, no background
   scene.background = null; scene.overrideMaterial = maskMat; camera.layers.set(1)
   renderer.setRenderTarget(maskRT); renderer.clear(); renderer.render(scene, camera)
   // net coverage, on top of that depth
-  renderer.autoClear = false
-  renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false)
-  scene.overrideMaterial = netCovMat; camera.layers.set(NET_LAYER); renderer.render(scene, camera)
-  renderer.autoClear = true
+  if (qual.nets) {
+    renderer.autoClear = false
+    renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false)
+    scene.overrideMaterial = netCovMat; camera.layers.set(NET_LAYER); renderer.render(scene, camera)
+    renderer.autoClear = true
+  }
   scene.background = bg; scene.overrideMaterial = null; camera.layers.set(0)
   renderer.setRenderTarget(null)
   outlinePass.uniforms.tNet.value = netRT.texture
@@ -252,7 +262,8 @@ const back = new THREE.DirectionalLight(0xeef0f5, 1.25)
 back.position.set(6, 14, -18); back.target.position.set(0, 0, 10)
 scene.add(back, back.target)
 // warm pools over each half
-for (const z of [6, 22]) { const s = new THREE.PointLight(0xffe2b8, 12, 24); s.position.set(0, 9, z); scene.add(s) }
+const spots = []
+for (const z of [6, 22]) { const s = new THREE.PointLight(0xffe2b8, 12, 24); s.position.set(0, 9, z); scene.add(s); spots.push(s) }
 
 // ── floor + court lines ────────────────────────────────────────────────
 function courtTexture() {
@@ -1930,38 +1941,49 @@ function holderAt(t) {
 
 // ── playback in the app ────────────────────────────────────────────────
 // At most 30 frames a second (plenty for a tactics replay, and it halves
-// the battery drain of 60), nothing drawn at all while nothing changes,
-// and three quality levels — stepping down by itself if drawing keeps
-// taking longer than a frame on this device.
+// the battery drain of 60) and nothing drawn at all while nothing changes.
+//
+// Three quality levels, chosen by hand (an old tablet and a new phone can't
+// be told apart from the code, and a guess either way is wrong for someone):
+//   high   — full resolution, soft shadows, 4× smoothing, the blurred hall
+//   medium — a little less of everything
+//   low    — for old devices: smaller picture, no shadows, no smoothing, the
+//            hall as a small stretched picture instead of a blurred one, the
+//            warm pools of light left out, fewer samples for the outlines
+const dpr = window.devicePixelRatio || 1
 const QUALITY = {
-  high: { pr: Math.min(window.devicePixelRatio || 1, 2), shadows: true, map: 2048 },
-  medium: { pr: Math.min(window.devicePixelRatio || 1, 1.5), shadows: true, map: 1024 },
-  low: { pr: 1, shadows: false, map: 512 },
+  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true },
+  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true },
+  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false },
 }
-let quality = (navigator.maxTouchPoints || 0) > 0 ? 'medium' : 'high'
-function setQuality(q) {
-  const Q = QUALITY[q]
-  quality = q
+let quality = 'medium'
+function applyQuality(q) {
+  const Q = QUALITY[q] || QUALITY.medium
+  quality = QUALITY[q] ? q : 'medium'
+  qual.bgScale = Q.bgScale; qual.bgBlur = Q.bgBlur; qual.nets = Q.nets
+  outlinePass.uniforms.taps.value = Q.taps
+  spots.forEach((l) => { l.visible = Q.spots })
+  // smoothing: the picture is drawn into these two, so they carry the samples
+  ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })
   renderer.setPixelRatio(Q.pr)
   sizeComposer()
   renderer.shadowMap.enabled = Q.shadows
   sun.shadow.mapSize.set(Q.map, Q.map)
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null }
+  // a net pass left out must not leave an old picture of the nets behind
+  if (!Q.nets) { renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false); renderer.setRenderTarget(null) }
   scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true }) })
 }
-setQuality(quality)
+applyQuality(quality)
 
-let target = 0; let dirty = false; let raf = 0; let lastDraw = 0; let slow = 0; let disposed = false
+let target = 0; let dirty = false; let raf = 0; let lastDraw = 0; let disposed = false
 function schedule() { if (!raf && !disposed) raf = requestAnimationFrame(tick) }
 function tick(ts) {
   raf = 0
   if (!dirty || !BAKED) return
   if (ts - lastDraw < 1000 / 30 - 2) { schedule(); return }
   lastDraw = ts; dirty = false
-  const c0 = performance.now()
   frame(target)
-  slow = performance.now() - c0 > 30 ? slow + 1 : Math.max(0, slow - 1)
-  if (slow > 20 && quality !== 'low') { setQuality(quality === 'high' ? 'medium' : 'low'); slow = 0 }
 }
 
 let figKey = null
@@ -1983,6 +2005,8 @@ return {
     camPosZ = null; look = null
     dirty = true; schedule()
   },
+  // 'high' | 'medium' | 'low'
+  setQuality(q) { if (q !== quality && QUALITY[q]) { applyQuality(q); dirty = true; schedule() } },
   setPaths(on) { showPaths = !!on; dirty = true; schedule() },
   setCourtView(v) { if (v !== courtView) { courtView = v; camPosZ = null; look = null; dirty = true; schedule() } },
   setCamera(mode, povId) {
