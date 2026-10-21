@@ -44,6 +44,11 @@ export default defineConfig({
   // Relative base so the build works when hosted at a sub-path, e.g. a
   // GitHub Pages project site at https://<user>.github.io/<repo>/.
   base: './',
+  build: {
+    // The 3D view (three.js, ~150 kB gzipped) is its own chunk, fetched only when
+    // someone opens it — so it is allowed to be bigger than the default warning.
+    chunkSizeWarningLimit: 650,
+  },
   plugins: [
     react(),
     cspMeta(),
