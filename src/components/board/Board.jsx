@@ -218,7 +218,7 @@ function FooterButtons() {
 
 // Everything that isn't part of drawing or showing a play, in one place.
 function MoreSheet({ onClose }) {
-  const { state, set, setView, setView3d, setPaths3d, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
+  const { state, set, setView, setView3d, setPaths3d, setQuality3d, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
   const run = (fn) => () => { onClose(); fn() }
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
@@ -254,6 +254,18 @@ function MoreSheet({ onClose }) {
             <span>Show paths in 3D</span>
             {toggle(state.paths3d)}
           </div>
+        )}
+        {state.view3d && webgl3dSupported() && (
+          // Chosen by hand, and remembered on the device: an old tablet needs
+          // Low, a new phone or a computer runs High without a thought.
+          <>
+            <div style={{ display: 'flex', ...sunken(.07), borderRadius: 12, padding: 3, gap: 2 }}>
+              {seg(state.quality3d === 'low', 'Low', () => setQuality3d('low'))}
+              {seg(state.quality3d === 'medium', 'Medium', () => setQuality3d('medium'))}
+              {seg(state.quality3d === 'high', 'High', () => setQuality3d('high'))}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.45)', padding: '0 6px 2px' }}>3D quality — if the 3D view runs slowly on this device, choose Low</div>
+          </>
         )}
         <div style={cap}>Defense</div>
         <div onClick={toggleAutoDef} style={{ ...row, justifyContent: 'space-between' }}>

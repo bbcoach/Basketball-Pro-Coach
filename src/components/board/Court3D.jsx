@@ -31,6 +31,7 @@ export default function Court3D() {
         c.setBoard(s)
         c.setCamera(s.cam3d, s.povId)
         c.setPaths(s.paths3d)
+        c.setQuality(s.quality3d)
         c.render(s.t)
         ro = new ResizeObserver(() => c.resize())
         ro.observe(host.current)
@@ -50,6 +51,7 @@ export default function Court3D() {
   useEffect(() => { if (view.current) view.current.setCourtView(state.view) }, [state.view])
   useEffect(() => { if (view.current) view.current.setCamera(state.cam3d, state.povId) }, [state.cam3d, state.povId])
   useEffect(() => { if (view.current) view.current.setPaths(state.paths3d) }, [state.paths3d])
+  useEffect(() => { if (view.current) view.current.setQuality(state.quality3d) }, [state.quality3d])
   useEffect(() => { if (view.current) view.current.render(state.t) }, [state.t, status])
 
   // which kinds of action are drawn on the floor in this step, for the key

@@ -19,6 +19,7 @@ import { ROUTE_COLORS } from './routeColors'
 //   view.setBoard(state)          // players, ball, steps … (re-bakes)
 //   view.setCourtView('half' | 'full')
 //   view.setPaths(true | false)   // the step's routes drawn on the floor
+//   view.setQuality('high' | 'medium' | 'low')
 //   view.setCamera('court' | 'pov' | 'free', playerId)
 //   view.render(t)                // t in 0…1 along the play; drawn soon
 //   view.dispose()
@@ -75,10 +76,10 @@ const netRT = new THREE.WebGLRenderTarget(1, 1)
 netRT.depthTexture = maskRT.depthTexture
 const netCovMat = new THREE.MeshBasicMaterial({ color: 0xffffff, depthWrite: false })
 const OutlineShader = {
-  uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tNet: { value: null }, resolution: { value: new THREE.Vector2() }, px: { value: 1.6 }, near: { value: 0.05 }, far: { value: 160 }, ink: { value: new THREE.Color(0x08080a) } },
+  uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tNet: { value: null }, resolution: { value: new THREE.Vector2() }, px: { value: 1.6 }, taps: { value: 8 }, near: { value: 0.05 }, far: { value: 160 }, ink: { value: new THREE.Color(0x08080a) } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
   fragmentShader: `
-    uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform sampler2D tNet; uniform vec2 resolution; uniform float px; uniform float near; uniform float far; uniform vec3 ink;
+    uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform sampler2D tNet; uniform vec2 resolution; uniform float px; uniform float taps; uniform float near; uniform float far; uniform vec3 ink;
     varying vec2 vUv;
     float lin(float d) { return (near * far) / (far - d * (far - near)); }
     void main() {
@@ -89,7 +90,8 @@ const OutlineShader = {
       // a neighbour clearly NEARER than this pixel puts the line here — so
       // the line sits just outside each silhouette, one line wide
       for (int i = 0; i < 8; i++) {
-        float a = float(i) * 0.785398;
+        if (float(i) >= taps) break;
+        float a = float(i) * 6.283185 / taps;
         float zn = lin(texture2D(tDepth, vUv + o * vec2(cos(a), sin(a))).r);
         float thr = 0.03 * zn + 0.06;
         e = max(e, smoothstep(thr, thr * 1.8, zc - zn));
@@ -99,8 +101,8 @@ const OutlineShader = {
       if (zc < nearF) {
         float rr = px * 3.5 * (1.0 - zc / nearF);
         vec4 acc = col;
-        for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398 + 0.39; acc += texture2D(tDiffuse, vUv + rr / resolution * vec2(cos(a), sin(a))); }
-        col = acc / 9.0;
+        for (int i = 0; i < 8; i++) { if (float(i) >= taps) break; float a = float(i) * 6.283185 / taps + 0.39; acc += texture2D(tDiffuse, vUv + rr / resolution * vec2(cos(a), sin(a))); }
+        col = acc / (taps + 1.0);
         e *= zc / nearF;
       }
       // the net's strands sit in front of whatever line is behind them
@@ -108,6 +110,9 @@ const OutlineShader = {
       gl_FragColor = vec4(mix(col.rgb, ink, e * 0.9), col.a);
     }`,
 }
+// what the quality level switches (see QUALITY further down): the soft
+// background's resolution and blur, whether the nets get their own pass
+const qual = { bgScale: 0.5, bgBlur: true, nets: true }
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -160,7 +165,7 @@ function sizeComposer() {
   // phone, where everything is smaller, it shrinks with it (never below half)
   outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
   fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr))
-  const bw = Math.max(1, Math.round((W * pr) / 2)); const bh = Math.max(1, Math.round((H * pr) / 2))
+  const bw = Math.max(1, Math.round(W * pr * qual.bgScale)); const bh = Math.max(1, Math.round(H * pr * qual.bgScale))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
   bgTexel.set(1 / bw, 1 / bh)
 }
@@ -172,20 +177,25 @@ function renderFrame() {
   camera.layers.set(BG_LAYER)
   renderer.setRenderTarget(bgRT); renderer.setClearColor(bg || 0x000000, 1); renderer.clear(); scene.background = bg; renderer.render(scene, camera)
   renderer.setClearColor(0x000000, 0)
-  const spread = BG_BLUR / 2 / 3 // half-res texels, gaussian sigma ≈ 3 taps
-  blurMat.uniforms.t.value = bgRT.texture; blurMat.uniforms.dir.value.set(bgTexel.x * spread, 0)
-  renderer.setRenderTarget(blurRT); blurQuad.render(renderer)
-  blurMat.uniforms.t.value = blurRT.texture; blurMat.uniforms.dir.value.set(0, bgTexel.y * spread)
-  renderer.setRenderTarget(bgRT); blurQuad.render(renderer)
+  // (the low level skips the blur: a small picture stretched up is soft anyway)
+  if (qual.bgBlur) {
+    const spread = BG_BLUR / 2 / 3 // half-res texels, gaussian sigma ≈ 3 taps
+    blurMat.uniforms.t.value = bgRT.texture; blurMat.uniforms.dir.value.set(bgTexel.x * spread, 0)
+    renderer.setRenderTarget(blurRT); blurQuad.render(renderer)
+    blurMat.uniforms.t.value = blurRT.texture; blurMat.uniforms.dir.value.set(0, bgTexel.y * spread)
+    renderer.setRenderTarget(bgRT); blurQuad.render(renderer)
+  }
   compositePass.uniforms.tBg.value = bgRT.texture
   // 1) depth of the outlined things only — no shadows, no background
   scene.background = null; scene.overrideMaterial = maskMat; camera.layers.set(1)
   renderer.setRenderTarget(maskRT); renderer.clear(); renderer.render(scene, camera)
   // net coverage, on top of that depth
-  renderer.autoClear = false
-  renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false)
-  scene.overrideMaterial = netCovMat; camera.layers.set(NET_LAYER); renderer.render(scene, camera)
-  renderer.autoClear = true
+  if (qual.nets) {
+    renderer.autoClear = false
+    renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false)
+    scene.overrideMaterial = netCovMat; camera.layers.set(NET_LAYER); renderer.render(scene, camera)
+    renderer.autoClear = true
+  }
   scene.background = bg; scene.overrideMaterial = null; camera.layers.set(0)
   renderer.setRenderTarget(null)
   outlinePass.uniforms.tNet.value = netRT.texture
@@ -223,9 +233,11 @@ scene.fog = new THREE.Fog(HALL, 34, 95)
 const camera = new THREE.PerspectiveCamera(50, W / H, 0.05, 160)
 // A tall, narrow picture (a phone held upright) would see only a sliver of
 // the court with a 50° lens; widen it as the picture narrows.
+let lensPov = false
 function fitLens() {
   const a = W / H
-  const fov = a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
+  // through his own eyes the lens is wider, to take in the hands as well
+  const fov = lensPov ? (a < 1 ? 100 : 80) : a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
   camera.aspect = a
   if (camera.fov !== fov) camera.fov = fov
   camera.updateProjectionMatrix()
@@ -252,7 +264,8 @@ const back = new THREE.DirectionalLight(0xeef0f5, 1.25)
 back.position.set(6, 14, -18); back.target.position.set(0, 0, 10)
 scene.add(back, back.target)
 // warm pools over each half
-for (const z of [6, 22]) { const s = new THREE.PointLight(0xffe2b8, 12, 24); s.position.set(0, 9, z); scene.add(s) }
+const spots = []
+for (const z of [6, 22]) { const s = new THREE.PointLight(0xffe2b8, 12, 24); s.position.set(0, 9, z); scene.add(s); spots.push(s) }
 
 // ── floor + court lines ────────────────────────────────────────────────
 function courtTexture() {
@@ -629,7 +642,7 @@ function makeToyHuman(p, idx, style = {}) {
   const hair = (style.hair && style.hair !== 'afro' ? style.hair : null) || HAIRSTYLES[idx % HAIRSTYLES.length]
   const skinC = pal.skin[idx % pal.skin.length]; const hairC = pal.hair[idx % pal.hair.length]
   // collected pieces: outlined (the body) and detail (the face) separately
-  const outlined = []; const detail = []
+  const outlined = []; const detail = []; const armGeos = []
   const col = new THREE.Color()
   // blend (optional): [other bone, weight(y)] — shares each vertex with a
   // second joint by its height, so a piece can bend smoothly between two
@@ -649,6 +662,8 @@ function makeToyHuman(p, idx, style = {}) {
     g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4))
     g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4))
     list.push(g)
+    // the arms again on their own, for the first-person view
+    if (list === outlined && /^(sh|el)[LR]$/.test(bone)) armGeos.push(g)
   }
   const M = (x = 0, y = 0, z = 0, rot = null, scl = null) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), new THREE.Vector3(...(scl || [1, 1, 1])))
   const add = (geo, color, bone, x, y, z, rot, scl, blend) => put(outlined, geo, color, bone, M(x, y, z, rot, scl), blend)
@@ -763,6 +778,11 @@ function makeToyHuman(p, idx, style = {}) {
   body.castShadow = true; body.receiveShadow = true; body.frustumCulled = false
   rig.add(body); body.bind(skeleton)
   body.layers.enable(1) // outlined (screen-space pass, see renderFrame)
+  // just the arms, for when the camera is his own eyes (see view())
+  const fpArms = new THREE.SkinnedMesh(mergeGeometries(armGeos), bodyM)
+  fpArms.castShadow = true; fpArms.frustumCulled = false; fpArms.visible = false
+  rig.add(fpArms); fpArms.bind(skeleton)
+  fpArms.layers.enable(1)
   // Depth pre-pass for when he is faded out in front of the lens: drawn just
   // before the see-through body, it lays down the depth of his front-most
   // surface only, so the body is then drawn exactly once per pixel — no
@@ -775,7 +795,8 @@ function makeToyHuman(p, idx, style = {}) {
   const decalM = new THREE.MeshStandardMaterial({ map: numberDecal(p.label, off ? '#101012' : '#ffffff'), transparent: true, roughness: 0.6 })
   const fr = new THREE.PlaneGeometry(0.12, 0.094).translate(0, 0.1, 0.0798)
   const bk = new THREE.PlaneGeometry(0.14, 0.11).rotateY(Math.PI).translate(0, 0.13, -0.0798)
-  bones[TBI.spine].add(new THREE.Mesh(mergeGeometries([fr, bk]), decalM))
+  const decal = new THREE.Mesh(mergeGeometries([fr, bk]), decalM)
+  bones[TBI.spine].add(decal)
   const B = (n) => bones[TBI[n]]
   const legs = {}; const arms = {}
   for (const [side, S] of [[-1, 'L'], [1, 'R']]) {
@@ -785,7 +806,7 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
 }
 
 let figures = {}
@@ -837,7 +858,7 @@ function updateEyes(t) {
       shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, -0.002 + oy, 0.011, 0, 0.006, 0.006, 0.003)))
       const ey = f.eyeY || 0.04
       lids.setMatrixAt(n, b > 0.02 ? m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.072, -0.005 + (ey + 0.002) * (1 - b), 0.0, 0, 0.034, (ey + 0.003) * b + 0.001, 0.015)) : ZERO)
-      if (!f.root.visible || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
+      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
     })
   })
   pupils.instanceMatrix.needsUpdate = true; shines.instanceMatrix.needsUpdate = true; lids.instanceMatrix.needsUpdate = true
@@ -1381,6 +1402,12 @@ function simulate(t, dt) {
   const reaches = []
   Object.values(figures).forEach((f) => { if (f.screenW > 0.01) reaches.push([f, null, 'cross', f.screenW]) })
   let squash = 1
+  // the very first frame: the ball is already in the first carrier's hands,
+  // not on the floor where the board puts it (it would be gathered up from there)
+  if (!held && !flight) {
+    const c0 = CARRIERS[k] && figures[CARRIERS[k].id]
+    if (c0) ball.position.copy(chestPoint(c0))
+  }
   if (carrier) {
     flight = null
     let want
@@ -1415,7 +1442,7 @@ function simulate(t, dt) {
     // Changing from holding to dribbling (or back) eases over rather than
     // jumping between the chest and the hand.
     const modeKey = k + (dribbling ? 'd' : 'h') + carrier.p.id
-    if (!held || held.key !== modeKey) held = { key: modeKey, from: ball.position.clone(), fr0: fr }
+    if (!held || held.key !== modeKey) held = { key: modeKey, from: ball.position.clone(), fr0: held ? fr : -1 }
     const bl = Math.min(1, (fr - held.fr0) / 0.16)
     ball.position.copy(bl < 1 ? gatherPath(carrier, held.from, want, easeInOut(bl)) : want)
     // the giver lets go just before the end, the taker's hands come to the ball
@@ -1615,7 +1642,14 @@ function view(t) {
   const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
   const carrier = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const povId = figures[cam.povId] ? cam.povId : (EYE_FIGS.find((f) => f.p.team === 'off') || EYE_FIGS[0] || { p: {} }).p.id
-  Object.values(figures).forEach((f) => { f.root.visible = !(cam.mode === 'pov' && f.p.id === povId) })
+  const pov = cam.mode === 'pov'
+  if (pov !== lensPov) { lensPov = pov; fitLens() }
+  // first person: of his own body only the arms are drawn — the hands that
+  // hold the ball are what you'd see looking down
+  Object.values(figures).forEach((f) => {
+    f.fp = cam.mode === 'pov' && f.p.id === povId
+    f.bodyMesh.visible = !f.fp; f.fpArms.visible = f.fp; f.decal.visible = !f.fp
+  })
   extras.forEach(({ ent, mesh }) => { const p = board.entPos(ent, t, N, MARKS); mesh.position.set(toX(p.x), isBall(ent) ? BALL_R : 0, toZ(p.y)) })
   scene.updateMatrixWorld()
   updateBlobs()
@@ -1633,11 +1667,18 @@ function view(t) {
     look = freeFocus.clone()
   } else if (cam.mode === 'pov' && figures[povId]) {
     const me = figures[povId]
-    const eye = me.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.25, 0))
+    // at his eyes, a little in front of the face
+    const eye = headCentre(me).addScaledVector(fwdOf(me), 0.04)
     const hasBall = carrier === me
     const target = hasBall ? hoopAt(me.root.position.z).clone().setY(2.2) : ball.position.clone().setY(Math.max(1.2, ball.position.y))
-    const dir = target.clone().sub(eye).setY(0).normalize()
-    camera.position.copy(eye.addScaledVector(dir, -0.35))
+    // holding the ball he looks down towards it, so his hands are in the
+    // picture, but keeps the basket in view while it's far enough away
+    if (hasBall) {
+      const hd = Math.hypot(target.x - eye.x, target.z - eye.z) || 1
+      const pitch = clampN(Math.atan2(target.y - eye.y, hd) - 0.5, -0.55, 0.05)
+      target.y = eye.y + hd * Math.tan(pitch)
+    }
+    camera.position.copy(eye)
     look = look ? look.lerp(target, 0.08) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
@@ -1658,7 +1699,7 @@ function view(t) {
     const d = Math.hypot(f.root.position.x - camera.position.x, f.root.position.z - camera.position.z)
     // fades out from about 3.6 m in to 1.2 m, and down to only a hint of
     // him right in front of the lens
-    const op = Math.max(0.1, Math.min(1, (d - 1.2) / 2.4))
+    const op = f.fp ? 1 : Math.max(0.1, Math.min(1, (d - 1.2) / 2.4))
     f.mats.forEach((m) => { const tr = op < 0.99 || m.map != null; if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true } m.opacity = op; m.depthWrite = op > 0.99 || m.map != null })
     // a faded player (right in front of the lens) gets no outline and no
     // eyes — on a see-through body those would float in the air
@@ -1677,7 +1718,7 @@ function view(t) {
   const kStep = stepAtTime(t, N)
   routeGroups.forEach((g, i) => { g.visible = showPaths && i === kStep - 1 })
   const holder = holderAt(t)
-  carrierRing.visible = !!holder && holder.root.visible
+  carrierRing.visible = !!holder && !holder.fp
   if (holder) carrierRing.position.set(holder.root.position.x, 0.014, holder.root.position.z)
   renderFrame()
 }
@@ -1930,38 +1971,49 @@ function holderAt(t) {
 
 // ── playback in the app ────────────────────────────────────────────────
 // At most 30 frames a second (plenty for a tactics replay, and it halves
-// the battery drain of 60), nothing drawn at all while nothing changes,
-// and three quality levels — stepping down by itself if drawing keeps
-// taking longer than a frame on this device.
+// the battery drain of 60) and nothing drawn at all while nothing changes.
+//
+// Three quality levels, chosen by hand (an old tablet and a new phone can't
+// be told apart from the code, and a guess either way is wrong for someone):
+//   high   — full resolution, soft shadows, 4× smoothing, the blurred hall
+//   medium — a little less of everything
+//   low    — for old devices: smaller picture, no shadows, no smoothing, the
+//            hall as a small stretched picture instead of a blurred one, the
+//            warm pools of light left out, fewer samples for the outlines
+const dpr = window.devicePixelRatio || 1
 const QUALITY = {
-  high: { pr: Math.min(window.devicePixelRatio || 1, 2), shadows: true, map: 2048 },
-  medium: { pr: Math.min(window.devicePixelRatio || 1, 1.5), shadows: true, map: 1024 },
-  low: { pr: 1, shadows: false, map: 512 },
+  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true },
+  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true },
+  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false },
 }
-let quality = (navigator.maxTouchPoints || 0) > 0 ? 'medium' : 'high'
-function setQuality(q) {
-  const Q = QUALITY[q]
-  quality = q
+let quality = 'medium'
+function applyQuality(q) {
+  const Q = QUALITY[q] || QUALITY.medium
+  quality = QUALITY[q] ? q : 'medium'
+  qual.bgScale = Q.bgScale; qual.bgBlur = Q.bgBlur; qual.nets = Q.nets
+  outlinePass.uniforms.taps.value = Q.taps
+  spots.forEach((l) => { l.visible = Q.spots })
+  // smoothing: the picture is drawn into these two, so they carry the samples
+  ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })
   renderer.setPixelRatio(Q.pr)
   sizeComposer()
   renderer.shadowMap.enabled = Q.shadows
   sun.shadow.mapSize.set(Q.map, Q.map)
   if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null }
+  // a net pass left out must not leave an old picture of the nets behind
+  if (!Q.nets) { renderer.setRenderTarget(netRT); renderer.setClearColor(0x000000, 0); renderer.clear(true, false, false); renderer.setRenderTarget(null) }
   scene.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true }) })
 }
-setQuality(quality)
+applyQuality(quality)
 
-let target = 0; let dirty = false; let raf = 0; let lastDraw = 0; let slow = 0; let disposed = false
+let target = 0; let dirty = false; let raf = 0; let lastDraw = 0; let disposed = false
 function schedule() { if (!raf && !disposed) raf = requestAnimationFrame(tick) }
 function tick(ts) {
   raf = 0
   if (!dirty || !BAKED) return
   if (ts - lastDraw < 1000 / 30 - 2) { schedule(); return }
   lastDraw = ts; dirty = false
-  const c0 = performance.now()
   frame(target)
-  slow = performance.now() - c0 > 30 ? slow + 1 : Math.max(0, slow - 1)
-  if (slow > 20 && quality !== 'low') { setQuality(quality === 'high' ? 'medium' : 'low'); slow = 0 }
 }
 
 let figKey = null
@@ -1983,6 +2035,8 @@ return {
     camPosZ = null; look = null
     dirty = true; schedule()
   },
+  // 'high' | 'medium' | 'low'
+  setQuality(q) { if (q !== quality && QUALITY[q]) { applyQuality(q); dirty = true; schedule() } },
   setPaths(on) { showPaths = !!on; dirty = true; schedule() },
   setCourtView(v) { if (v !== courtView) { courtView = v; camPosZ = null; look = null; dirty = true; schedule() } },
   setCamera(mode, povId) {
