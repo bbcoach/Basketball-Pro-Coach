@@ -619,7 +619,7 @@ export function AppProvider({ children }) {
   // 3D view: a way of looking at the play, not part of it — never saved with
   // a play, and switching it leaves the time and the step where they are.
   const setView3d = (on) => { saveJson('tb.view3d.v1', !!on); set({ view3d: !!on }) }
-  const setCam3d = (cam3d) => set({ cam3d })
+  const setCam3d = (cam3d) => set(cam3d === 'free' ? { cam3d, hint: 'Drag to look around · pinch to zoom · double-tap to reset' } : { cam3d })
   const setPaths3d = (on) => { saveJson('tb.paths3d.v1', !!on); set({ paths3d: !!on }) }
   // through the next attacker's eyes (the first, if none was chosen yet)
   const cyclePov = () => set((st) => {
