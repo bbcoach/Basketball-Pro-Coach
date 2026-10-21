@@ -885,7 +885,11 @@ function pose(f, ampF, ampL, lean, defense, hold) {
     // T-pose → arms down (z), then swing (x). The elbow bends about its y
     // axis; for the forearm to come FORWARD that's +angle on the right side
     // of the body (−x) and −angle on the left, i.e. −side × angle.
-    A.sh.rotation.set(defense ? -0.35 : -sw * 0.8 * Math.abs(ampF), 0, -side * (defense ? 0.95 : 1.3 - 0.15 * lean))
+    // The arm swings forward freely but back only a little: further and the
+    // elbow ends up behind the torso, the arm looking pulled out of the
+    // shoulder (+x rotation is backwards).
+    const swing = -sw * 0.8 * Math.abs(ampF)
+    A.sh.rotation.set(defense ? -0.35 : Math.min(swing, 0.2), 0, -side * (defense ? 0.95 : 1.3 - 0.15 * lean))
     A.el.rotation.set(0, -side * (defense ? 1.05 : 0.25 + 0.9 * lean), 0)
   }
   if (hold === 'hold') {
