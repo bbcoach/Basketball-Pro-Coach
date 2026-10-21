@@ -233,9 +233,11 @@ scene.fog = new THREE.Fog(HALL, 34, 95)
 const camera = new THREE.PerspectiveCamera(50, W / H, 0.05, 160)
 // A tall, narrow picture (a phone held upright) would see only a sliver of
 // the court with a 50° lens; widen it as the picture narrows.
+let lensPov = false
 function fitLens() {
   const a = W / H
-  const fov = a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
+  // through his own eyes the lens is wider, to take in the hands as well
+  const fov = lensPov ? (a < 1 ? 100 : 80) : a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
   camera.aspect = a
   if (camera.fov !== fov) camera.fov = fov
   camera.updateProjectionMatrix()
@@ -640,7 +642,7 @@ function makeToyHuman(p, idx, style = {}) {
   const hair = (style.hair && style.hair !== 'afro' ? style.hair : null) || HAIRSTYLES[idx % HAIRSTYLES.length]
   const skinC = pal.skin[idx % pal.skin.length]; const hairC = pal.hair[idx % pal.hair.length]
   // collected pieces: outlined (the body) and detail (the face) separately
-  const outlined = []; const detail = []
+  const outlined = []; const detail = []; const armGeos = []
   const col = new THREE.Color()
   // blend (optional): [other bone, weight(y)] — shares each vertex with a
   // second joint by its height, so a piece can bend smoothly between two
@@ -660,6 +662,8 @@ function makeToyHuman(p, idx, style = {}) {
     g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4))
     g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4))
     list.push(g)
+    // the arms again on their own, for the first-person view
+    if (list === outlined && /^(sh|el)[LR]$/.test(bone)) armGeos.push(g)
   }
   const M = (x = 0, y = 0, z = 0, rot = null, scl = null) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), new THREE.Vector3(...(scl || [1, 1, 1])))
   const add = (geo, color, bone, x, y, z, rot, scl, blend) => put(outlined, geo, color, bone, M(x, y, z, rot, scl), blend)
@@ -774,6 +778,11 @@ function makeToyHuman(p, idx, style = {}) {
   body.castShadow = true; body.receiveShadow = true; body.frustumCulled = false
   rig.add(body); body.bind(skeleton)
   body.layers.enable(1) // outlined (screen-space pass, see renderFrame)
+  // just the arms, for when the camera is his own eyes (see view())
+  const fpArms = new THREE.SkinnedMesh(mergeGeometries(armGeos), bodyM)
+  fpArms.castShadow = true; fpArms.frustumCulled = false; fpArms.visible = false
+  rig.add(fpArms); fpArms.bind(skeleton)
+  fpArms.layers.enable(1)
   // Depth pre-pass for when he is faded out in front of the lens: drawn just
   // before the see-through body, it lays down the depth of his front-most
   // surface only, so the body is then drawn exactly once per pixel — no
@@ -786,7 +795,8 @@ function makeToyHuman(p, idx, style = {}) {
   const decalM = new THREE.MeshStandardMaterial({ map: numberDecal(p.label, off ? '#101012' : '#ffffff'), transparent: true, roughness: 0.6 })
   const fr = new THREE.PlaneGeometry(0.12, 0.094).translate(0, 0.1, 0.0798)
   const bk = new THREE.PlaneGeometry(0.14, 0.11).rotateY(Math.PI).translate(0, 0.13, -0.0798)
-  bones[TBI.spine].add(new THREE.Mesh(mergeGeometries([fr, bk]), decalM))
+  const decal = new THREE.Mesh(mergeGeometries([fr, bk]), decalM)
+  bones[TBI.spine].add(decal)
   const B = (n) => bones[TBI[n]]
   const legs = {}; const arms = {}
   for (const [side, S] of [[-1, 'L'], [1, 'R']]) {
@@ -796,7 +806,7 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
 }
 
 let figures = {}
@@ -848,7 +858,7 @@ function updateEyes(t) {
       shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, -0.002 + oy, 0.011, 0, 0.006, 0.006, 0.003)))
       const ey = f.eyeY || 0.04
       lids.setMatrixAt(n, b > 0.02 ? m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.072, -0.005 + (ey + 0.002) * (1 - b), 0.0, 0, 0.034, (ey + 0.003) * b + 0.001, 0.015)) : ZERO)
-      if (!f.root.visible || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
+      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
     })
   })
   pupils.instanceMatrix.needsUpdate = true; shines.instanceMatrix.needsUpdate = true; lids.instanceMatrix.needsUpdate = true
@@ -1632,7 +1642,14 @@ function view(t) {
   const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
   const carrier = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const povId = figures[cam.povId] ? cam.povId : (EYE_FIGS.find((f) => f.p.team === 'off') || EYE_FIGS[0] || { p: {} }).p.id
-  Object.values(figures).forEach((f) => { f.root.visible = !(cam.mode === 'pov' && f.p.id === povId) })
+  const pov = cam.mode === 'pov'
+  if (pov !== lensPov) { lensPov = pov; fitLens() }
+  // first person: of his own body only the arms are drawn — the hands that
+  // hold the ball are what you'd see looking down
+  Object.values(figures).forEach((f) => {
+    f.fp = cam.mode === 'pov' && f.p.id === povId
+    f.bodyMesh.visible = !f.fp; f.fpArms.visible = f.fp; f.decal.visible = !f.fp
+  })
   extras.forEach(({ ent, mesh }) => { const p = board.entPos(ent, t, N, MARKS); mesh.position.set(toX(p.x), isBall(ent) ? BALL_R : 0, toZ(p.y)) })
   scene.updateMatrixWorld()
   updateBlobs()
@@ -1650,11 +1667,18 @@ function view(t) {
     look = freeFocus.clone()
   } else if (cam.mode === 'pov' && figures[povId]) {
     const me = figures[povId]
-    const eye = me.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.25, 0))
+    // at his eyes, a little in front of the face
+    const eye = headCentre(me).addScaledVector(fwdOf(me), 0.04)
     const hasBall = carrier === me
     const target = hasBall ? hoopAt(me.root.position.z).clone().setY(2.2) : ball.position.clone().setY(Math.max(1.2, ball.position.y))
-    const dir = target.clone().sub(eye).setY(0).normalize()
-    camera.position.copy(eye.addScaledVector(dir, -0.35))
+    // holding the ball he looks down towards it, so his hands are in the
+    // picture, but keeps the basket in view while it's far enough away
+    if (hasBall) {
+      const hd = Math.hypot(target.x - eye.x, target.z - eye.z) || 1
+      const pitch = clampN(Math.atan2(target.y - eye.y, hd) - 0.5, -0.55, 0.05)
+      target.y = eye.y + hd * Math.tan(pitch)
+    }
+    camera.position.copy(eye)
     look = look ? look.lerp(target, 0.08) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
@@ -1675,7 +1699,7 @@ function view(t) {
     const d = Math.hypot(f.root.position.x - camera.position.x, f.root.position.z - camera.position.z)
     // fades out from about 3.6 m in to 1.2 m, and down to only a hint of
     // him right in front of the lens
-    const op = Math.max(0.1, Math.min(1, (d - 1.2) / 2.4))
+    const op = f.fp ? 1 : Math.max(0.1, Math.min(1, (d - 1.2) / 2.4))
     f.mats.forEach((m) => { const tr = op < 0.99 || m.map != null; if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true } m.opacity = op; m.depthWrite = op > 0.99 || m.map != null })
     // a faded player (right in front of the lens) gets no outline and no
     // eyes — on a see-through body those would float in the air
@@ -1694,7 +1718,7 @@ function view(t) {
   const kStep = stepAtTime(t, N)
   routeGroups.forEach((g, i) => { g.visible = showPaths && i === kStep - 1 })
   const holder = holderAt(t)
-  carrierRing.visible = !!holder && holder.root.visible
+  carrierRing.visible = !!holder && !holder.fp
   if (holder) carrierRing.position.set(holder.root.position.x, 0.014, holder.root.position.z)
   renderFrame()
 }
