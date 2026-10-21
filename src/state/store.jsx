@@ -49,8 +49,8 @@ function initialState() {
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
     hint: 'Step 1 — drag players, pick a tool, draw the path',
     autoDef: false, helpDef: false, defenseDelay: 0, fullScreen: false,
-    // the 3D view of the board (view only): on/off is remembered on this device
-    view3d: loadJson('tb.view3d.v1', false) === true, cam3d: 'court', povId: null,
+    // the 3D view of the board (view only): always starts in 2D
+    view3d: false, cam3d: 'court', povId: null,
     paths3d: loadJson('tb.paths3d.v1', true) !== false, // the step's routes drawn on the 3D floor
     currentId: null, playName: 'Untitled play',
     sheetOpen: false, saveOpen: false, renameId: null, nameDraft: '', kindDraft: 'play', libFilter: 'all',
@@ -618,8 +618,9 @@ export function AppProvider({ children }) {
   // full court, and restores whatever view the coach had been editing in
   // once they exit rather than silently changing their preference for good.
   // 3D view: a way of looking at the play, not part of it — never saved with
-  // a play, and switching it leaves the time and the step where they are.
-  const setView3d = (on) => { saveJson('tb.view3d.v1', !!on); set({ view3d: !!on }) }
+  // a play or remembered between visits (the app always opens in 2D), and
+  // switching it leaves the time and the step where they are.
+  const setView3d = (on) => set({ view3d: !!on })
   const setCam3d = (cam3d) => set(cam3d === 'free' ? { cam3d, hint: 'Drag to look around · pinch to zoom · double-tap to reset' } : { cam3d })
   const setPaths3d = (on) => { saveJson('tb.paths3d.v1', !!on); set({ paths3d: !!on }) }
   // through the next attacker's eyes (the first, if none was chosen yet)
