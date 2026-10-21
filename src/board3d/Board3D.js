@@ -1663,17 +1663,22 @@ const frame = (t) => { applyBaked(t); view(t) }
 // What the 2D court draws for the step being played, laid on the floor: each
 // action's route (a wavy line for a dribble, dashes for a pass, dots for a
 // shot, a long-short dash for a handoff, a bar across the end of a screen),
-// white with a dark edge so it reads on light wood and on the painted key
-// alike. One group per step; only the current step's is shown.
+// sky blue with a dark edge and a soft glow, so it reads on light wood and on
+// the painted key alike. One group per step; only the current step's is shown.
 let routeGroups = []
 let showPaths = true
-const inkMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
+// the soft sky blue the app already uses (schedule events, a team colour, the
+// "upcoming" badge in attendance)
+const ROUTE_BLUE = 0x7fb2e0
+const glowMat = new THREE.MeshBasicMaterial({ color: ROUTE_BLUE, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
+const inkMat = new THREE.MeshBasicMaterial({ color: ROUTE_BLUE, transparent: true, opacity: 0.98, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
 const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
 // Laid as thin tubes, not flat ribbons: a flat line seen from a low camera
 // shrinks to almost nothing, a tube looks the same thickness from anywhere.
 const ROUTE_Y = 0.05
-const ROUTE_R = 0.065 // the line's radius, metres
+const ROUTE_R = 0.08 // the line's radius, metres
 const EDGE = 0.035 // the dark edge round it
+const GLOW = 0.085 // and a soft glow outside that
 // the 2D board's own curve: a quadratic through each point to the next midpoint
 function curveSample(pts) {
   if (pts.length < 3) return pts
@@ -1778,7 +1783,7 @@ function buildRoutes() {
   const cmap = CARRIERS
   const all = play.players.filter((p) => !isCone(p)).concat([Object.assign({ id: 'ball' }, play.ball)])
   for (let k = 1; k <= N; k++) {
-    const ink = []; const edge = []
+    const ink = []; const edge = []; const glow = []
     all.forEach((ent) => {
       actsOf(ent).forEach((act) => {
         if (act.step !== k || !act.pts.length) return
@@ -1788,7 +1793,7 @@ function buildRoutes() {
         const ty = act.type
         const line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
         const dash = ty === 'pass' ? [0.34, 0.26] : ty === 'shot' ? [0.06, 0.26] : ty === 'handoff' ? [0.02, 0.12, 0.22, 0.12] : null
-        for (const [arr, hw] of [[edge, ROUTE_R + EDGE], [ink, ROUTE_R]]) {
+        for (const [arr, hw] of [[glow, ROUTE_R + EDGE + GLOW], [edge, ROUTE_R + EDGE], [ink, ROUTE_R]]) {
           addStroke(arr, line, hw, dash)
           if (ty !== 'screen') addArrow(arr, line, hw)
         }
@@ -1797,12 +1802,12 @@ function buildRoutes() {
           const l = Math.hypot(b.x - a.x, b.y - a.y) || 1
           const nx = -(b.y - a.y) / l; const ny = (b.x - a.x) / l
           const bar = toLine([{ x: b.x - nx * 46, y: b.y - ny * 46 }, { x: b.x + nx * 46, y: b.y + ny * 46 }])
-          addTube(edge, bar, ROUTE_R + EDGE); addTube(ink, bar, ROUTE_R)
+          addTube(glow, bar, ROUTE_R + EDGE + GLOW); addTube(edge, bar, ROUTE_R + EDGE); addTube(ink, bar, ROUTE_R)
         }
       })
     })
     const g = new THREE.Group()
-    ;[[edge, edgeMat, 2], [ink, inkMat, 3]].forEach(([arr, mat, order]) => {
+    ;[[glow, glowMat, 1], [edge, edgeMat, 2], [ink, inkMat, 3]].forEach(([arr, mat, order]) => {
       if (!arr.length) return
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3))
