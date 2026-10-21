@@ -1392,6 +1392,12 @@ function simulate(t, dt) {
   const reaches = []
   Object.values(figures).forEach((f) => { if (f.screenW > 0.01) reaches.push([f, null, 'cross', f.screenW]) })
   let squash = 1
+  // the very first frame: the ball is already in the first carrier's hands,
+  // not on the floor where the board puts it (it would be gathered up from there)
+  if (!held && !flight) {
+    const c0 = CARRIERS[k] && figures[CARRIERS[k].id]
+    if (c0) ball.position.copy(chestPoint(c0))
+  }
   if (carrier) {
     flight = null
     let want
@@ -1426,7 +1432,7 @@ function simulate(t, dt) {
     // Changing from holding to dribbling (or back) eases over rather than
     // jumping between the chest and the hand.
     const modeKey = k + (dribbling ? 'd' : 'h') + carrier.p.id
-    if (!held || held.key !== modeKey) held = { key: modeKey, from: ball.position.clone(), fr0: fr }
+    if (!held || held.key !== modeKey) held = { key: modeKey, from: ball.position.clone(), fr0: held ? fr : -1 }
     const bl = Math.min(1, (fr - held.fr0) / 0.16)
     ball.position.copy(bl < 1 ? gatherPath(carrier, held.from, want, easeInOut(bl)) : want)
     // the giver lets go just before the end, the taker's hands come to the ball
