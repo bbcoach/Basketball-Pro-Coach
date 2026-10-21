@@ -130,11 +130,11 @@ const tileStyle = (active, landscape) => ({
 })
 const TILE_ICON = { fontSize: 15, lineHeight: '15px', height: 15, fontWeight: 700, fontFamily: COND }
 const TILE_LABEL = { fontSize: 10, lineHeight: '13px', fontWeight: 600, letterSpacing: '-.1px', whiteSpace: 'nowrap' }
-const tileRowStyle = (landscape) => (landscape ? { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 5 } : { display: 'flex', gap: 5 })
+const tileRowStyle = (landscape, cols = 4) => (landscape ? { display: 'grid', gridTemplateColumns: 'repeat(' + cols + ', 1fr)', gap: 5 } : { display: 'flex', gap: 5 })
 
 // In the 3D view the drawing tools do nothing, so their row becomes the
-// camera: low on the court, or through one attacker's eyes (tap again for
-// the next one) — the step's paths on the floor, on or off — and a way back
+// camera: low on the court, through one attacker's eyes (tap again for the
+// next one), or free to turn and zoom — the step's paths on the floor, on or off — and a way back
 // to 2D to change the play.
 function CameraRow() {
   const { state, setCam3d, cyclePov, setView3d, setPaths3d } = useApp()
@@ -143,12 +143,15 @@ function CameraRow() {
   const tile = (active) => tileStyle(active, landscape)
   return (
     <div style={{ padding: landscape ? '2px 4px 8px' : '2px 12px 8px' }}>
-      <div style={tileRowStyle(landscape)}>
+      <div style={tileRowStyle(landscape, 3)}>
         <div onClick={() => setCam3d('court')} style={tile(state.cam3d === 'court')}>
           <div style={TILE_ICON}>▤︎</div><div style={TILE_LABEL}>Court</div>
         </div>
         <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={tile(state.cam3d === 'pov')}>
           <div style={TILE_ICON}>◉︎</div><div style={TILE_LABEL}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
+        </div>
+        <div onClick={() => setCam3d('free')} style={tile(state.cam3d === 'free')}>
+          <div style={TILE_ICON}>↻︎</div><div style={TILE_LABEL}>Free</div>
         </div>
         <div onClick={() => setPaths3d(!state.paths3d)} style={tile(state.paths3d)} aria-pressed={state.paths3d}>
           <div style={TILE_ICON}>∿︎</div><div style={TILE_LABEL}>Paths</div>
@@ -322,6 +325,7 @@ function FullScreenCamera() {
       : { position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 60, display: 'flex', gap: 8 }}>
       <div onClick={() => setCam3d('court')} style={pill(state.cam3d === 'court')}>Court</div>
       <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={pill(state.cam3d === 'pov')}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
+      <div onClick={() => setCam3d('free')} style={pill(state.cam3d === 'free')}>Free</div>
       <div onClick={() => setPaths3d(!state.paths3d)} style={pill(state.paths3d)}>Paths</div>
     </div>
   )

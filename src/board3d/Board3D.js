@@ -18,7 +18,7 @@ import { COND } from '../theme'
 //   view.setBoard(state)          // players, ball, steps … (re-bakes)
 //   view.setCourtView('half' | 'full')
 //   view.setPaths(true | false)   // the step's routes drawn on the floor
-//   view.setCamera('court' | 'pov', playerId)
+//   view.setCamera('court' | 'pov' | 'free', playerId)
 //   view.render(t)                // t in 0…1 along the play; drawn soon
 //   view.dispose()
 export async function createBoard3D(container) {
@@ -1205,8 +1205,11 @@ function keepOutOfBodies(p) {
 
 // ── per-frame update ───────────────────────────────────────────────────
 let look = null
-// the camera: 'court' (low, behind the play) or 'pov' (through a player's eyes)
+// the camera: 'court' (low, behind the play), 'pov' (through a player's eyes)
+// or 'free' (orbiting the ball: drag to turn, pinch or wheel to zoom)
 const cam = { mode: 'court', povId: null }
+const free = { yaw: 0, pitch: 0.42, dist: 11 }
+let freeFocus = null
 let flight = null
 let held = null
 let lastBall = null
@@ -1606,7 +1609,18 @@ function view(t) {
   scene.updateMatrixWorld()
   updateBlobs()
   // camera
-  if (cam.mode === 'pov' && figures[povId]) {
+  if (cam.mode === 'free') {
+    // the point it turns about follows the ball, easing after it
+    const tgt = new THREE.Vector3(ball.position.x, 1.0, ball.position.z)
+    if (freeFocus) freeFocus.lerp(tgt, 0.12); else freeFocus = tgt
+    const cp = Math.cos(free.pitch)
+    camera.position.set(
+      Math.max(-14, Math.min(14, freeFocus.x + free.dist * cp * Math.sin(free.yaw))),
+      Math.max(0.35, freeFocus.y + free.dist * Math.sin(free.pitch)),
+      Math.max(-6, Math.min(34, freeFocus.z + free.dist * cp * Math.cos(free.yaw))),
+    )
+    look = freeFocus.clone()
+  } else if (cam.mode === 'pov' && figures[povId]) {
     const me = figures[povId]
     const eye = me.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.25, 0))
     const hasBall = carrier === me
@@ -1657,6 +1671,60 @@ function view(t) {
   renderFrame()
 }
 let camPosZ = null
+
+// ── the free camera: turn, zoom, reset ─────────────────────────────────
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v))
+// start from where the camera is now (so switching to it doesn't jump), or
+// from a good default
+function initFree(reset) {
+  freeFocus = null
+  if (reset) { Object.assign(free, { yaw: 0, pitch: 0.42, dist: 11 }); return }
+  const off = camera.position.clone().sub(new THREE.Vector3(ball.position.x, 1.0, ball.position.z))
+  const d = off.length() || 11
+  free.dist = clampN(d, 4, 24)
+  free.yaw = Math.atan2(off.x, off.z)
+  free.pitch = clampN(Math.asin(clampN(off.y / d, -1, 1)), 0.05, 1.45)
+}
+const dom = renderer.domElement
+const pointers = new Map()
+let pinch = 0
+let lastTap = { t: 0, x: 0, y: 0 }
+const pinchDist = () => { if (pointers.size !== 2) return 0; const [a, b] = [...pointers.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]) }
+const redraw = () => { dirty = true; schedule() }
+dom.addEventListener('pointerdown', (e) => {
+  if (cam.mode !== 'free') return
+  pointers.set(e.pointerId, [e.clientX, e.clientY]); dom.setPointerCapture(e.pointerId); pinch = pinchDist()
+})
+dom.addEventListener('pointermove', (e) => {
+  if (cam.mode !== 'free' || !pointers.has(e.pointerId)) return
+  const p = pointers.get(e.pointerId)
+  if (pointers.size === 1) {
+    free.yaw -= (e.clientX - p[0]) * 0.008
+    free.pitch = clampN(free.pitch + (e.clientY - p[1]) * 0.006, 0.05, 1.45)
+  }
+  pointers.set(e.pointerId, [e.clientX, e.clientY])
+  if (pointers.size === 2) { const d = pinchDist(); if (pinch > 0 && d > 0) free.dist = clampN((free.dist * pinch) / d, 4, 24); pinch = d }
+  redraw()
+})
+const endPointer = (e) => {
+  if (!pointers.has(e.pointerId)) return
+  const p = pointers.get(e.pointerId)
+  pointers.delete(e.pointerId)
+  pinch = pinchDist()
+  // a quick second tap in the same place puts the view back
+  if (e.type === 'pointerup' && cam.mode === 'free' && Math.hypot(e.clientX - p[0], e.clientY - p[1]) < 8) {
+    const now = performance.now()
+    if (now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) { initFree(true); redraw(); lastTap = { t: 0, x: 0, y: 0 } } else lastTap = { t: now, x: e.clientX, y: e.clientY }
+  }
+}
+dom.addEventListener('pointerup', endPointer)
+dom.addEventListener('pointercancel', endPointer)
+dom.addEventListener('wheel', (e) => {
+  if (cam.mode !== 'free') return
+  e.preventDefault()
+  free.dist = clampN(free.dist * Math.exp(e.deltaY * 0.001), 4, 24)
+  redraw()
+}, { passive: false })
 const frame = (t) => { applyBaked(t); view(t) }
 
 // ── paths on the floor ────────────────────────────────────────────────
@@ -1899,7 +1967,13 @@ return {
   },
   setPaths(on) { showPaths = !!on; dirty = true; schedule() },
   setCourtView(v) { if (v !== courtView) { courtView = v; camPosZ = null; look = null; dirty = true; schedule() } },
-  setCamera(mode, povId) { cam.mode = mode; cam.povId = povId || null; look = null; dirty = true; schedule() },
+  setCamera(mode, povId) {
+    if (mode === 'free' && cam.mode !== 'free') initFree(false)
+    cam.mode = mode; cam.povId = povId || null; look = null
+    dom.style.touchAction = mode === 'free' ? 'none' : 'auto'
+    dom.style.cursor = mode === 'free' ? 'grab' : 'default'
+    dirty = true; schedule()
+  },
   render(t) { target = Math.max(0, Math.min(1, t)); dirty = true; schedule() },
   resize() {
     const w = Math.max(1, container.clientWidth); const h = Math.max(1, container.clientHeight)
