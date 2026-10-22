@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
 import { ROUTE_COLORS } from './routeColors'
@@ -112,7 +113,9 @@ const OutlineShader = {
 }
 // what the quality level switches (see QUALITY further down): the soft
 // background's resolution and blur, whether the nets get their own pass
-const qual = { bgScale: 0.5, bgBlur: true, nets: true }
+const qual = { bgScale: 0.5, bgBlur: true, nets: true, reflectScale: 0.5 }
+// the glossy floor's mirror (see below), sized with the picture
+let reflector = null
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -150,10 +153,31 @@ const CompositeShader = {
     }`,
 }
 const compositePass = new ShaderPass(CompositeShader)
+// A light colour grade on the linear picture, before tone mapping, like a
+// broadcast: shadows a touch cool, highlights a touch warm, slightly more
+// contrast and colour, and the corners drawn in a little.
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, aspect: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float aspect; varying vec2 vUv;
+    void main() {
+      vec4 t = texture2D(tDiffuse, vUv);
+      vec3 c = t.rgb;
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c *= mix(vec3(0.95, 0.98, 1.05), vec3(1.05, 1.01, 0.94), smoothstep(0.04, 0.9, l));
+      c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.07));
+      float l2 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(l2), c, 1.07);
+      vec2 d = (vUv - 0.5) * vec2(aspect, 1.0);
+      c *= 1.0 - 0.3 * smoothstep(0.42, 1.0, length(d) * 1.25);
+      gl_FragColor = vec4(c, t.a);
+    }`,
+}
+const gradePass = new ShaderPass(GradeShader)
 // FXAA last, on the finished picture: smooths the stair-steps on lines and
 // outlines in the distance
 const fxaaPass = new ShaderPass(FXAAShader)
-composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
+composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(gradePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
 renderer.setClearColor(0x000000, 0)
 function sizeComposer() {
   const pr = renderer.getPixelRatio()
@@ -161,6 +185,7 @@ function sizeComposer() {
   maskRT.setSize(Math.round(W * pr), Math.round(H * pr))
   netRT.setSize(Math.round(W * pr), Math.round(H * pr))
   outlinePass.uniforms.resolution.value.set(W * pr, H * pr)
+  gradePass.uniforms.aspect.value = W / H
   // the line is 2.4 px on a picture about 1130 px across the diagonal; on a
   // phone, where everything is smaller, it shrinks with it (never below half)
   outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
@@ -168,6 +193,11 @@ function sizeComposer() {
   const bw = Math.max(1, Math.round(W * pr * qual.bgScale)); const bh = Math.max(1, Math.round(H * pr * qual.bgScale))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
   bgTexel.set(1 / bw, 1 / bh)
+  if (reflector) {
+    const rw = Math.max(1, Math.round(W * pr * qual.reflectScale)); const rh = Math.max(1, Math.round(H * pr * qual.reflectScale))
+    reflector.getRenderTarget().setSize(rw, rh)
+    reflector.material.uniforms.texel.value.set(1 / rw, 1 / rh)
+  }
 }
 const bgTexel = new THREE.Vector2()
 renderer.shadowMap.autoUpdate = false
@@ -320,6 +350,42 @@ court.rotation.x = -Math.PI / 2
 court.position.set(0, 0, 14)
 court.receiveShadow = true
 scene.add(court)
+// ── the glossy floor ───────────────────────────────────────────────────
+// A varnished court mirrors the players, the ball and the hoops a little,
+// most of all where you look across it at a low angle. The scene is drawn
+// once more from under the floor (small, and only on the top level),
+// smeared along the way you look, and laid over the wood as a see-through
+// layer that gets stronger the shallower the view.
+const ReflectShader = {
+  name: 'FloorMirror',
+  uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, texel: { value: new THREE.Vector2(1, 1) }, strength: { value: 1 } },
+  vertexShader: `uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vWorld;
+    void main() {
+      vUv = textureMatrix * vec4(position, 1.0);
+      vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 texel; uniform float strength; uniform vec3 color; varying vec4 vUv; varying vec3 vWorld;
+    void main() {
+      vec2 uv = vUv.xy / vUv.w;
+      vec4 acc = vec4(0.0); float tw = 0.0;
+      for (int i = -4; i <= 4; i++) {
+        float f = float(i); float w = exp(-f * f / 9.0);
+        acc += texture2D(tDiffuse, uv + vec2(f * 0.3, f * 1.8) * texel) * w; tw += w;
+      }
+      acc /= tw;
+      vec3 v = normalize(cameraPosition - vWorld);
+      float fr = pow(1.0 - clamp(v.y, 0.0, 1.0), 3.0);
+      gl_FragColor = vec4(acc.rgb, acc.a * strength * mix(0.09, 0.5, fr));
+    }`,
+}
+reflector = new Reflector(new THREE.PlaneGeometry(15, 28), { shader: ReflectShader, textureWidth: 256, textureHeight: 256, multisample: 0, clipBias: 0.003 })
+reflector.rotation.x = -Math.PI / 2
+reflector.position.set(0, 0.003, 14)
+Object.assign(reflector.material, { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
+reflector.renderOrder = 0.5
+reflector.visible = false
+scene.add(reflector)
 // navy surround: the court reads as a lit stage
 const apron = new THREE.Mesh(new THREE.PlaneGeometry(60, 70), envMat({ color: 0x161618 }))
 apron.rotation.x = -Math.PI / 2
@@ -456,6 +522,28 @@ function ledTexture(w) {
   scene.traverse((o) => { if (o.isLight) o.layers.enable(BG_LAYER) })
 }
 
+// ── light beams ────────────────────────────────────────────────────────
+// A faint cone of light under each lamp, as in the haze of a hall: brighter
+// near the lamp, fading towards the floor and at its edges. Top level only.
+const beams = (() => {
+  const H = 15.1; const geos = []
+  for (const z of [1, 7.5, 14, 20.5, 27]) for (const x of [-7, -3.5, 3.5, 7]) geos.push(new THREE.ConeGeometry(2.5, H, 24, 1, true).translate(x, H / 2, z))
+  const m = new THREE.Mesh(mergeGeometries(geos), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false,
+    vertexShader: 'varying vec3 vW; varying vec3 vN; void main() { vW = (modelMatrix * vec4(position, 1.0)).xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0); }',
+    fragmentShader: `varying vec3 vW; varying vec3 vN;
+      void main() {
+        float ax = clamp(vW.y / 15.1, 0.0, 1.0);
+        float edge = pow(abs(dot(normalize(cameraPosition - vW), normalize(vN))), 1.8);
+        float a = edge * (0.009 + 0.04 * ax * ax);
+        gl_FragColor = vec4(vec3(1.0, 0.86, 0.64), a);
+      }`,
+  }))
+  m.frustumCulled = false; m.renderOrder = 2; m.visible = false
+  scene.add(m)
+  return m
+})()
+
 // ── contact shadows ────────────────────────────────────────────────────
 // A soft dark patch right under each player and a smaller, darker one
 // under each foot that's on the floor — what makes a figure stand ON the
@@ -464,7 +552,7 @@ function ledTexture(w) {
 const blobTex = (() => {
   const c = document.createElement('canvas'); c.width = 64; c.height = 64
   const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32)
-  r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(0.55, 'rgba(0,0,0,.22)'); r.addColorStop(1, 'rgba(0,0,0,0)')
+  r.addColorStop(0, 'rgba(0,0,0,.8)'); r.addColorStop(0.22, 'rgba(0,0,0,.52)'); r.addColorStop(0.55, 'rgba(0,0,0,.16)'); r.addColorStop(1, 'rgba(0,0,0,0)')
   g.fillStyle = r; g.fillRect(0, 0, 64, 64)
   return new THREE.CanvasTexture(c)
 })()
@@ -1995,9 +2083,9 @@ function holderAt(t) {
 //            warm pools of light left out, fewer samples for the outlines
 const dpr = window.devicePixelRatio || 1
 const QUALITY = {
-  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true },
-  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true },
-  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false },
+  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
+  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
+  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
 }
 let quality = 'medium'
 function applyQuality(q) {
@@ -2006,6 +2094,8 @@ function applyQuality(q) {
   qual.bgScale = Q.bgScale; qual.bgBlur = Q.bgBlur; qual.nets = Q.nets
   outlinePass.uniforms.taps.value = Q.taps
   spots.forEach((l) => { l.visible = Q.spots })
+  gradePass.enabled = Q.grade
+  qual.reflectScale = Q.reflect || 0.5; reflector.visible = Q.reflect > 0; beams.visible = Q.reflect > 0
   // smoothing: the picture is drawn into these two, so they carry the samples
   ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })
   renderer.setPixelRatio(Q.pr)
