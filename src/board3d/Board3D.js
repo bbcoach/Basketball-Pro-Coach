@@ -915,7 +915,7 @@ function makeToyHuman(p, idx, style = {}) {
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0 })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1 })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1072,6 +1072,18 @@ function pose(f, ampF, ampL, lean, defense, hold) {
     const swing = -sw * 0.8 * Math.abs(ampF)
     A.sh.rotation.set(defense ? -0.35 : Math.min(swing, 0.2), 0, -side * (defense ? 0.95 : 1.3 - 0.15 * lean))
     A.el.rotation.set(0, -side * (defense ? 1.05 : 0.25 + 0.9 * lean), 0)
+  }
+  if (defense) {
+    // an active stance: the hand on the ball's side up in front, the other out
+    // to the side and low, both open and never quite still — and after a
+    // close-out both hands go up
+    for (const side of [-1, 1]) {
+      const A = arms[side]; const lead = side === f.leadSide
+      const wig = Math.sin(f.dribbleT * 0.33 + side * 1.7) * 0.07
+      const w = f.closeW
+      A.sh.rotation.set((lead ? -1.45 : -0.3) + wig + (-2.55 - (lead ? -1.45 : -0.3)) * w, 0, -side * ((lead ? 0.78 : 1.22) + (0.42 - (lead ? 0.78 : 1.22)) * w))
+      A.el.rotation.set(0, -side * ((lead ? 0.75 : 0.5) + (0.2 - (lead ? 0.75 : 0.5)) * w), 0)
+    }
   }
   if (hold === 'hold') {
     for (const side of [-1, 1]) { arms[side].sh.rotation.set(-1.05, 0, -side * 1.0); arms[side].el.rotation.set(0, -side * 1.15, 0) }
@@ -1507,10 +1519,26 @@ function simulate(t, dt) {
     f.spd = speed
     f.s += (Math.min(1, speed / 3.2) - f.s) * 0.25
     f.root.position.set(x, 0, z)
-    const defense = f.p.team === 'def'
+    const isDef = f.p.team === 'def'
+    // A defender who covers a long way straight at the ball (a close-out)
+    // runs upright and facing where he's going; only when he arrives does he
+    // drop into the stance, hands up. Anything shorter is a slide: low, facing
+    // the ball, feet shuffling.
+    {
+      const bx = ball.position.x - x; const bz = ball.position.z - z; const bl = Math.hypot(bx, bz) || 1
+      const toward = (vx * bx + vz * bz) / bl
+      const runT = isDef && speed > (f.runW > 0.5 ? 1.6 : 2.4) && toward > 0.75 * speed && bl > 1.4 ? 1 : 0
+      f.runW += (runT - f.runW) * 0.25
+      const sdot = (bx * Math.cos(f.yaw) - bz * Math.sin(f.yaw)) / bl // + = ball on his left
+      if (Math.abs(sdot) > 0.25) f.leadSide = sdot > 0 ? 1 : -1
+    }
+    const running = f.runW > 0.5
+    // hands up for a moment after the close-out, then back to the stance
+    f.closeW = running ? 1 : f.closeW * 0.96
+    const defense = isDef && !running
     const hold = carrier === f ? (dribbling ? 'dribble' : 'hold') : null
     let want
-    if (!defense && speed > 0.6) want = Math.atan2(vx, vz)
+    if ((!isDef || running) && speed > 0.6) want = Math.atan2(vx, vz)
     else if (hold) { const hp = hoopAt(z); want = Math.atan2(hp.x - x, hp.z - z) }
     else want = Math.atan2(ball.position.x - x, ball.position.z - z)
     const yaw0 = f.yaw
@@ -1556,7 +1584,7 @@ function simulate(t, dt) {
       // driving off: down through the knees; running: the hips rise and fall
       // with every stride, lowest as the foot is under him
       const bobAmt = Math.min(1, speed / 3) * (defense ? 0.5 : 1)
-      const dip = Math.min(1, 0.6 * startW + 0.55 * bobAmt * (0.5 + 0.5 * Math.cos(2 * f.phase)))
+      const dip = Math.min(1, 0.6 * startW * (defense ? 0.35 : 1) + 0.55 * bobAmt * (0.5 + 0.5 * Math.cos(2 * f.phase)))
       if (dip > 0.01) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.09 * dip; L.kn.rotation.x += 0.2 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
       const brake = Math.max(0, -f.accS - 1.5) / 6 * Math.min(1, f.pspd / 1 + 0.4)
       if (brake > 0.02) {
