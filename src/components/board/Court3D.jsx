@@ -9,6 +9,29 @@ import { ROUTE_ORDER, ROUTE_LABELS, routeCss } from '../../board3d/routeColors'
 //
 // The 3D code and three.js are fetched the first time this opens, so the rest
 // of the app never pays for them.
+// The key to the colours of the routes drawn in the current step. `style`
+// places it: over the corner of the picture, or (in full screen) clear of the
+// camera buttons.
+export function RouteKey({ style }) {
+  const { state } = useApp()
+  const ents = state.players.concat([state.ball])
+  const nSteps = ents.reduce((m, e) => actsOf(e).reduce((mm, a) => (a.pts.length ? Math.max(mm, a.step) : mm), m), Math.max(1, state.steps))
+  const step = stepAtTime(state.t, nSteps)
+  const present = new Set()
+  ents.forEach((e) => actsOf(e).forEach((a) => { if (a.step === step && a.pts.length) present.add(a.type) }))
+  const kinds = state.paths3d ? ROUTE_ORDER.filter((k) => present.has(k)) : []
+  if (!kinds.length) return null
+  return (
+    <div style={{ position: 'absolute', display: 'flex', flexWrap: 'wrap', gap: 5, pointerEvents: 'none', ...style }}>
+      {kinds.map((k) => (
+        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px 3px 6px', borderRadius: 99, background: 'rgba(10,10,12,.72)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontSize: 10.5, fontWeight: 700, letterSpacing: '.2px' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: routeCss(k), flex: 'none' }} />{ROUTE_LABELS[k]}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Court3D() {
   const { state } = useApp()
   const host = useRef(null)
@@ -54,26 +77,10 @@ export default function Court3D() {
   useEffect(() => { if (view.current) view.current.setQuality(state.quality3d) }, [state.quality3d])
   useEffect(() => { if (view.current) view.current.render(state.t) }, [state.t, status])
 
-  // which kinds of action are drawn on the floor in this step, for the key
-  const ents = state.players.concat([state.ball])
-  const nSteps = ents.reduce((m, e) => actsOf(e).reduce((mm, a) => (a.pts.length ? Math.max(mm, a.step) : mm), m), Math.max(1, state.steps))
-  const step = stepAtTime(state.t, nSteps)
-  const present = new Set()
-  ents.forEach((e) => actsOf(e).forEach((a) => { if (a.step === step && a.pts.length) present.add(a.type) }))
-  const kinds = state.paths3d ? ROUTE_ORDER.filter((k) => present.has(k)) : []
-
   const note = status === 'loading' ? 'Loading 3D…' : status === 'error' ? "3D view isn't available on this device" : null
   return (
     <div ref={host} style={{ position: 'relative', flex: 1, minWidth: 0, minHeight: 0, borderRadius: 10, overflow: 'hidden', background: '#0e0e10' }}>
-      {status === 'ready' && kinds.length > 0 && (
-        <div style={{ position: 'absolute', left: 8, top: 8, right: 8, display: 'flex', flexWrap: 'wrap', gap: 5, pointerEvents: 'none' }}>
-          {kinds.map((k) => (
-            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px 3px 6px', borderRadius: 99, background: 'rgba(10,10,12,.72)', border: '1px solid rgba(255,255,255,.12)', color: '#fff', fontSize: 10.5, fontWeight: 700, letterSpacing: '.2px' }}>
-              <span style={{ width: 8, height: 8, borderRadius: 99, background: routeCss(k), flex: 'none' }} />{ROUTE_LABELS[k]}
-            </div>
-          ))}
-        </div>
-      )}
+      {status === 'ready' && !state.fullScreen && <RouteKey style={{ left: 8, top: 8, right: 8 }} />}
       {note && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)', fontSize: 13, fontWeight: 600 }}>{note}</div>
       )}

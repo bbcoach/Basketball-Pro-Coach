@@ -6,7 +6,7 @@ import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
 import ScreenHeader from '../ScreenHeader'
 import Court from './Court'
-import Court3D from './Court3D'
+import Court3D, { RouteKey } from './Court3D'
 import { webgl3dSupported } from '../../board3d/support'
 import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
@@ -332,14 +332,20 @@ function FullScreenCamera() {
   const pov = state.players.find((p) => p.id === state.povId) || state.players.find((p) => p.team === 'off')
   const pill = (active) => ({ padding: '9px 14px', borderRadius: 99, background: active ? ACCENT : 'rgba(10,10,12,.62)', color: active ? '#101012' : '#fff', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' })
   return (
-    <div style={landscape
-      ? { position: 'absolute', top: 'calc(64px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }
-      : { position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 60, display: 'flex', gap: 8 }}>
-      <div onClick={() => setCam3d('court')} style={pill(state.cam3d === 'court')}>Court</div>
-      <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={pill(state.cam3d === 'pov')}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
-      <div onClick={() => setCam3d('free')} style={pill(state.cam3d === 'free')}>Free</div>
-      <div onClick={() => setPaths3d(!state.paths3d)} style={pill(state.paths3d)}>Paths</div>
-    </div>
+    <>
+      <div style={landscape
+        ? { position: 'absolute', top: 'calc(64px + env(safe-area-inset-top, 0px))', right: 16, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }
+        : { position: 'absolute', top: 'calc(70px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 60, display: 'flex', gap: 8 }}>
+        <div onClick={() => setCam3d('court')} style={pill(state.cam3d === 'court')}>Court</div>
+        <div onClick={() => (state.cam3d === 'pov' ? cyclePov() : setCam3d('pov'))} style={pill(state.cam3d === 'pov')}>{pov ? 'Player ' + (pov.label || '') : 'Player'}</div>
+        <div onClick={() => setCam3d('free')} style={pill(state.cam3d === 'free')}>Free</div>
+        <div onClick={() => setPaths3d(!state.paths3d)} style={pill(state.paths3d)}>Paths</div>
+      </div>
+      {/* the key to the route colours: below the buttons upright, up in the left corner when wide */}
+      <RouteKey style={landscape
+        ? { zIndex: 60, left: 'calc(16px + env(safe-area-inset-left, 0px))', top: 'calc(16px + env(safe-area-inset-top, 0px))', right: 200 }
+        : { zIndex: 60, left: 16, right: 16, top: 'calc(116px + env(safe-area-inset-top, 0px))' }} />
+    </>
   )
 }
 
