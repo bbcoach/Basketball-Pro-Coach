@@ -482,21 +482,6 @@ function ledTexture(w) {
     const X = (m) => (m + W2 / 2) * PX; const Z = (m) => (m + 4.5) * PX
     g.strokeStyle = 'rgba(232,177,60,.8)'; g.lineWidth = 4
     g.strokeRect(X(-7.85), Z(-0.35), 15.7 * PX, 28.7 * PX)
-    // painted lettering in the run-off, like an arena's: the name along each
-    // baseline, the address along the sidelines, gold like the title
-    const word = (txt, cx, cz, rot, size, maxW) => {
-      g.save(); g.translate(X(cx), Z(cz)); g.rotate(rot)
-      g.font = `italic 800 ${size * PX}px ${COND}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = `${size * PX * 0.06}px`
-      const gr = g.createLinearGradient(0, -size * PX * 0.4, 0, size * PX * 0.4); gr.addColorStop(0, '#fff1c9'); gr.addColorStop(0.46, '#e8b13c'); gr.addColorStop(1, '#9a6614')
-      g.lineJoin = 'round'; g.lineWidth = size * PX * 0.09; g.strokeStyle = 'rgba(10,10,12,.85)'
-      g.strokeText(txt, 0, 0, maxW * PX); g.fillStyle = gr; g.fillText(txt, 0, 0, maxW * PX)
-      g.restore()
-    }
-    // (split either side of the stanchion, which stands in the middle)
-    word('BASKETBALL', -3.9, -1.85, 0, 1.15, 6.4); word('PRO COACH', 3.9, -1.85, 0, 1.15, 6.4)
-    word('BASKETBALL', 3.9, 29.85, Math.PI, 1.15, 6.4); word('PRO COACH', -3.9, 29.85, Math.PI, 1.15, 6.4)
-    word('BASKETBALLPROCOACH.COM', -8.5, 14, -Math.PI / 2, 0.62, 16)
-    word('BASKETBALLPROCOACH.COM', 8.5, 14, Math.PI / 2, 0.62, 16)
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
     const m = new THREE.Mesh(new THREE.PlaneGeometry(W2, L2), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }))
     m.rotation.x = -Math.PI / 2; m.position.set(0, -0.003, 14); m.receiveShadow = true
