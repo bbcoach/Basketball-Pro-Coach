@@ -422,9 +422,9 @@ function ledTexture(w) {
   // ── between the boards and the stands ───────────────────────────────
   // The strip round the court used to be bare dark floor. Now: a darker
   // painted run-off with the same planks, a soft gold glow along the foot of
-  // the boards, a low wall in front of the stands, team benches with their
-  // coaches, the scorer's table, photographers crouched at the baselines and
-  // a few stewards. All of it is sharp (not part of the soft background).
+  // the boards, a low wall in front of the stands, the team benches with
+  // their coaches behind the boards and the scorer's table on the other side.
+  // All of it is sharp (not part of the soft background).
   const skins = [0x8d5524, 0xc68642, 0x5c3a21, 0xe0ac69, 0xa0662f, 0xf1c27d]
   const hairs = [0x1a120c, 0x2b1d14, 0x0e0b09, 0x4a3020]
   const paint = (g, hex) => {
@@ -449,35 +449,20 @@ function ledTexture(w) {
     ...[-1, 1].flatMap((k) => [bx(0.13, 0.82, 0.14, k * 0.09, 0.41, 0, pants), bx(0.1, 0.56, 0.1, k * 0.26, 1.08, 0, shirt)]),
     bx(0.4, 0.62, 0.25, 0, 1.12, 0, vest || shirt), ...faceOf(1.58, 0.01, skin, hair),
   ]
-  const crouch = (shirt, skin, hair) => [
-    ...[-1, 1].flatMap((k) => [bx(0.14, 0.14, 0.46, k * 0.1, 0.46, 0.12, 0x1c1c21), bx(0.12, 0.46, 0.12, k * 0.1, 0.22, 0.32, 0x1c1c21)]),
-    paint(new THREE.BoxGeometry(0.38, 0.5, 0.24).translate(0, 0.25, 0).rotateX(0.38).translate(0, 0.52, 0.04), shirt),
-    ...faceOf(1.12, 0.26, skin, hair),
-    bx(0.2, 0.15, 0.15, 0, 1.0, 0.44, 0x141418), paint(new THREE.CylinderGeometry(0.075, 0.08, 0.36, 10).rotateX(Math.PI / 2).translate(0, 1.0, 0.7), 0x2a2a30),
-  ]
   const GOLDK = 0xd9ad4a; const DARKK = 0x1c1d22
-  // benches on the right-hand sideline: gold team, then the dark team
+  // benches behind the right-hand board: gold team, then the dark team
   const bench = (zc, len, kit, shorts, shoe, n) => {
-    parts.push(bx(0.5, 0.06, len, 8.7, 0.45, zc, 0x2b2b30), bx(0.06, 0.45, len, 8.98, 0.7, zc, 0x232328))
-    for (const dz of [-len / 2 + 0.2, len / 2 - 0.2]) parts.push(bx(0.4, 0.45, 0.06, 8.7, 0.22, zc + dz, 0x232328))
-    for (let i = 0; i < n; i++) put(sitting(kit, shorts, shoe, pick(skins), pick(hairs)), -Math.PI / 2, 8.62, zc - len / 2 + 0.45 + i * ((len - 0.9) / (n - 1)))
+    parts.push(bx(0.5, 0.06, len, 10.0, 0.45, zc, 0x2b2b30), bx(0.06, 0.45, len, 10.28, 0.7, zc, 0x232328))
+    for (const dz of [-len / 2 + 0.2, len / 2 - 0.2]) parts.push(bx(0.4, 0.45, 0.06, 10.0, 0.22, zc + dz, 0x232328))
+    for (let i = 0; i < n; i++) put(sitting(kit, shorts, shoe, pick(skins), pick(hairs)), -Math.PI / 2, 10.0, zc - len / 2 + 0.45 + i * ((len - 0.9) / (n - 1)))
   }
   bench(10, 4.8, GOLDK, GOLDK, 0xf4f4f4, 6)
   bench(18, 4.8, DARKK, DARKK, 0xf4f4f4, 6)
-  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[2]), -Math.PI / 2, 8.1, 8.9)
-  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[0]), -Math.PI / 2, 8.1, 19.2)
+  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[2]), -Math.PI / 2, 9.6, 8.9)
+  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[0]), -Math.PI / 2, 9.6, 19.2)
   // the scorer's table opposite, with the officials behind it
   parts.push(bx(0.62, 0.8, 4.4, -8.15, 0.4, 14, 0x24242a), bx(0.04, 0.12, 4.4, -7.83, 0.6, 14, 0xe8b13c), bx(0.9, 0.04, 4.5, -8.25, 0.82, 14, 0x3a3a40))
   for (const z of [12.4, 13.5, 14.5, 15.6]) put(sitting(pick([0x9a9aa1, 0xcacacd, 0x5e5e66]), 0x1a1a1f, 0x15151a, pick(skins), pick(hairs)), Math.PI / 2, -8.85, z)
-  // photographers at both baselines, facing the court
-  for (const x of [-6.4, -3.6, 3.4, 6.2]) {
-    put(crouch(0x1e1e22, pick(skins), pick(hairs)), 0, x, -1.7)
-    put(crouch(0x232328, pick(skins), pick(hairs)), Math.PI, -x * 0.9, 29.7)
-  }
-  // stewards in front of the stands, facing the crowd
-  const VEST = 0xb9ae3a
-  ;[[-9.95, 3], [-9.95, 12], [-9.95, 22], [-9.95, 28], [9.95, 4], [9.95, 14], [9.95, 24]].forEach(([x, z]) => put(standing(0x1f1f24, 0x15151a, pick(skins), pick(hairs), VEST), x < 0 ? -Math.PI / 2 : Math.PI / 2, x, z))
-  ;[[-6, -4.1], [2, -4.1], [-3, 32.3], [7, 32.3]].forEach(([x, z]) => put(standing(0x1f1f24, 0x15151a, pick(skins), pick(hairs), VEST), z < 0 ? Math.PI : 0, x, z))
   const stuff = new THREE.Mesh(mergeGeometries(parts), envMat({ color: 0xffffff, vertexColors: true }))
   stuff.castShadow = true; stuff.layers.enable(1); scene.add(stuff)
   // the laptops on the table
