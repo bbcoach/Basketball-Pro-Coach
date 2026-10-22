@@ -15,6 +15,7 @@ import {
   BALL_SPHERE, BALL_SPHERE_CENTER, stepAtTime, totalSecs, timeAtSecs,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
+import { ROUTE_ORDER, ROUTE_LABELS, routeCss } from '../board3d/routeColors'
 
 function esc(v) {
   return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -337,4 +338,94 @@ export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } 
   await output.finalize()
 
   return new Blob([output.target.buffer], { type: 'video/mp4' })
+}
+
+// The same clip, filmed in the 3D view: a hidden 3D board is set up at the
+// video's size and each frame is drawn from the "overview" camera (high
+// behind the half-court line, everyone in view), copied onto a plain canvas
+// and handed to the encoder. Portrait 9:16, which is how a clip is watched on
+// a phone. The key to the route colours sits in the top-left corner.
+export async function renderPlayVideo3d(play, { fps = 30, speed = 1, onProgress } = {}) {
+  const totalSteps = Math.max(1, play.steps || 1)
+  const players = play.players || []
+  const outW = 720
+  const outH = 1280
+  const HOLD_START = 0.8
+  const HOLD_END = 1.5
+  const END_CARD = 2.2
+  const END_FADE = 0.4
+  const leadFrames = Math.round(HOLD_START * fps)
+  const moveFrames = Math.max(1, Math.round((totalSecs(players, totalSteps) * fps) / speed))
+  const endStart = leadFrames + moveFrames + Math.round(HOLD_END * fps)
+  const totalFrames = endStart + Math.round(END_CARD * fps)
+
+  const codec = await getFirstEncodableVideoCodec(['avc', 'vp9'], { width: outW, height: outH, frameRate: fps })
+  if (!codec) throw new Error("This device can't encode video in the browser.")
+
+  const { createBoard3D } = await import('../board3d/Board3D')
+  const host = document.createElement('div')
+  host.style.cssText = `position:fixed;left:-10000px;top:0;width:${outW}px;height:${outH}px;pointer-events:none`
+  document.body.appendChild(host)
+  let view = null
+  try {
+    view = await createBoard3D(host)
+    view.setQuality('export')
+    view.setBoard({ view: play.view, steps: totalSteps, players, ball: play.ball || { x: 750, y: 1300, acts: [] }, autoDef: play.autoDef !== false, helpDef: !!play.helpDef, defenseDelay: play.defenseDelay })
+    view.setCourtView(play.view === 'full' ? 'full' : 'half')
+    view.setPaths(true)
+    view.setCamera('overview')
+    view.resize()
+
+    const canvas = document.createElement('canvas')
+    canvas.width = outW
+    canvas.height = outH
+    const ctx = canvas.getContext('2d')
+    await Promise.all([`italic 800 46px ${COND_FONT}`, `600 18px ${COND_FONT}`, `700 28px ${COND_FONT}`, `700 15px ${COND_FONT}`]
+      .map((f) => document.fonts.load(f).catch(() => {})))
+    const mark = await svgToImage(MARK)
+
+    const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() })
+    const canvasSource = new CanvasSource(canvas, { codec, quality: new Quality('high') })
+    output.addVideoTrack(canvasSource)
+    await output.start()
+
+    const ents = players.concat([play.ball || { acts: [] }])
+    for (let i = 0; i < totalFrames; i++) {
+      const t = Math.min(0.999999, timeAtSecs(players, totalSteps, Math.max(0, ((i - leadFrames) / fps) * speed)))
+      // drawn and copied in the same breath: the 3D canvas is only good until the browser next paints
+      ctx.drawImage(view.renderNow(t), 0, 0, outW, outH)
+      // the key: which routes are on the floor in this step
+      const step = stepAtTime(t, totalSteps)
+      const present = new Set()
+      ents.forEach((e) => actsOf(e).forEach((a) => { if (a.step === step && a.pts.length) present.add(a.type) }))
+      let kx = 16
+      ctx.font = `700 15px ${COND_FONT}`
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'left'
+      ROUTE_ORDER.filter((k) => present.has(k)).forEach((k) => {
+        const label = ROUTE_LABELS[k]
+        const w = 30 + ctx.measureText(label).width + 10
+        ctx.fillStyle = 'rgba(10,10,12,.72)'
+        pill(ctx, kx, 16, w, 28)
+        ctx.fill()
+        ctx.fillStyle = routeCss(k)
+        ctx.beginPath()
+        ctx.arc(kx + 15, 30, 5, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = '#fff'
+        ctx.fillText(label, kx + 26, 31)
+        kx += w + 6
+      })
+      drawBadge(ctx, mark, outW, outH)
+      if (i >= endStart) drawEndCard(ctx, mark, outW, outH, Math.min(1, (i - endStart) / (END_FADE * fps)))
+      // eslint-disable-next-line no-await-in-loop
+      await canvasSource.add(i / fps, 1 / fps)
+      if (onProgress) onProgress((i + 1) / totalFrames)
+    }
+    await output.finalize()
+    return new Blob([output.target.buffer], { type: 'video/mp4' })
+  } finally {
+    if (view) view.dispose()
+    host.remove()
+  }
 }

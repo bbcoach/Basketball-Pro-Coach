@@ -1,8 +1,9 @@
 import { useApp } from '../../../state/store'
 import {COND, keycap} from '../../../theme'
+import { webgl3dSupported } from '../../../board3d/support'
 
 export default function ShareModal() {
-  const { state, closeShareModal, doExportSteps, doExportVideo } = useApp()
+  const { state, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d } = useApp()
   if (!state.shareOpen) return null
   const { shareStatus, videoExporting } = state
   return (
@@ -19,6 +20,7 @@ export default function ShareModal() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div onClick={doExportSteps} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Step by step (PDF)</div>
             <div onClick={doExportVideo} style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Animation (video)</div>
+            {webgl3dSupported() && <div onClick={doExportVideo3d} style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Animation in 3D (video)</div>}
             <div onClick={closeShareModal} style={{ padding: 10, borderRadius: 12, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
           </div>
         )}
