@@ -1660,6 +1660,7 @@ function simulate(t, dt) {
   // chest (gathered up to the chest first if it was being dribbled), shot
   // from above the head.
   const reaches = []
+  let catching = null
   Object.values(figures).forEach((f) => { if (f.screenW > 0.01) reaches.push([f, null, 'cross', f.screenW]) })
   let squash = 1
   // the very first frame: the ball is already in the first carrier's hands,
@@ -1780,6 +1781,14 @@ function simulate(t, dt) {
         const e = 1 - Math.pow(1 - u, 1.5) // fast off the hands, slowing a touch
         ball.position.copy(flight.release.clone().lerp(catchPt, e))
         ball.position.y += 4 * flight.h * e * (1 - e)
+        // A soft catch: the hands meet the ball a little out in front and give
+        // with it, drawing it in towards the chest, rather than stopping it
+        // dead where it arrived.
+        if (rc && passer && rc !== passer && toPasser && e > 0.82) {
+          const gv = Math.sin(Math.PI * Math.min(1, (e - 0.82) / 0.18) * 0.5)
+          ball.position.addScaledVector(toPasser, -0.2 * gv)
+          ball.position.y -= 0.05 * gv
+        }
         // the receiver shows a target: the hand nearer the passer comes up
         // before the ball is thrown
         if (rc && passer && rc !== passer && e < 0.5) {
@@ -1793,6 +1802,7 @@ function simulate(t, dt) {
         // arms follow through, then the receiver's come up to meet it
         if (passer && u < 0.35) reaches.push([passer, chestPoint(passer, toRc).addScaledVector(toRc.clone().setY(0).normalize(), 0.25 * (u / 0.35)), 'follow'])
         if (rc && e > 0.5) reaches.push([rc, e > 0.8 ? ball.position.clone() : ball.position.clone().lerp(catchPt, 0.5), e > 0.97 ? 'hold' : 'catch'])
+        if (rc && rc !== passer) catching = { f: rc, w: Math.max(0, Math.min(1, (e - 0.78) / 0.22)) }
       }
     }
   } else {
@@ -1809,6 +1819,13 @@ function simulate(t, dt) {
     else if (kind === 'contest') reach(f, f.contestSide || 1, p, new THREE.Vector3(0, -0.3, 0).addScaledVector(sideOf(f), f.contestSide || 1))
     else holdBall(f, p)
   })
+  // taking a pass in stride: the chest gives back as the ball arrives (the
+  // legs are left alone: the feet are already planted)
+  if (catching && catching.w > 0.01) {
+    const c = catching.f; const w = Math.sin(Math.PI * catching.w)
+    c.torso.rotation.x -= 0.1 * w
+    c.head.rotation.x += 0.07 * w
+  }
   keepOutOfBodies(ball.position)
   ball.scale.set(1 + (1 - squash) * 0.5, squash, 1 + (1 - squash) * 0.5)
   // spin: backspin on a shot (about two turns a second) and on a pass, a
