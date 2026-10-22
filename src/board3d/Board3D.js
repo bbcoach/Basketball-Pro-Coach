@@ -399,7 +399,10 @@ function ledTexture(w) {
   const bg = g.createLinearGradient(0, 0, 0, 96); bg.addColorStop(0, '#28282d'); bg.addColorStop(1, '#1b1b1f')
   g.fillStyle = bg; g.fillRect(0, 0, 1024, 96)
   // same face, weight and slant as the app's titles
-  g.fillStyle = '#e8b13c'; g.font = `italic 800 64px ${COND}`; g.letterSpacing = '1px'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  // the lettering has the same vertical gold gradient as the app's title:
+  // pale at the top, gold in the middle, deep amber at the foot
+  const tg = g.createLinearGradient(0, 28, 0, 76); tg.addColorStop(0, '#fff1c9'); tg.addColorStop(0.46, '#e8b13c'); tg.addColorStop(1, '#9a6614')
+  g.fillStyle = tg; g.font = `italic 800 64px ${COND}`; g.letterSpacing = '1px'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillText('BASKETBALLPROCOACH.COM', 512, 52, 940)
   g.fillStyle = 'rgba(232,177,60,.35)'; g.fillRect(0, 0, 1024, 5); g.fillRect(0, 91, 1024, 5)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(w / 7, 1)
