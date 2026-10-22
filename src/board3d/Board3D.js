@@ -461,12 +461,12 @@ function ledTexture(w) {
   put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[2]), -Math.PI / 2, 9.6, 8.9)
   put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[0]), -Math.PI / 2, 9.6, 19.2)
   // the scorer's table opposite, with the officials behind it
-  parts.push(bx(0.62, 0.8, 4.4, -8.15, 0.4, 14, 0x24242a), bx(0.04, 0.12, 4.4, -7.83, 0.6, 14, 0xe8b13c), bx(0.9, 0.04, 4.5, -8.25, 0.82, 14, 0x3a3a40))
-  for (const z of [12.4, 13.5, 14.5, 15.6]) put(sitting(pick([0x9a9aa1, 0xcacacd, 0x5e5e66]), 0x1a1a1f, 0x15151a, pick(skins), pick(hairs)), Math.PI / 2, -8.85, z)
+  parts.push(bx(0.6, 1.0, 4.4, -9.85, 0.5, 14, 0x24242a), bx(0.04, 0.12, 4.4, -9.53, 0.8, 14, 0xe8b13c), bx(0.7, 0.04, 4.5, -9.85, 1.02, 14, 0x3a3a40))
+  for (const z of [12.4, 13.5, 14.5, 15.6]) put(sitting(pick([0x9a9aa1, 0xcacacd, 0x5e5e66]), 0x1a1a1f, 0x15151a, pick(skins), pick(hairs)), Math.PI / 2, -10.3, z)
   const stuff = new THREE.Mesh(mergeGeometries(parts), envMat({ color: 0xffffff, vertexColors: true }))
   stuff.castShadow = true; stuff.layers.enable(1); scene.add(stuff)
   // the laptops on the table
-  const lap = new THREE.Mesh(mergeGeometries([12.7, 13.8, 14.8].map((z) => new THREE.BoxGeometry(0.03, 0.2, 0.32).rotateZ(0.25).translate(-8.4, 0.95, z))), new THREE.MeshBasicMaterial({ color: 0xb8dcff }))
+  const lap = new THREE.Mesh(mergeGeometries([12.7, 13.8, 14.8].map((z) => new THREE.BoxGeometry(0.03, 0.2, 0.32).rotateZ(0.25).translate(-9.7, 1.14, z))), new THREE.MeshBasicMaterial({ color: 0xb8dcff }))
   scene.add(lap)
   // a low wall in front of the stands, navy with a gold top edge
   const wallM = envMat({ color: 0x1e1e24 }); const capM = new THREE.MeshBasicMaterial({ color: 0xe8b13c })
@@ -474,14 +474,29 @@ function ledTexture(w) {
   lowWall(0.18, 34.6, -10.5, 14); lowWall(0.18, 34.6, 10.5, 14); lowWall(21.2, 0.18, 0, -4.6); lowWall(21.2, 0.18, 0, 32.6)
   // the painted run-off: dark planks, and a thin gold line round the court
   const runoff = (() => {
-    const W2 = 21; const L2 = 37; const PX = 36
+    const W2 = 21; const L2 = 37; const PX = 56
     const c = document.createElement('canvas'); c.width = W2 * PX; c.height = L2 * PX
     const g = c.getContext('2d')
-    const tones = ['#2a2724', '#2d2926', '#282522', '#302c28', '#2b2825']
-    for (let x = 0, i = 0; x < c.width; x += 28, i++) { g.fillStyle = tones[(i * 7) % tones.length]; g.fillRect(x, 0, 28, c.height); g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x, 0, 1.4, c.height) }
+    const tones = ['#38332e', '#3b3631', '#35302b', '#3e3934', '#37322d']
+    for (let x = 0, i = 0; x < c.width; x += 44, i++) { g.fillStyle = tones[(i * 7) % tones.length]; g.fillRect(x, 0, 44, c.height); g.fillStyle = 'rgba(0,0,0,.26)'; g.fillRect(x, 0, 2, c.height) }
     const X = (m) => (m + W2 / 2) * PX; const Z = (m) => (m + 4.5) * PX
-    g.strokeStyle = 'rgba(232,177,60,.75)'; g.lineWidth = 3
+    g.strokeStyle = 'rgba(232,177,60,.8)'; g.lineWidth = 4
     g.strokeRect(X(-7.85), Z(-0.35), 15.7 * PX, 28.7 * PX)
+    // painted lettering in the run-off, like an arena's: the name along each
+    // baseline, the address along the sidelines, gold like the title
+    const word = (txt, cx, cz, rot, size, maxW) => {
+      g.save(); g.translate(X(cx), Z(cz)); g.rotate(rot)
+      g.font = `italic 800 ${size * PX}px ${COND}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = `${size * PX * 0.06}px`
+      const gr = g.createLinearGradient(0, -size * PX * 0.4, 0, size * PX * 0.4); gr.addColorStop(0, '#fff1c9'); gr.addColorStop(0.46, '#e8b13c'); gr.addColorStop(1, '#9a6614')
+      g.lineJoin = 'round'; g.lineWidth = size * PX * 0.09; g.strokeStyle = 'rgba(10,10,12,.85)'
+      g.strokeText(txt, 0, 0, maxW * PX); g.fillStyle = gr; g.fillText(txt, 0, 0, maxW * PX)
+      g.restore()
+    }
+    // (split either side of the stanchion, which stands in the middle)
+    word('BASKETBALL', -3.9, -1.85, 0, 1.15, 6.4); word('PRO COACH', 3.9, -1.85, 0, 1.15, 6.4)
+    word('BASKETBALL', 3.9, 29.85, Math.PI, 1.15, 6.4); word('PRO COACH', -3.9, 29.85, Math.PI, 1.15, 6.4)
+    word('BASKETBALLPROCOACH.COM', -8.5, 14, -Math.PI / 2, 0.62, 16)
+    word('BASKETBALLPROCOACH.COM', 8.5, 14, Math.PI / 2, 0.62, 16)
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
     const m = new THREE.Mesh(new THREE.PlaneGeometry(W2, L2), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }))
     m.rotation.x = -Math.PI / 2; m.position.set(0, -0.003, 14); m.receiveShadow = true
