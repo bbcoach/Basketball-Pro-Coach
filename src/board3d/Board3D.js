@@ -915,7 +915,7 @@ function makeToyHuman(p, idx, style = {}) {
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0 })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0 })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1472,10 +1472,34 @@ function simulate(t, dt) {
   const passerFig = act && act.type !== 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const lunge = passerFig && fr > 0.1 && fr < 0.6 ? Math.sin((Math.PI * (fr - 0.1)) / 0.5) : 0
 
+  // Bodies don't pass through each other. The board lets two tokens sit on
+  // the same spot (a screener on top of the defender he screens, a defender
+  // right on his man); here each pair that comes closer than a body's width
+  // is eased apart — a little more for opponents than for team-mates — and
+  // eased back as they part again, so it never jumps.
+  const bodies = Object.values(figures).map((f) => { const q = board.entPos(f.p, t, N, MARKS); return { f, x: toX(q.x), z: toZ(q.y) } })
+  const push = bodies.map(() => [0, 0])
+  for (let it = 0; it < 3; it++) {
+    for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i]; const b = bodies[j]
+      const ax = a.x + push[i][0]; const az = a.z + push[i][1]; const bx = b.x + push[j][0]; const bz = b.z + push[j][1]
+      const need = a.f.p.team === b.f.p.team ? 0.58 : 0.72
+      let dx = bx - ax; let dz = bz - az; let d = Math.hypot(dx, dz)
+      if (d >= need) continue
+      if (d < 1e-4) { dx = Math.cos(i * 2.4 + j); dz = Math.sin(i * 2.4 + j); d = 1 } // exactly on top: any direction, but the same one every frame
+      const m = ((need - Math.hypot(bx - ax, bz - az)) / 2) / d
+      push[i][0] -= dx * m; push[i][1] -= dz * m; push[j][0] += dx * m; push[j][1] += dz * m
+    }
+  }
+  bodies.forEach((bd, i) => {
+    const tx = Math.max(-0.6, Math.min(0.6, push[i][0])); const tz = Math.max(-0.6, Math.min(0.6, push[i][1]))
+    bd.f.offX += (tx - bd.f.offX) * 0.3; bd.f.offZ += (tz - bd.f.offZ) * 0.3
+  })
+
   // players: position, speed, facing, pose
   Object.values(figures).forEach((f) => {
-    const p = board.entPos(f.p, t, N, MARKS)
-    const x = toX(p.x); const z = toZ(p.y)
+    const bd = bodies.find((q) => q.f === f)
+    const x = bd.x + f.offX; const z = bd.z + f.offZ
     let vx = 0; let vz = 0
     if (f.prev) { vx = (x - f.prev.x) / dt; vz = (z - f.prev.z) / dt }
     f.prev = { x, z }
