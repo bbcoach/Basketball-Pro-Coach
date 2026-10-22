@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
 import { ROUTE_COLORS } from './routeColors'
@@ -112,7 +113,9 @@ const OutlineShader = {
 }
 // what the quality level switches (see QUALITY further down): the soft
 // background's resolution and blur, whether the nets get their own pass
-const qual = { bgScale: 0.5, bgBlur: true, nets: true }
+const qual = { bgScale: 0.5, bgBlur: true, nets: true, reflectScale: 0.5 }
+// the glossy floor's mirror (see below), sized with the picture
+let reflector = null
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -150,10 +153,31 @@ const CompositeShader = {
     }`,
 }
 const compositePass = new ShaderPass(CompositeShader)
+// A light colour grade on the linear picture, before tone mapping, like a
+// broadcast: shadows a touch cool, highlights a touch warm, slightly more
+// contrast and colour, and the corners drawn in a little.
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, aspect: { value: 1 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float aspect; varying vec2 vUv;
+    void main() {
+      vec4 t = texture2D(tDiffuse, vUv);
+      vec3 c = t.rgb;
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c *= mix(vec3(0.95, 0.98, 1.05), vec3(1.05, 1.01, 0.94), smoothstep(0.04, 0.9, l));
+      c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.07));
+      float l2 = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(l2), c, 1.07);
+      vec2 d = (vUv - 0.5) * vec2(aspect, 1.0);
+      c *= 1.0 - 0.3 * smoothstep(0.42, 1.0, length(d) * 1.25);
+      gl_FragColor = vec4(c, t.a);
+    }`,
+}
+const gradePass = new ShaderPass(GradeShader)
 // FXAA last, on the finished picture: smooths the stair-steps on lines and
 // outlines in the distance
 const fxaaPass = new ShaderPass(FXAAShader)
-composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
+composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(gradePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
 renderer.setClearColor(0x000000, 0)
 function sizeComposer() {
   const pr = renderer.getPixelRatio()
@@ -161,6 +185,7 @@ function sizeComposer() {
   maskRT.setSize(Math.round(W * pr), Math.round(H * pr))
   netRT.setSize(Math.round(W * pr), Math.round(H * pr))
   outlinePass.uniforms.resolution.value.set(W * pr, H * pr)
+  gradePass.uniforms.aspect.value = W / H
   // the line is 2.4 px on a picture about 1130 px across the diagonal; on a
   // phone, where everything is smaller, it shrinks with it (never below half)
   outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
@@ -168,6 +193,11 @@ function sizeComposer() {
   const bw = Math.max(1, Math.round(W * pr * qual.bgScale)); const bh = Math.max(1, Math.round(H * pr * qual.bgScale))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
   bgTexel.set(1 / bw, 1 / bh)
+  if (reflector) {
+    const rw = Math.max(1, Math.round(W * pr * qual.reflectScale)); const rh = Math.max(1, Math.round(H * pr * qual.reflectScale))
+    reflector.getRenderTarget().setSize(rw, rh)
+    reflector.material.uniforms.texel.value.set(1 / rw, 1 / rh)
+  }
 }
 const bgTexel = new THREE.Vector2()
 renderer.shadowMap.autoUpdate = false
@@ -320,6 +350,42 @@ court.rotation.x = -Math.PI / 2
 court.position.set(0, 0, 14)
 court.receiveShadow = true
 scene.add(court)
+// ── the glossy floor ───────────────────────────────────────────────────
+// A varnished court mirrors the players, the ball and the hoops a little,
+// most of all where you look across it at a low angle. The scene is drawn
+// once more from under the floor (small, and only on the top level),
+// smeared along the way you look, and laid over the wood as a see-through
+// layer that gets stronger the shallower the view.
+const ReflectShader = {
+  name: 'FloorMirror',
+  uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, texel: { value: new THREE.Vector2(1, 1) }, strength: { value: 1 } },
+  vertexShader: `uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vWorld;
+    void main() {
+      vUv = textureMatrix * vec4(position, 1.0);
+      vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 texel; uniform float strength; uniform vec3 color; varying vec4 vUv; varying vec3 vWorld;
+    void main() {
+      vec2 uv = vUv.xy / vUv.w;
+      vec4 acc = vec4(0.0); float tw = 0.0;
+      for (int i = -4; i <= 4; i++) {
+        float f = float(i); float w = exp(-f * f / 9.0);
+        acc += texture2D(tDiffuse, uv + vec2(f * 0.3, f * 1.8) * texel) * w; tw += w;
+      }
+      acc /= tw;
+      vec3 v = normalize(cameraPosition - vWorld);
+      float fr = pow(1.0 - clamp(v.y, 0.0, 1.0), 3.0);
+      gl_FragColor = vec4(acc.rgb, acc.a * strength * mix(0.09, 0.5, fr));
+    }`,
+}
+reflector = new Reflector(new THREE.PlaneGeometry(15, 28), { shader: ReflectShader, textureWidth: 256, textureHeight: 256, multisample: 0, clipBias: 0.003 })
+reflector.rotation.x = -Math.PI / 2
+reflector.position.set(0, 0.003, 14)
+Object.assign(reflector.material, { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
+reflector.renderOrder = 0.5
+reflector.visible = false
+scene.add(reflector)
 // navy surround: the court reads as a lit stage
 const apron = new THREE.Mesh(new THREE.PlaneGeometry(60, 70), envMat({ color: 0x161618 }))
 apron.rotation.x = -Math.PI / 2
@@ -456,6 +522,28 @@ function ledTexture(w) {
   scene.traverse((o) => { if (o.isLight) o.layers.enable(BG_LAYER) })
 }
 
+// ── light beams ────────────────────────────────────────────────────────
+// A faint cone of light under each lamp, as in the haze of a hall: brighter
+// near the lamp, fading towards the floor and at its edges. Top level only.
+const beams = (() => {
+  const H = 15.1; const geos = []
+  for (const z of [1, 7.5, 14, 20.5, 27]) for (const x of [-7, -3.5, 3.5, 7]) geos.push(new THREE.ConeGeometry(2.5, H, 24, 1, true).translate(x, H / 2, z))
+  const m = new THREE.Mesh(mergeGeometries(geos), new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false,
+    vertexShader: 'varying vec3 vW; varying vec3 vN; void main() { vW = (modelMatrix * vec4(position, 1.0)).xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.0); }',
+    fragmentShader: `varying vec3 vW; varying vec3 vN;
+      void main() {
+        float ax = clamp(vW.y / 15.1, 0.0, 1.0);
+        float edge = pow(abs(dot(normalize(cameraPosition - vW), normalize(vN))), 1.8);
+        float a = edge * (0.004 + 0.018 * ax * ax);
+        gl_FragColor = vec4(vec3(1.0, 0.86, 0.64), a);
+      }`,
+  }))
+  m.frustumCulled = false; m.renderOrder = 2; m.visible = false
+  scene.add(m)
+  return m
+})()
+
 // ── contact shadows ────────────────────────────────────────────────────
 // A soft dark patch right under each player and a smaller, darker one
 // under each foot that's on the floor — what makes a figure stand ON the
@@ -464,7 +552,7 @@ function ledTexture(w) {
 const blobTex = (() => {
   const c = document.createElement('canvas'); c.width = 64; c.height = 64
   const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32)
-  r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(0.55, 'rgba(0,0,0,.22)'); r.addColorStop(1, 'rgba(0,0,0,0)')
+  r.addColorStop(0, 'rgba(0,0,0,.8)'); r.addColorStop(0.22, 'rgba(0,0,0,.52)'); r.addColorStop(0.55, 'rgba(0,0,0,.16)'); r.addColorStop(1, 'rgba(0,0,0,0)')
   g.fillStyle = r; g.fillRect(0, 0, 64, 64)
   return new THREE.CanvasTexture(c)
 })()
@@ -613,10 +701,10 @@ const fourSteps = `
 // draw call, plus one for the outline and one for the shirt number —
 // instead of some eighty separate pieces. Units: the figure is 1 tall.
 const TOY_PALETTES = {
-  off: { kit: GOLD, trim: 0x15151a, shoe: 0x15151a, sock: 0xf4f4f4, band: 0x15151a, skin: SKIN, hair: HAIR },
-  def: { kit: 0x1c1d22, trim: 0xf2f2f2, shoe: 0xf2f2f2, sock: 0xf4f4f4, band: 0xf2f2f2, skin: SKIN, hair: HAIR },
+  off: { kit: GOLD, trim: 0x15151a, shoe: 0x15151a, sole: 0xf4f4f4, sock: 0xf4f4f4, band: 0x15151a, skin: SKIN, hair: HAIR },
+  def: { kit: 0x1c1d22, trim: 0xf2f2f2, shoe: 0xf2f2f2, sole: 0x15151a, sock: 0xf4f4f4, band: 0xf2f2f2, skin: SKIN, hair: HAIR },
 }
-const HAIRSTYLES = ['band', 'short', 'bun']
+const HAIRSTYLES = ['band', 'short', 'bun', 'afro', 'buzz']
 const TOY_BODY = { depth: 0.145, width: 0.213, torsoBot: 0.72, legD: 0.1, legW: 0.2, headR: 0.266, headUp: 0.14, handR: 0.068 }
 const TOY_BONES = [
   ['root', -1, 0, 0], ['pelvis', 0, 0, 0.4], ['spine', 1, 0, 0.46], ['chest', 2, 0, 0.62], ['head', 3, 0, 0.72],
@@ -639,7 +727,7 @@ function faceMatrix(dx, dy, lift, rz, sx, sy, sz) {
 function makeToyHuman(p, idx, style = {}) {
   const off = p.team === 'off'
   const pal = TOY_PALETTES[style.palette || (off ? 'off' : 'def')]
-  const hair = (style.hair && style.hair !== 'afro' ? style.hair : null) || HAIRSTYLES[idx % HAIRSTYLES.length]
+  const hair = style.hair || HAIRSTYLES[idx % HAIRSTYLES.length]
   const skinC = pal.skin[idx % pal.skin.length]; const hairC = pal.hair[idx % pal.hair.length]
   // collected pieces: outlined (the body) and detail (the face) separately
   const outlined = []; const detail = []; const armGeos = []
@@ -678,6 +766,10 @@ function makeToyHuman(p, idx, style = {}) {
   // shorts: hip piece (its waistband under the vest's hem) plus a tube per
   // leg, white hem at the bottom
   add(new THREE.CylinderGeometry(0.09, 0.106, 0.085, 40), pal.kit, 'pelvis', 0, -0.0075, 0, null, [1, 1, 0.7])
+  // trim on the jersey: round the neck, the arm holes and the hem
+  add(new THREE.TorusGeometry(0.056, 0.0065, 6, 28).rotateX(Math.PI / 2), pal.trim, 'spine', 0, 0.262, 0, null, [1, 1, 0.8])
+  add(new THREE.TorusGeometry(0.1035, 0.0048, 6, 44).rotateX(Math.PI / 2), pal.trim, 'pelvis', 0, -0.019, 0, null, [1, 1, 0.7])
+  for (const sd of [-1, 1]) add(new THREE.TorusGeometry(0.047, 0.0058, 6, 24).rotateY(Math.PI / 2), pal.trim, 'chest', sd * 0.1, 0.048, 0, null, [1, 1, 0.8])
   for (const S of ['L', 'R']) {
     add(new THREE.CylinderGeometry(0.06, 0.063, 0.125, 14, 1, true), pal.kit, 'hip' + S, 0, -0.055, 0)
     add(new THREE.TorusGeometry(0.0625, 0.0065, 4, 16), pal.trim, 'hip' + S, 0, -0.116, 0, [Math.PI / 2, 0, 0])
@@ -687,6 +779,12 @@ function makeToyHuman(p, idx, style = {}) {
     // sock: its own tube, a touch wider than the shin, so the edge is a clean line
     add(new THREE.CylinderGeometry(0.0405, 0.039, 0.07, 12, 1, true), pal.sock, 'knee' + S, 0, -0.123, 0)
     add(new THREE.CapsuleGeometry(0.039, 0.075, 3, 10), pal.shoe, 'ankle' + S, 0, -0.012, 0.022, [Math.PI / 2, 0, 0], [1.22, 1, 0.95])
+    // a thick sole in the other colour, and a lace panel on top
+    add(new THREE.CapsuleGeometry(0.04, 0.078, 3, 10), pal.sole, 'ankle' + S, 0, -0.04, 0.022, [Math.PI / 2, 0, 0], [1.27, 1.04, 0.3])
+    add(new THREE.SphereGeometry(0.02, 12, 8), pal.sole, 'ankle' + S, 0, 0.019, 0.047, null, [1.15, 0.5, 1.5])
+    // calf and thigh give the leg some shape
+    add(new THREE.SphereGeometry(0.034, 14, 10), skinC, 'knee' + S, 0, -0.07, -0.012, null, [1, 1.5, 1.05])
+    add(new THREE.SphereGeometry(0.043, 14, 10), skinC, 'hip' + S, 0, -0.05, 0.004, null, [1.04, 1.45, 1.05])
   }
   // arms along x (T-pose), bending at the elbow
   for (const [side, S] of [[-1, 'L'], [1, 'R']]) {
@@ -696,18 +794,23 @@ function makeToyHuman(p, idx, style = {}) {
     // Each joint is a finely rounded ball exactly as wide as the tube that
     // ends in it, riding on the limb that turns about it — so the tube's rim
     // always sits on the ball's surface and the outline stays one clean curve.
-    add(new THREE.SphereGeometry(0.0364, 28, 18), skinC, 'sh' + S)
-    add(new THREE.CylinderGeometry(0.0285, 0.036, 0.188, 28, 1, true), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
-    add(new THREE.SphereGeometry(0.0289, 24, 16), skinC, 'el' + S)
-    add(new THREE.CylinderGeometry(0.0215, 0.0285, 0.15, 24, 1, true), skinC, 'el' + S, side * 0.075, 0, 0, roll)
-    add(new THREE.SphereGeometry(0.0218, 18, 12), skinC, 'el' + S, side * 0.15, 0, 0)
+    add(new THREE.SphereGeometry(0.0435, 28, 18), skinC, 'sh' + S)
+    add(new THREE.CylinderGeometry(0.0335, 0.0435, 0.188, 28, 1, true), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
+    add(new THREE.SphereGeometry(0.0345, 24, 16), skinC, 'el' + S)
+    add(new THREE.CylinderGeometry(0.0255, 0.0345, 0.15, 24, 1, true), skinC, 'el' + S, side * 0.075, 0, 0, roll)
+    add(new THREE.SphereGeometry(0.0258, 18, 12), skinC, 'el' + S, side * 0.15, 0, 0)
     // a hand: flat palm, fingers together, and a thumb
     add(new THREE.SphereGeometry(0.034, 12, 8), skinC, 'el' + S, side * 0.181, -0.002, 0, null, [1.12, 0.62, 0.92])
     add(new THREE.SphereGeometry(0.0135, 8, 6), skinC, 'el' + S, side * 0.166, 0.004, 0.027, null, [1.5, 1, 1])
+    // four fingers (index to little) fanned a little, slightly curled down
+    ;[[0.026, 0.017, 0.0], [0.034, 0.006, 0.0], [0.03, -0.005, 0.0], [0.023, -0.016, 0.0]].forEach(([len, zz]) => {
+      add(new THREE.CapsuleGeometry(0.0072, len, 2, 6), skinC, 'el' + S, side * (0.207 + len / 2), -0.004, zz, [0, side * (zz - 0.0005) * 1.6, Math.PI / 2 - side * 0.12])
+    })
   }
   // head and hair
   const HC = 0.14; const HR = 0.14
   add(new THREE.SphereGeometry(HR, 32, 22), skinC, 'head', 0, HC, 0)
+  for (const sd of [-1, 1]) add(new THREE.SphereGeometry(0.03, 12, 8), skinC, 'head', sd * 0.134, HC - 0.004, -0.004, null, [0.4, 1.05, 0.75])
   // Hair and headband lie on the skull: a thin layer round the head's own
   // centre, from polar angle `from` to `to` (about the layer's tilted axis),
   // as thick as thick(0…1) says. At its edges it thins to almost nothing and
@@ -723,6 +826,8 @@ function makeToyHuman(p, idx, style = {}) {
   if (hair === 'band') add(skullLayer(1.0, 1.32, (u) => 0.0085 * Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 4)))), pal.band, 'head', 0, HC, 0, [-0.16, 0, 0])
   // short hair: a cap tilted back, down to the hairline
   if (hair === 'short' || hair === 'bun') add(skullLayer(0, Math.PI * 0.42, (u) => 0.0062 * (1 - smooth(0.78, 1, u))), hairC, 'head', 0, HC, 0, [-0.32, 0, 0])
+  if (hair === 'afro') add(new THREE.SphereGeometry(0.165, 28, 18), hairC, 'head', 0, HC + 0.03, -0.04)
+  if (hair === 'buzz') add(skullLayer(0, Math.PI * 0.4, (u) => 0.0035 * (1 - smooth(0.75, 1, u))), hairC, 'head', 0, HC, 0, [-0.3, 0, 0])
   if (hair === 'bun') add(new THREE.SphereGeometry(0.045, 24, 16), hairC, 'head', 0, HC + HR + 0.022, -0.022)
   // face: eyes with pupils and a catch-light, brows, nose, mouth — set onto
   // the curve of the head. Attackers get relaxed brows and a smile,
@@ -746,14 +851,14 @@ function makeToyHuman(p, idx, style = {}) {
       put(detail, new THREE.SphereGeometry(1, 8, 6), INK, 'head', onHead(side * 0.068, -0.012, 0.004, 0, 0.019, 0.024, 0.008))
       put(detail, new THREE.SphereGeometry(1, 6, 4), 0xffffff, 'head', onHead(side * 0.062, -0.002, 0.011, 0, 0.006, 0.006, 0.003))
     }
-    put(detail, new THREE.CapsuleGeometry(1, 3, 2, 6), INK, 'head', onHead(side * 0.074, (off ? 0.058 : 0.05) + FACE.browUp + (FACE.eyeY - 0.04) * 0.6, 0.002, Math.PI / 2 + side * FACE.browTilt, FACE.browW, 0.009, 0.006))
+    if (!style.liveEyes) put(detail, new THREE.CapsuleGeometry(1, 3, 2, 6), INK, 'head', onHead(side * 0.074, (off ? 0.058 : 0.05) + FACE.browUp + (FACE.eyeY - 0.04) * 0.6, 0.002, Math.PI / 2 + side * FACE.browTilt, FACE.browW, 0.009, 0.006))
   }
   put(detail, new THREE.SphereGeometry(1, 8, 6), skinC, 'head', onHead(0, -0.042, -0.006, 0, 0.017, 0.015, 0.016))
-  put(detail, new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * FACE.mouthArc), INK, 'head', onHead(0, off ? -0.088 : -0.094, 0, Math.PI + Math.PI * (1 - FACE.mouthArc) / 2, FACE.mouthW, 0.022, 0.012))
+  if (!style.liveEyes) put(detail, new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * FACE.mouthArc), INK, 'head', onHead(0, off ? -0.088 : -0.094, 0, Math.PI + Math.PI * (1 - FACE.mouthArc) / 2, FACE.mouthW, 0.022, 0.012))
 
   // joints and the rig
   const root = new THREE.Group()
-  const SC = 1.9
+  const SC = 1.9 * (style.height || 1)
   const rig = new THREE.Group(); rig.scale.setScalar(SC); root.add(rig)
   const bones = TOY_BONES.map(([name]) => { const b = new THREE.Bone(); b.name = name; return b })
   TOY_BONES.forEach(([, parent], i) => {
@@ -806,11 +911,11 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: style.height ? Object.fromEntries(Object.entries(TOY_BODY).map(([k, v]) => [k, v * style.height])) : TOY_BODY }
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0 })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -825,19 +930,33 @@ function disposeFigure(f) {
 // eyelids, so the whole lot costs three draw calls.
 let EYE_FIGS = []
 let pupils = null; let shines = null; let lids = null
+let brows = null; let mouths = null; let grins = null
 const eyeGeo = { pupil: new THREE.SphereGeometry(1, 8, 6), shine: new THREE.SphereGeometry(1, 6, 4), lid: new THREE.SphereGeometry(1, 10, 6) }
+// brows, the smile and an open mouth are live too, so the face can work:
+// brows down and a grimace in a sprint, steady eyes on a shot, a grin after
+// it drops
+const faceGeo = { brow: new THREE.CapsuleGeometry(1, 3, 2, 6), mouth: new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * 0.8), grin: new THREE.SphereGeometry(1, 10, 6) }
+const faceMat = new THREE.MeshBasicMaterial({ color: INK })
 const eyeMat = { pupil: new THREE.MeshBasicMaterial({ color: INK }), shine: new THREE.MeshBasicMaterial({ color: 0xffffff }), lid: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_RAMP }) }
+// Guards are a little smaller, bigs a little taller: by shirt number 1 to 5
+// (any other label keeps the standard height)
+const HEIGHTS = { 1: 0.95, 2: 0.98, 3: 1.02, 4: 1.05, 5: 1.08 }
+const heightOf = (p) => HEIGHTS[parseInt(String(p.label).replace(/\D/g, ''), 10)] || 1
 function buildFigures(list) {
   EYE_FIGS.forEach(disposeFigure)
-  ;[pupils, shines, lids].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
   figures = {}
-  list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true }), p, ...freshState(i) } })
+  list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true, height: heightOf(p) }), p, ...freshState(i) } })
   EYE_FIGS = Object.values(figures)
   const EYES = Math.max(1, EYE_FIGS.length * 2)
   pupils = new THREE.InstancedMesh(eyeGeo.pupil, eyeMat.pupil, EYES)
   shines = new THREE.InstancedMesh(eyeGeo.shine, eyeMat.shine, EYES)
   lids = new THREE.InstancedMesh(eyeGeo.lid, eyeMat.lid, EYES)
-  ;[pupils, shines, lids].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; scene.add(m) })
+  brows = new THREE.InstancedMesh(faceGeo.brow, faceMat, EYES)
+  mouths = new THREE.InstancedMesh(faceGeo.mouth, faceMat, Math.max(1, EYE_FIGS.length))
+  grins = new THREE.InstancedMesh(faceGeo.grin, faceMat, Math.max(1, EYE_FIGS.length))
+  ;[pupils, shines, lids, brows].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; scene.add(m) })
+  ;[mouths, grins].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length; scene.add(m) })
   EYE_FIGS.forEach((f, i) => { const c = new THREE.Color(f.skinC); lids.setColorAt(i * 2, c); lids.setColorAt(i * 2 + 1, c) })
 }
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0)
@@ -858,10 +977,28 @@ function updateEyes(t) {
       shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, -0.002 + oy, 0.011, 0, 0.006, 0.006, 0.003)))
       const ey = f.eyeY || 0.04
       lids.setMatrixAt(n, b > 0.02 ? m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.072, -0.005 + (ey + 0.002) * (1 - b), 0.0, 0, 0.034, (ey + 0.003) * b + 0.001, 0.015)) : ZERO)
-      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
+      // brow: lower and turned in when working hard or concentrating, up and
+      // open when pleased
+      const E = f.exx || [0, 0, 0]; const FC = f.face; const off = f.p.team === 'off'
+      const grim = Math.max(E[1], E[0] * 0.7)
+      const by = (off ? 0.058 : 0.05) + FC.browUp + (FC.eyeY - 0.04) * 0.6 - 0.013 * grim + 0.012 * E[2]
+      brows.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.074, by, 0.002, Math.PI / 2 + side * (FC.browTilt - 0.42 * grim + 0.22 * E[2]), FC.browW, 0.009, 0.006)))
+      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO); brows.setMatrixAt(n, ZERO) }
     })
+    {
+      const E = f.exx || [0, 0, 0]; const FC = f.face; const off = f.p.team === 'off'
+      const hide = f.fp || (f.op ?? 1) < 0.99
+      const my = off ? -0.088 : -0.094
+      const arc = 0.8
+      // the smile: deeper when pleased, flat when concentrating
+      const depth = 0.022 * (1 + 0.9 * E[2] - 0.55 * E[1] - 0.3 * E[0])
+      mouths.setMatrixAt(i, hide || E[0] > 0.45 ? ZERO : m.multiplyMatrices(f.head.matrixWorld, faceMatrix(0, my, 0, Math.PI + Math.PI * (1 - arc) / 2, FC.mouthW * (1 + 0.35 * E[2]), depth, 0.012)))
+      // an open mouth: breathing hard, or a broad grin
+      const open = Math.max(0, E[0] - 0.2) * 1.25 + Math.max(0, E[2] - 0.55) * 1.4
+      grins.setMatrixAt(i, hide || open < 0.05 ? ZERO : m.multiplyMatrices(f.head.matrixWorld, faceMatrix(0, my - 0.004, 0.004, 0, FC.mouthW * (0.62 + 0.25 * Math.min(1, open)), 0.006 + 0.016 * Math.min(1, open), 0.008)))
+    }
   })
-  pupils.instanceMatrix.needsUpdate = true; shines.instanceMatrix.needsUpdate = true; lids.instanceMatrix.needsUpdate = true
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((mm) => { mm.instanceMatrix.needsUpdate = true })
 }
 
 // Cones and spare balls from the drawing board: they stand where they were
@@ -1355,6 +1492,34 @@ function simulate(t, dt) {
     f.ampT = (f.ampT || 0) + (0.3 * turn - (f.ampT || 0)) * 0.3
     f.phase += Math.min(14, Math.max(speed / sweep, yawRate * 1.8 * turn)) * dt
     pose(f, f.ampF + f.ampT, f.ampL, f.s, defense, hold)
+    // Weight follows the movement: forward into a sprint, back and into the
+    // knees braking to a stop, and banking into a turn like a runner on a
+    // curve (his upper body leans to the inside, the head stays level).
+    {
+      const acc = f.pspd == null ? 0 : (speed - f.pspd) / dt
+      f.pspd = speed
+      f.accS += (Math.max(-9, Math.min(9, acc)) - f.accS) * 0.12
+      const run = Math.min(1, speed / 2.5)
+      f.torso.rotation.x += Math.max(-0.14, Math.min(0.16, f.accS * 0.022)) * (0.4 + 0.6 * run)
+      const brake = Math.max(0, -f.accS - 1.5) / 6 * Math.min(1, f.pspd / 1 + 0.4)
+      if (brake > 0.02) {
+        const bb = Math.min(1, brake)
+        for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.22 * bb; L.kn.rotation.x += 0.42 * bb; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
+      }
+      const rate = f.prev ? yd / dt : 0
+      const bankWant = -Math.max(-0.26, Math.min(0.26, 0.42 * Math.atan((rate * speed) / 9.8))) * run
+      f.bank += (bankWant - f.bank) * 0.15
+      f.torso.rotation.z = f.bank
+      f.head.rotation.z = -f.bank * 0.7
+      // the face: effort in a sprint, concentration on a shot, a grin once it drops
+      const exT = Math.max(0, Math.min(1, (speed - 2.8) / 3))
+      let foT = 0
+      if (f === shooter && fr < 0.75) foT = 1
+      else if (f === contester && uShot > -0.3 && uShot < 0.5) foT = 0.9
+      else if (f === passerFig && fr < 0.5) foT = 0.5
+      const joyT = shooter && !defense && uShot > 0.62 ? (f === shooter ? 1 : 0.7) : 0
+      f.ex0 += (exT - f.ex0) * 0.15; f.ex1 += (foT - f.ex1) * 0.15; f.ex2 += (joyT - f.ex2) * 0.15
+    }
     // setting a screen: feet wide, knees soft, upright — and still
     f.screenW = hold ? 0 : screenWeight(f.p, k, fr)
     if (f.screenW > 0.01) {
@@ -1380,8 +1545,10 @@ function simulate(t, dt) {
     }
     // sink into the knees (shooter gathering, defender loading to jump)
     let dip = 0; let lift = 0
-    if (f === shooter) { dip = fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0; lift = uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0 }
-    if (f === contester) { const uc = uShot - 0.06; dip = uShot > -0.3 && uc < 0.05 ? 0.7 : 0; lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
+    // landing: down through the knees to soak it up
+    const landing = (u) => (u >= 0 && u < 0.2 ? 0.85 * Math.sin((Math.PI * u) / 0.2) : 0)
+    if (f === shooter) { dip = Math.max(landing(uShot - 0.42), fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0); lift = uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0 }
+    if (f === contester) { const uc = uShot - 0.06; dip = Math.max(landing(uc - 0.4), uShot > -0.3 && uc < 0.05 ? 0.7 : 0); lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
     if (dip) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.55 * dip; L.kn.rotation.x += 1.05 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
     if (lift) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.kn.rotation.x *= 0.4; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) + 0.5 } // legs straighten, toes point
     plantFeet(f)
@@ -1575,7 +1742,7 @@ function simulate(t, dt) {
 const SPS = 60
 let SAMPLES = 1
 let FIGS = []
-const PER_FIG = 7 + 15 * 7
+const PER_FIG = 7 + 15 * 7 + 3 // root, 15 bones, expression (effort, focus, joy)
 const PER_BALL = 10
 let BAKED = null
 function bake() {
@@ -1599,6 +1766,7 @@ function bake() {
     FIGS.forEach((f) => {
       f.root.position.toArray(figs, o); f.root.quaternion.toArray(figs, o + 3); o += 7
       f.bones.forEach((b) => { b.position.toArray(figs, o); b.quaternion.toArray(figs, o + 3); o += 7 })
+      figs[o] = f.ex0; figs[o + 1] = f.ex1; figs[o + 2] = f.ex2; o += 3
     })
     ball.position.toArray(balls, i * PER_BALL); ball.quaternion.toArray(balls, i * PER_BALL + 3); ball.scale.toArray(balls, i * PER_BALL + 7)
     nets.forEach((nt, j) => { const o = (i * nets.length + j) * 3; swish[o] = nt.swish; swish[o + 1] = nt.sx; swish[o + 2] = nt.sz })
@@ -1621,6 +1789,7 @@ function applyBaked(t) {
     // his facing, for anything that asks which way he looks (cameras)
     f.yaw = 2 * Math.atan2(f.root.quaternion.y, f.root.quaternion.w)
     f.bones.forEach((b) => { blend(figs, o0, o1, b); o0 += 7; o1 += 7 })
+    f.exx = [0, 1, 2].map((k) => figs[o0 + k] * (1 - a) + figs[o1 + k] * a)
   })
   blend(balls, i0 * PER_BALL, (i0 + 1) * PER_BALL, ball)
   ball.scale.lerpVectors(_va.fromArray(balls, i0 * PER_BALL + 7), _vb.fromArray(balls, (i0 + 1) * PER_BALL + 7), a)
@@ -1995,9 +2164,9 @@ function holderAt(t) {
 //            warm pools of light left out, fewer samples for the outlines
 const dpr = window.devicePixelRatio || 1
 const QUALITY = {
-  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true },
-  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true },
-  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false },
+  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
+  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
+  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
 }
 let quality = 'medium'
 function applyQuality(q) {
@@ -2006,6 +2175,8 @@ function applyQuality(q) {
   qual.bgScale = Q.bgScale; qual.bgBlur = Q.bgBlur; qual.nets = Q.nets
   outlinePass.uniforms.taps.value = Q.taps
   spots.forEach((l) => { l.visible = Q.spots })
+  gradePass.enabled = Q.grade
+  qual.reflectScale = Q.reflect || 0.5; reflector.visible = Q.reflect > 0; beams.visible = Q.reflect > 0
   // smoothing: the picture is drawn into these two, so they carry the samples
   ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })
   renderer.setPixelRatio(Q.pr)
@@ -2077,7 +2248,7 @@ return {
       if (o.geometry) o.geometry.dispose()
       if (o.material) [].concat(o.material).forEach((m) => { Object.values(m).forEach((v) => { if (v && v.isTexture) v.dispose() }); m.dispose() })
     })
-    ;[maskRT, netRT, bgRT, blurRT].forEach((rt) => rt.dispose())
+    ;[maskRT, netRT, bgRT, blurRT, reflector.getRenderTarget()].forEach((rt) => rt.dispose())
     composer.dispose()
     renderer.dispose()
     renderer.forceContextLoss()
