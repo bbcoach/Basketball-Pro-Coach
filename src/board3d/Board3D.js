@@ -535,7 +535,7 @@ const beams = (() => {
       void main() {
         float ax = clamp(vW.y / 15.1, 0.0, 1.0);
         float edge = pow(abs(dot(normalize(cameraPosition - vW), normalize(vN))), 1.8);
-        float a = edge * (0.009 + 0.04 * ax * ax);
+        float a = edge * (0.004 + 0.018 * ax * ax);
         gl_FragColor = vec4(vec3(1.0, 0.86, 0.64), a);
       }`,
   }))
