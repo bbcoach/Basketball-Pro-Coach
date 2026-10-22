@@ -419,6 +419,103 @@ function ledTexture(w) {
   board(34, -9.2, 14, Math.PI / 2); board(34, 9.2, 14, -Math.PI / 2)
   board(18.4, 0, -3.4, 0); board(18.4, 0, 31.4, Math.PI)
 
+  // ── between the boards and the stands ───────────────────────────────
+  // The strip round the court used to be bare dark floor. Now: a darker
+  // painted run-off with the same planks, a soft gold glow along the foot of
+  // the boards, a low wall in front of the stands, team benches with their
+  // coaches, the scorer's table, photographers crouched at the baselines and
+  // a few stewards. All of it is sharp (not part of the soft background).
+  const skins = [0x8d5524, 0xc68642, 0x5c3a21, 0xe0ac69, 0xa0662f, 0xf1c27d]
+  const hairs = [0x1a120c, 0x2b1d14, 0x0e0b09, 0x4a3020]
+  const paint = (g, hex) => {
+    g.deleteAttribute('uv'); const c = new THREE.Color(hex); const n = g.attributes.position.count; const arr = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b }
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3)); return g
+  }
+  const bx = (w, h, d, x, y, z, hex) => paint(new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex)
+  const sp = (r, x, y, z, hex, sy = 1) => paint(new THREE.SphereGeometry(r, 10, 8).scale(1, sy, 1).translate(x, y, z), hex)
+  const parts = [] // everything with people and furniture, one mesh
+  const put = (geos, yaw, x, z) => { geos.forEach((g) => parts.push(g.rotateY(yaw).translate(x, 0, z))) }
+  let seed = 5; const rn = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 }
+  const pick = (arr) => arr[Math.floor(rn() * arr.length)]
+  // one person, facing +z (turned by put()): sitting, standing or crouching with a camera
+  const faceOf = (y, z, skin, hair) => [sp(0.115, 0, y, z, skin), sp(0.12, 0, y + 0.035, z - 0.02, hair, 0.78)]
+  const sitting = (shirt, shorts, shoe, skin, hair) => [
+    bx(0.36, 0.15, 0.4, 0, 0.5, 0.12, shorts),
+    ...[-1, 1].flatMap((k) => [bx(0.12, 0.42, 0.12, k * 0.09, 0.24, 0.31, skin), bx(0.13, 0.07, 0.22, k * 0.09, 0.04, 0.36, shoe), bx(0.09, 0.09, 0.3, k * 0.24, 0.66, 0.16, skin), bx(0.1, 0.42, 0.1, k * 0.25, 0.8, 0.02, shirt)]),
+    bx(0.38, 0.5, 0.24, 0, 0.84, 0, shirt), ...faceOf(1.2, 0.03, skin, hair),
+  ]
+  const standing = (shirt, pants, skin, hair, vest) => [
+    ...[-1, 1].flatMap((k) => [bx(0.13, 0.82, 0.14, k * 0.09, 0.41, 0, pants), bx(0.1, 0.56, 0.1, k * 0.26, 1.08, 0, shirt)]),
+    bx(0.4, 0.62, 0.25, 0, 1.12, 0, vest || shirt), ...faceOf(1.58, 0.01, skin, hair),
+  ]
+  const crouch = (shirt, skin, hair) => [
+    ...[-1, 1].flatMap((k) => [bx(0.14, 0.14, 0.46, k * 0.1, 0.46, 0.12, 0x1c1c21), bx(0.12, 0.46, 0.12, k * 0.1, 0.22, 0.32, 0x1c1c21)]),
+    paint(new THREE.BoxGeometry(0.38, 0.5, 0.24).translate(0, 0.25, 0).rotateX(0.38).translate(0, 0.52, 0.04), shirt),
+    ...faceOf(1.12, 0.26, skin, hair),
+    bx(0.2, 0.15, 0.15, 0, 1.0, 0.44, 0x141418), paint(new THREE.CylinderGeometry(0.075, 0.08, 0.36, 10).rotateX(Math.PI / 2).translate(0, 1.0, 0.7), 0x2a2a30),
+  ]
+  const GOLDK = 0xd9ad4a; const DARKK = 0x1c1d22
+  // benches on the right-hand sideline: gold team, then the dark team
+  const bench = (zc, len, kit, shorts, shoe, n) => {
+    parts.push(bx(0.5, 0.06, len, 8.7, 0.45, zc, 0x2b2b30), bx(0.06, 0.45, len, 8.98, 0.7, zc, 0x232328))
+    for (const dz of [-len / 2 + 0.2, len / 2 - 0.2]) parts.push(bx(0.4, 0.45, 0.06, 8.7, 0.22, zc + dz, 0x232328))
+    for (let i = 0; i < n; i++) put(sitting(kit, shorts, shoe, pick(skins), pick(hairs)), -Math.PI / 2, 8.62, zc - len / 2 + 0.45 + i * ((len - 0.9) / (n - 1)))
+  }
+  bench(10, 4.8, GOLDK, GOLDK, 0xf4f4f4, 6)
+  bench(18, 4.8, DARKK, DARKK, 0xf4f4f4, 6)
+  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[2]), -Math.PI / 2, 8.1, 8.9)
+  put(standing(0x2a2a32, 0x1a1a1f, pick(skins), hairs[0]), -Math.PI / 2, 8.1, 19.2)
+  // the scorer's table opposite, with the officials behind it
+  parts.push(bx(0.62, 0.8, 4.4, -8.15, 0.4, 14, 0x24242a), bx(0.04, 0.12, 4.4, -7.83, 0.6, 14, 0xe8b13c), bx(0.9, 0.04, 4.5, -8.25, 0.82, 14, 0x3a3a40))
+  for (const z of [12.4, 13.5, 14.5, 15.6]) put(sitting(pick([0x9a9aa1, 0xcacacd, 0x5e5e66]), 0x1a1a1f, 0x15151a, pick(skins), pick(hairs)), Math.PI / 2, -8.85, z)
+  // photographers at both baselines, facing the court
+  for (const x of [-6.4, -3.6, 3.4, 6.2]) {
+    put(crouch(0x1e1e22, pick(skins), pick(hairs)), 0, x, -1.7)
+    put(crouch(0x232328, pick(skins), pick(hairs)), Math.PI, -x * 0.9, 29.7)
+  }
+  // stewards in front of the stands, facing the crowd
+  const VEST = 0xb9ae3a
+  ;[[-9.95, 3], [-9.95, 12], [-9.95, 22], [-9.95, 28], [9.95, 4], [9.95, 14], [9.95, 24]].forEach(([x, z]) => put(standing(0x1f1f24, 0x15151a, pick(skins), pick(hairs), VEST), x < 0 ? -Math.PI / 2 : Math.PI / 2, x, z))
+  ;[[-6, -4.1], [2, -4.1], [-3, 32.3], [7, 32.3]].forEach(([x, z]) => put(standing(0x1f1f24, 0x15151a, pick(skins), pick(hairs), VEST), z < 0 ? Math.PI : 0, x, z))
+  const stuff = new THREE.Mesh(mergeGeometries(parts), envMat({ color: 0xffffff, vertexColors: true }))
+  stuff.castShadow = true; stuff.layers.enable(1); scene.add(stuff)
+  // the laptops on the table
+  const lap = new THREE.Mesh(mergeGeometries([12.7, 13.8, 14.8].map((z) => new THREE.BoxGeometry(0.03, 0.2, 0.32).rotateZ(0.25).translate(-8.4, 0.95, z))), new THREE.MeshBasicMaterial({ color: 0xb8dcff }))
+  scene.add(lap)
+  // a low wall in front of the stands, navy with a gold top edge
+  const wallM = envMat({ color: 0x1e1e24 }); const capM = new THREE.MeshBasicMaterial({ color: 0xe8b13c })
+  const lowWall = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.8, d), wallM); m.position.set(x, 0.4, z); scene.add(m); const c = new THREE.Mesh(new THREE.BoxGeometry(w + (w > d ? 0 : 0.02), 0.04, d + (w > d ? 0.02 : 0)), capM); c.position.set(x, 0.82, z); scene.add(c) }
+  lowWall(0.18, 34.6, -10.5, 14); lowWall(0.18, 34.6, 10.5, 14); lowWall(21.2, 0.18, 0, -4.6); lowWall(21.2, 0.18, 0, 32.6)
+  // the painted run-off: dark planks, and a thin gold line round the court
+  const runoff = (() => {
+    const W2 = 21; const L2 = 37; const PX = 36
+    const c = document.createElement('canvas'); c.width = W2 * PX; c.height = L2 * PX
+    const g = c.getContext('2d')
+    const tones = ['#2a2724', '#2d2926', '#282522', '#302c28', '#2b2825']
+    for (let x = 0, i = 0; x < c.width; x += 28, i++) { g.fillStyle = tones[(i * 7) % tones.length]; g.fillRect(x, 0, 28, c.height); g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x, 0, 1.4, c.height) }
+    const X = (m) => (m + W2 / 2) * PX; const Z = (m) => (m + 4.5) * PX
+    g.strokeStyle = 'rgba(232,177,60,.75)'; g.lineWidth = 3
+    g.strokeRect(X(-7.85), Z(-0.35), 15.7 * PX, 28.7 * PX)
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(W2, L2), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7 }))
+    m.rotation.x = -Math.PI / 2; m.position.set(0, -0.003, 14); m.receiveShadow = true
+    return m
+  })()
+  scene.add(runoff)
+  // a soft gold glow on the floor along the foot of every board
+  const glowStrip = (() => {
+    const c = document.createElement('canvas'); c.width = 4; c.height = 64
+    const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(232,177,60,.55)'); gr.addColorStop(1, 'rgba(232,177,60,0)')
+    g.fillStyle = gr; g.fillRect(0, 0, 4, 64)
+    return new THREE.CanvasTexture(c)
+  })()
+  const strip = (len, x, z, ry) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.9), new THREE.MeshBasicMaterial({ map: glowStrip, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+    m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, ry, 0); m.position.set(x, 0.006, z); scene.add(m)
+  }
+  strip(34, -8.78, 14, Math.PI / 2); strip(34, 8.78, 14, -Math.PI / 2); strip(18.4, 0, -2.95, 0); strip(18.4, 0, 30.95, Math.PI)
+
   const beforeBg = new Set(scene.children)
   // ── bleachers with a crowd ───────────────────────────────────────────
   // Stepped rows on all four sides in navy; every seat gets a spectator (or
