@@ -834,10 +834,10 @@ function makeToyHuman(p, idx, style = {}) {
       put(detail, new THREE.SphereGeometry(1, 8, 6), INK, 'head', onHead(side * 0.068, -0.012, 0.004, 0, 0.019, 0.024, 0.008))
       put(detail, new THREE.SphereGeometry(1, 6, 4), 0xffffff, 'head', onHead(side * 0.062, -0.002, 0.011, 0, 0.006, 0.006, 0.003))
     }
-    put(detail, new THREE.CapsuleGeometry(1, 3, 2, 6), INK, 'head', onHead(side * 0.074, (off ? 0.058 : 0.05) + FACE.browUp + (FACE.eyeY - 0.04) * 0.6, 0.002, Math.PI / 2 + side * FACE.browTilt, FACE.browW, 0.009, 0.006))
+    if (!style.liveEyes) put(detail, new THREE.CapsuleGeometry(1, 3, 2, 6), INK, 'head', onHead(side * 0.074, (off ? 0.058 : 0.05) + FACE.browUp + (FACE.eyeY - 0.04) * 0.6, 0.002, Math.PI / 2 + side * FACE.browTilt, FACE.browW, 0.009, 0.006))
   }
   put(detail, new THREE.SphereGeometry(1, 8, 6), skinC, 'head', onHead(0, -0.042, -0.006, 0, 0.017, 0.015, 0.016))
-  put(detail, new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * FACE.mouthArc), INK, 'head', onHead(0, off ? -0.088 : -0.094, 0, Math.PI + Math.PI * (1 - FACE.mouthArc) / 2, FACE.mouthW, 0.022, 0.012))
+  if (!style.liveEyes) put(detail, new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * FACE.mouthArc), INK, 'head', onHead(0, off ? -0.088 : -0.094, 0, Math.PI + Math.PI * (1 - FACE.mouthArc) / 2, FACE.mouthW, 0.022, 0.012))
 
   // joints and the rig
   const root = new THREE.Group()
@@ -894,11 +894,11 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0 })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -913,11 +913,17 @@ function disposeFigure(f) {
 // eyelids, so the whole lot costs three draw calls.
 let EYE_FIGS = []
 let pupils = null; let shines = null; let lids = null
+let brows = null; let mouths = null; let grins = null
 const eyeGeo = { pupil: new THREE.SphereGeometry(1, 8, 6), shine: new THREE.SphereGeometry(1, 6, 4), lid: new THREE.SphereGeometry(1, 10, 6) }
+// brows, the smile and an open mouth are live too, so the face can work:
+// brows down and a grimace in a sprint, steady eyes on a shot, a grin after
+// it drops
+const faceGeo = { brow: new THREE.CapsuleGeometry(1, 3, 2, 6), mouth: new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * 0.8), grin: new THREE.SphereGeometry(1, 10, 6) }
+const faceMat = new THREE.MeshBasicMaterial({ color: INK })
 const eyeMat = { pupil: new THREE.MeshBasicMaterial({ color: INK }), shine: new THREE.MeshBasicMaterial({ color: 0xffffff }), lid: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_RAMP }) }
 function buildFigures(list) {
   EYE_FIGS.forEach(disposeFigure)
-  ;[pupils, shines, lids].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
   figures = {}
   list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true }), p, ...freshState(i) } })
   EYE_FIGS = Object.values(figures)
@@ -925,7 +931,11 @@ function buildFigures(list) {
   pupils = new THREE.InstancedMesh(eyeGeo.pupil, eyeMat.pupil, EYES)
   shines = new THREE.InstancedMesh(eyeGeo.shine, eyeMat.shine, EYES)
   lids = new THREE.InstancedMesh(eyeGeo.lid, eyeMat.lid, EYES)
-  ;[pupils, shines, lids].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; scene.add(m) })
+  brows = new THREE.InstancedMesh(faceGeo.brow, faceMat, EYES)
+  mouths = new THREE.InstancedMesh(faceGeo.mouth, faceMat, Math.max(1, EYE_FIGS.length))
+  grins = new THREE.InstancedMesh(faceGeo.grin, faceMat, Math.max(1, EYE_FIGS.length))
+  ;[pupils, shines, lids, brows].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; scene.add(m) })
+  ;[mouths, grins].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length; scene.add(m) })
   EYE_FIGS.forEach((f, i) => { const c = new THREE.Color(f.skinC); lids.setColorAt(i * 2, c); lids.setColorAt(i * 2 + 1, c) })
 }
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0)
@@ -946,10 +956,28 @@ function updateEyes(t) {
       shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, -0.002 + oy, 0.011, 0, 0.006, 0.006, 0.003)))
       const ey = f.eyeY || 0.04
       lids.setMatrixAt(n, b > 0.02 ? m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.072, -0.005 + (ey + 0.002) * (1 - b), 0.0, 0, 0.034, (ey + 0.003) * b + 0.001, 0.015)) : ZERO)
-      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO) }
+      // brow: lower and turned in when working hard or concentrating, up and
+      // open when pleased
+      const E = f.exx || [0, 0, 0]; const FC = f.face; const off = f.p.team === 'off'
+      const grim = Math.max(E[1], E[0] * 0.7)
+      const by = (off ? 0.058 : 0.05) + FC.browUp + (FC.eyeY - 0.04) * 0.6 - 0.013 * grim + 0.012 * E[2]
+      brows.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.074, by, 0.002, Math.PI / 2 + side * (FC.browTilt - 0.42 * grim + 0.22 * E[2]), FC.browW, 0.009, 0.006)))
+      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO); brows.setMatrixAt(n, ZERO) }
     })
+    {
+      const E = f.exx || [0, 0, 0]; const FC = f.face; const off = f.p.team === 'off'
+      const hide = f.fp || (f.op ?? 1) < 0.99
+      const my = off ? -0.088 : -0.094
+      const arc = 0.8
+      // the smile: deeper when pleased, flat when concentrating
+      const depth = 0.022 * (1 + 0.9 * E[2] - 0.55 * E[1] - 0.3 * E[0])
+      mouths.setMatrixAt(i, hide || E[0] > 0.45 ? ZERO : m.multiplyMatrices(f.head.matrixWorld, faceMatrix(0, my, 0, Math.PI + Math.PI * (1 - arc) / 2, FC.mouthW * (1 + 0.35 * E[2]), depth, 0.012)))
+      // an open mouth: breathing hard, or a broad grin
+      const open = Math.max(0, E[0] - 0.2) * 1.25 + Math.max(0, E[2] - 0.55) * 1.4
+      grins.setMatrixAt(i, hide || open < 0.05 ? ZERO : m.multiplyMatrices(f.head.matrixWorld, faceMatrix(0, my - 0.004, 0.004, 0, FC.mouthW * (0.62 + 0.25 * Math.min(1, open)), 0.006 + 0.016 * Math.min(1, open), 0.008)))
+    }
   })
-  pupils.instanceMatrix.needsUpdate = true; shines.instanceMatrix.needsUpdate = true; lids.instanceMatrix.needsUpdate = true
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((mm) => { mm.instanceMatrix.needsUpdate = true })
 }
 
 // Cones and spare balls from the drawing board: they stand where they were
@@ -1443,6 +1471,34 @@ function simulate(t, dt) {
     f.ampT = (f.ampT || 0) + (0.3 * turn - (f.ampT || 0)) * 0.3
     f.phase += Math.min(14, Math.max(speed / sweep, yawRate * 1.8 * turn)) * dt
     pose(f, f.ampF + f.ampT, f.ampL, f.s, defense, hold)
+    // Weight follows the movement: forward into a sprint, back and into the
+    // knees braking to a stop, and banking into a turn like a runner on a
+    // curve (his upper body leans to the inside, the head stays level).
+    {
+      const acc = f.pspd == null ? 0 : (speed - f.pspd) / dt
+      f.pspd = speed
+      f.accS += (Math.max(-9, Math.min(9, acc)) - f.accS) * 0.12
+      const run = Math.min(1, speed / 2.5)
+      f.torso.rotation.x += Math.max(-0.14, Math.min(0.16, f.accS * 0.022)) * (0.4 + 0.6 * run)
+      const brake = Math.max(0, -f.accS - 1.5) / 6 * Math.min(1, f.pspd / 1 + 0.4)
+      if (brake > 0.02) {
+        const bb = Math.min(1, brake)
+        for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.22 * bb; L.kn.rotation.x += 0.42 * bb; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
+      }
+      const rate = f.prev ? yd / dt : 0
+      const bankWant = -Math.max(-0.26, Math.min(0.26, 0.42 * Math.atan((rate * speed) / 9.8))) * run
+      f.bank += (bankWant - f.bank) * 0.15
+      f.torso.rotation.z = f.bank
+      f.head.rotation.z = -f.bank * 0.7
+      // the face: effort in a sprint, concentration on a shot, a grin once it drops
+      const exT = Math.max(0, Math.min(1, (speed - 2.8) / 3))
+      let foT = 0
+      if (f === shooter && fr < 0.75) foT = 1
+      else if (f === contester && uShot > -0.3 && uShot < 0.5) foT = 0.9
+      else if (f === passerFig && fr < 0.5) foT = 0.5
+      const joyT = shooter && !defense && uShot > 0.62 ? (f === shooter ? 1 : 0.7) : 0
+      f.ex0 += (exT - f.ex0) * 0.15; f.ex1 += (foT - f.ex1) * 0.15; f.ex2 += (joyT - f.ex2) * 0.15
+    }
     // setting a screen: feet wide, knees soft, upright — and still
     f.screenW = hold ? 0 : screenWeight(f.p, k, fr)
     if (f.screenW > 0.01) {
@@ -1468,8 +1524,10 @@ function simulate(t, dt) {
     }
     // sink into the knees (shooter gathering, defender loading to jump)
     let dip = 0; let lift = 0
-    if (f === shooter) { dip = fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0; lift = uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0 }
-    if (f === contester) { const uc = uShot - 0.06; dip = uShot > -0.3 && uc < 0.05 ? 0.7 : 0; lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
+    // landing: down through the knees to soak it up
+    const landing = (u) => (u >= 0 && u < 0.2 ? 0.85 * Math.sin((Math.PI * u) / 0.2) : 0)
+    if (f === shooter) { dip = Math.max(landing(uShot - 0.42), fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0); lift = uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0 }
+    if (f === contester) { const uc = uShot - 0.06; dip = Math.max(landing(uc - 0.4), uShot > -0.3 && uc < 0.05 ? 0.7 : 0); lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
     if (dip) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.55 * dip; L.kn.rotation.x += 1.05 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
     if (lift) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.kn.rotation.x *= 0.4; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) + 0.5 } // legs straighten, toes point
     plantFeet(f)
@@ -1663,7 +1721,7 @@ function simulate(t, dt) {
 const SPS = 60
 let SAMPLES = 1
 let FIGS = []
-const PER_FIG = 7 + 15 * 7
+const PER_FIG = 7 + 15 * 7 + 3 // root, 15 bones, expression (effort, focus, joy)
 const PER_BALL = 10
 let BAKED = null
 function bake() {
@@ -1687,6 +1745,7 @@ function bake() {
     FIGS.forEach((f) => {
       f.root.position.toArray(figs, o); f.root.quaternion.toArray(figs, o + 3); o += 7
       f.bones.forEach((b) => { b.position.toArray(figs, o); b.quaternion.toArray(figs, o + 3); o += 7 })
+      figs[o] = f.ex0; figs[o + 1] = f.ex1; figs[o + 2] = f.ex2; o += 3
     })
     ball.position.toArray(balls, i * PER_BALL); ball.quaternion.toArray(balls, i * PER_BALL + 3); ball.scale.toArray(balls, i * PER_BALL + 7)
     nets.forEach((nt, j) => { const o = (i * nets.length + j) * 3; swish[o] = nt.swish; swish[o + 1] = nt.sx; swish[o + 2] = nt.sz })
@@ -1709,6 +1768,7 @@ function applyBaked(t) {
     // his facing, for anything that asks which way he looks (cameras)
     f.yaw = 2 * Math.atan2(f.root.quaternion.y, f.root.quaternion.w)
     f.bones.forEach((b) => { blend(figs, o0, o1, b); o0 += 7; o1 += 7 })
+    f.exx = [0, 1, 2].map((k) => figs[o0 + k] * (1 - a) + figs[o1 + k] * a)
   })
   blend(balls, i0 * PER_BALL, (i0 + 1) * PER_BALL, ball)
   ball.scale.lerpVectors(_va.fromArray(balls, i0 * PER_BALL + 7), _vb.fromArray(balls, (i0 + 1) * PER_BALL + 7), a)
@@ -2167,7 +2227,7 @@ return {
       if (o.geometry) o.geometry.dispose()
       if (o.material) [].concat(o.material).forEach((m) => { Object.values(m).forEach((v) => { if (v && v.isTexture) v.dispose() }); m.dispose() })
     })
-    ;[maskRT, netRT, bgRT, blurRT].forEach((rt) => rt.dispose())
+    ;[maskRT, netRT, bgRT, blurRT, reflector.getRenderTarget()].forEach((rt) => rt.dispose())
     composer.dispose()
     renderer.dispose()
     renderer.forceContextLoss()
