@@ -1752,7 +1752,8 @@ function simulate(t, dt) {
     } else {
       const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
       const G = 0.18
-      const toRc = rc && passer ? rc.root.position.clone().sub(passer.root.position) : null
+      // with nobody to pass to (a pass drawn to an empty spot) he throws towards the spot
+      const toRc = passer ? (rc ? rc.root.position.clone() : new THREE.Vector3(toX(end.x), 0, toZ(end.y))).sub(passer.root.position) : null
       // caught with the arms out a little towards the pass; the next step
       // starts by pulling it in to the chest
       const toPasser = rc && passer ? passer.root.position.clone().sub(rc.root.position).setY(0).normalize() : null
@@ -2023,6 +2024,7 @@ function view(t) {
   updateEyes(t)
   const kStep = stepAtTime(t, N)
   routeGroups.forEach((g, i) => { g.visible = showPaths && i === kStep - 1 })
+  if (showPaths) updateRouteProgress(kStep)
   const holder = holderAt(t)
   carrierRing.visible = !!holder && !holder.fp
   if (holder) carrierRing.position.set(holder.root.position.x, 0.014, holder.root.position.z)
@@ -2096,11 +2098,25 @@ let showPaths = true
 // each kind of action has its own colour (see routeColors.js): a line, and a
 // faint glow of the same colour round it, over one shared dark edge
 const routeMats = {}
+// How far along each route its mover has got (metres), by route number: the
+// part of the line behind him is drawn the same colour but faded, like a
+// trail already covered. Every route material shares this one array.
+const ROUTES_MAX = 40
+const routeProg = { value: new Float32Array(ROUTES_MAX) }
+function passed(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uProg = routeProg
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float arc; attribute float rid; varying float vArc; varying float vRid;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvArc = arc; vRid = rid;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uProg[' + ROUTES_MAX + ']; varying float vArc; varying float vRid;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float pr = uProg[int(vRid + 0.5)]; diffuseColor.a *= mix(0.3, 1.0, smoothstep(pr - 0.4, pr, vArc)); }')
+  }
+  mat.customProgramCacheKey = () => 'route-passed'
+  return mat
+}
 const matsFor = (type) => routeMats[type] || (routeMats[type] = {
-  ink: new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.98, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
-  glow: new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
+  ink: passed(new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.98, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })),
+  glow: passed(new THREE.MeshBasicMaterial({ color: ROUTE_COLORS[type] ?? 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })),
 })
-const edgeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
+const edgeMat = passed(new THREE.MeshBasicMaterial({ color: 0x0a0a0c, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }))
 // Laid as thin tubes, not flat ribbons: a flat line seen from a low camera
 // shrinks to almost nothing, a tube looks the same thickness from anywhere.
 const ROUTE_Y = 0.05
@@ -2141,28 +2157,65 @@ function waveSample(pts) {
   out.push(pts[pts.length - 1])
   return out
 }
-// a tube of radius r along a polyline (world x/z), six-sided
+// a tube of radius r along a polyline (world x/z), six-sided, with rounded
+// ends where asked (a hemisphere of a few rings). Every vertex also records
+// how far along its route it lies (arc, metres) and which route it belongs to
+// (rid), for the fade of the part already covered.
 const TUBE_SIDES = 6
-function addTube(arr, line, r) {
-  const ring = (i) => {
-    const a = line[Math.max(0, i - 1)]; const b = line[Math.min(line.length - 1, i + 1)]
+const CAP_RINGS = 3
+let curRid = 0
+const pushV = (arr, arc, ...v) => { arr.push(...v); arr.arc.push(arc); arr.rid.push(curRid) }
+function addTube(arr, line, r, base = 0, capStart = false, capEnd = false) {
+  const n = line.length
+  const cum = [0]
+  for (let i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z))
+  const tan = (i) => {
+    const a = line[Math.max(0, i - 1)]; const b = line[Math.min(n - 1, i + 1)]
     const dx = b.x - a.x; const dz = b.z - a.z; const l = Math.hypot(dx, dz) || 1
-    const sx = -dz / l; const sz = dx / l
+    return [dx / l, dz / l]
+  }
+  // a ring about centre c, with the tube's side and the given radius, pushed
+  // `along` the tube's direction
+  const ringAt = (c, [tx, tz], rr, along) => {
+    const sx = -tz; const sz = tx
     const out = []
     for (let k = 0; k < TUBE_SIDES; k++) {
       const th = (k / TUBE_SIDES) * Math.PI * 2
-      out.push([line[i].x + sx * Math.cos(th) * r, ROUTE_Y + Math.sin(th) * r, line[i].z + sz * Math.cos(th) * r])
+      out.push([c.x + tx * along + sx * Math.cos(th) * rr, ROUTE_Y + Math.sin(th) * rr, c.z + tz * along + sz * Math.cos(th) * rr])
     }
     return out
   }
-  let prev = ring(0)
-  for (let i = 1; i < line.length; i++) {
-    const cur = ring(i)
+  const band = (p, q, ap, aq) => {
     for (let k = 0; k < TUBE_SIDES; k++) {
       const k2 = (k + 1) % TUBE_SIDES
-      arr.push(...prev[k], ...prev[k2], ...cur[k], ...prev[k2], ...cur[k2], ...cur[k])
+      pushV(arr, ap, ...p[k]); pushV(arr, ap, ...p[k2]); pushV(arr, aq, ...q[k]); pushV(arr, ap, ...p[k2]); pushV(arr, aq, ...q[k2]); pushV(arr, aq, ...q[k])
     }
+  }
+  if (capStart && n > 1) {
+    const T = tan(0); const T0 = [T[0], T[1]]
+    let prev = null
+    for (let j = 0; j <= CAP_RINGS; j++) {
+      const ph = (Math.PI / 2) * (1 - j / CAP_RINGS) // tip → full ring
+      const ring = ringAt(line[0], T0, r * Math.cos(ph), -r * Math.sin(ph))
+      if (prev) band(prev, ring, base, base)
+      prev = ring
+    }
+  }
+  let prev = ringAt(line[0], tan(0), r, 0)
+  for (let i = 1; i < n; i++) {
+    const cur = ringAt(line[i], tan(i), r, 0)
+    band(prev, cur, base + cum[i - 1], base + cum[i])
     prev = cur
+  }
+  if (capEnd && n > 1) {
+    const T = tan(n - 1)
+    let p2 = prev
+    for (let j = 1; j <= CAP_RINGS; j++) {
+      const ph = (Math.PI / 2) * (j / CAP_RINGS)
+      const ring = ringAt(line[n - 1], T, r * Math.cos(ph), r * Math.sin(ph))
+      band(p2, ring, base + cum[n - 1], base + cum[n - 1])
+      p2 = ring
+    }
   }
 }
 // the part of a polyline between arc lengths s0 and s1
@@ -2175,7 +2228,7 @@ function slice(line, cum, s0, s1) {
 }
 function addStroke(arr, line, hw, dash) {
   if (line.length < 2) return
-  if (!dash) { addTube(arr, line, hw); return }
+  if (!dash) { addTube(arr, line, hw, 0, true, false); return }
   const cum = [0]
   for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z))
   const total = cum[cum.length - 1]
@@ -2183,14 +2236,14 @@ function addStroke(arr, line, hw, dash) {
   for (let s = 0; s < total;) {
     let on = true
     for (const v of dash) {
-      if (on) addTube(arr, slice(line, cum, s, Math.min(total, s + v)), hw)
+      if (on) addTube(arr, slice(line, cum, s, Math.min(total, s + v)), hw, s, true, true)
       s += v; on = !on
       if (s >= total) break
     }
     if (period <= 0) break
   }
 }
-function addArrow(arr, line, hw) {
+function addArrow(arr, line, hw, arcEnd) {
   const a = line[line.length - 2]; const b = line[line.length - 1]
   const l = Math.hypot(b.x - a.x, b.z - a.z)
   if (l < 1e-6) return
@@ -2202,17 +2255,25 @@ function addArrow(arr, line, hw) {
   const sx = -dz; const sz = dx
   const rim = []
   for (let k = 0; k < 8; k++) { const th = (k / 8) * Math.PI * 2; rim.push([base.x + sx * Math.cos(th) * rr, ROUTE_Y + Math.sin(th) * rr, base.z + sz * Math.cos(th) * rr]) }
-  for (let k = 0; k < 8; k++) arr.push(...tip, ...rim[k], ...rim[(k + 1) % 8])
+  for (let k = 0; k < 8; k++) { pushV(arr, arcEnd, ...tip); pushV(arr, arcEnd, ...rim[k]); pushV(arr, arcEnd, ...rim[(k + 1) % 8]) }
 }
 const toLine = (pts) => pts.map((p) => ({ x: toX(p.x), z: toZ(p.y) }))
+// A route starts a little way ahead of its mover, not under his feet
+const ROUTE_GAP = 0.6
+let routeInfos = [] // per step: [{ line, cum, at: () => position of the mover, rid }]
+const newArr = () => { const a = []; a.arc = []; a.rid = []; return a }
+const arcsOf = (line) => { const cum = [0]; for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z)); return cum }
 function buildRoutes() {
   routeGroups.forEach((g) => { scene.remove(g); g.traverse((o) => { if (o.geometry) o.geometry.dispose() }) })
-  routeGroups = []
+  routeGroups = []; routeInfos = []
   const cmap = CARRIERS
   const all = play.players.filter((p) => !isCone(p)).concat([Object.assign({ id: 'ball' }, play.ball)])
+  const moverOf = (ent) => () => (ent.id === 'ball' ? ball.position : figures[ent.id] ? figures[ent.id].root.position : (extras.find((x) => x.ent.id === ent.id) || {}).mesh?.position)
   for (let k = 1; k <= N; k++) {
-    const edge = []
+    const edge = newArr()
     const ink = {}; const glow = {} // by kind of action
+    const infos = []
+    curRid = 0
     all.forEach((ent) => {
       actsOf(ent).forEach((act) => {
         if (act.step !== k || !act.pts.length) return
@@ -2220,19 +2281,26 @@ function buildRoutes() {
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
         const ty = act.type in ROUTE_COLORS ? act.type : 'pass'
-        const inkA = ink[ty] || (ink[ty] = []); const glowA = glow[ty] || (glow[ty] = [])
-        const line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
+        const inkA = ink[ty] || (ink[ty] = newArr()); const glowA = glow[ty] || (glow[ty] = newArr())
+        let line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
+        const cum0 = arcsOf(line)
+        const total0 = cum0[cum0.length - 1]
+        // start a little ahead of the mover (less on a very short route)
+        if (total0 > 0.3) line = slice(line, cum0, Math.min(ROUTE_GAP, total0 * 0.35), total0)
+        const cum = arcsOf(line); const total = cum[cum.length - 1]
+        curRid = Math.min(infos.length, ROUTES_MAX - 1)
+        infos.push({ line, cum, at: moverOf(ent), rid: curRid })
         const dash = ty === 'pass' ? [0.34, 0.26] : ty === 'shot' ? [0.06, 0.26] : ty === 'handoff' ? [0.02, 0.12, 0.22, 0.12] : null
         for (const [arr, hw] of [[glowA, ROUTE_R + EDGE + GLOW], [edge, ROUTE_R + EDGE], [inkA, ROUTE_R]]) {
           addStroke(arr, line, hw, dash)
-          if (ty !== 'screen') addArrow(arr, line, hw)
+          if (ty !== 'screen') addArrow(arr, line, hw, total + 0.1)
         }
         if (ty === 'screen') {
           const a = pts[pts.length - 2]; const b = pts[pts.length - 1]
           const l = Math.hypot(b.x - a.x, b.y - a.y) || 1
           const nx = -(b.y - a.y) / l; const ny = (b.x - a.x) / l
           const bar = toLine([{ x: b.x - nx * 46, y: b.y - ny * 46 }, { x: b.x + nx * 46, y: b.y + ny * 46 }])
-          addTube(glowA, bar, ROUTE_R + EDGE + GLOW); addTube(edge, bar, ROUTE_R + EDGE); addTube(inkA, bar, ROUTE_R)
+          addTube(glowA, bar, ROUTE_R + EDGE + GLOW, total + 0.1, true, true); addTube(edge, bar, ROUTE_R + EDGE, total + 0.1, true, true); addTube(inkA, bar, ROUTE_R, total + 0.1, true, true)
         }
       })
     })
@@ -2243,6 +2311,8 @@ function buildRoutes() {
       if (!arr.length) return
       const geo = new THREE.BufferGeometry()
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(arr), 3))
+      geo.setAttribute('arc', new THREE.BufferAttribute(new Float32Array(arr.arc), 1))
+      geo.setAttribute('rid', new THREE.BufferAttribute(new Float32Array(arr.rid), 1))
       const m = new THREE.Mesh(geo, mat)
       m.renderOrder = order; m.frustumCulled = false
       g.add(m)
@@ -2250,7 +2320,27 @@ function buildRoutes() {
     g.visible = false
     scene.add(g)
     routeGroups.push(g)
+    routeInfos.push(infos)
   }
+}
+// How far along its route each mover is now, from where he stands: the point
+// of the line nearest to him
+function updateRouteProgress(kStep) {
+  const infos = routeInfos[kStep - 1]
+  if (!infos) return
+  routeProg.value.fill(0)
+  infos.forEach(({ line, cum, at, rid }) => {
+    const m = at(); if (!m) return
+    let best = Infinity; let arc = 0
+    for (let i = 1; i < line.length; i++) {
+      const ax = line[i - 1].x; const az = line[i - 1].z; const dx = line[i].x - ax; const dz = line[i].z - az
+      const l2 = dx * dx + dz * dz || 1e-9
+      const u = Math.max(0, Math.min(1, ((m.x - ax) * dx + (m.z - az) * dz) / l2))
+      const d = Math.hypot(m.x - (ax + dx * u), m.z - (az + dz * u))
+      if (d < best) { best = d; arc = cum[i - 1] + (cum[i] - cum[i - 1]) * u }
+    }
+    routeProg.value[rid] = arc
+  })
 }
 
 // ── who has the ball: a ring on the floor ──────────────────────────────
