@@ -936,15 +936,28 @@ const eyeGeo = { pupil: new THREE.SphereGeometry(1, 8, 6), shine: new THREE.Sphe
 // brows down and a grimace in a sprint, steady eyes on a shot, a grin after
 // it drops
 const faceGeo = { brow: new THREE.CapsuleGeometry(1, 3, 2, 6), mouth: new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * 0.8), grin: new THREE.SphereGeometry(1, 10, 6) }
-const faceMat = new THREE.MeshBasicMaterial({ color: INK })
-const eyeMat = { pupil: new THREE.MeshBasicMaterial({ color: INK }), shine: new THREE.MeshBasicMaterial({ color: 0xffffff }), lid: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_RAMP }) }
+// The face parts are separate meshes from the body (they follow the ball,
+// blink and make faces). When a player is faded out right in front of the
+// lens they fade with him — one opacity per instance — instead of vanishing
+// and leaving staring white ovals with no pupils.
+function fadeable(mat) {
+  mat.transparent = true; mat.depthWrite = false
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float fade; varying float vFade;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = fade;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFade;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= vFade;')
+  }
+  mat.customProgramCacheKey = () => 'face-fade'
+  return mat
+}
+const faceMat = fadeable(new THREE.MeshBasicMaterial({ color: INK }))
+const eyeMat = { pupil: fadeable(new THREE.MeshBasicMaterial({ color: INK })), shine: fadeable(new THREE.MeshBasicMaterial({ color: 0xffffff })), lid: fadeable(new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_RAMP })) }
 // Guards are a little smaller, bigs a little taller: by shirt number 1 to 5
 // (any other label keeps the standard height)
 const HEIGHTS = { 1: 0.95, 2: 0.98, 3: 1.02, 4: 1.05, 5: 1.08 }
 const heightOf = (p) => HEIGHTS[parseInt(String(p.label).replace(/\D/g, ''), 10)] || 1
 function buildFigures(list) {
   EYE_FIGS.forEach(disposeFigure)
-  ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { if (m) { scene.remove(m); m.geometry.dispose(); m.dispose() } })
   figures = {}
   list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true, height: heightOf(p) }), p, ...freshState(i) } })
   EYE_FIGS = Object.values(figures)
@@ -955,8 +968,9 @@ function buildFigures(list) {
   brows = new THREE.InstancedMesh(faceGeo.brow, faceMat, EYES)
   mouths = new THREE.InstancedMesh(faceGeo.mouth, faceMat, Math.max(1, EYE_FIGS.length))
   grins = new THREE.InstancedMesh(faceGeo.grin, faceMat, Math.max(1, EYE_FIGS.length))
-  ;[pupils, shines, lids, brows].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; scene.add(m) })
-  ;[mouths, grins].forEach((m) => { m.frustumCulled = false; m.count = EYE_FIGS.length; scene.add(m) })
+  ;[pupils, shines, lids, brows].forEach((m, k) => { m.frustumCulled = false; m.count = EYE_FIGS.length * 2; m.renderOrder = 100 + k; scene.add(m) })
+  ;[mouths, grins].forEach((m, k) => { m.frustumCulled = false; m.count = EYE_FIGS.length; m.renderOrder = 100 + k; scene.add(m) })
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { m.geometry = m.geometry.clone(); m.geometry.setAttribute('fade', new THREE.InstancedBufferAttribute(new Float32Array(m.instanceMatrix.count).fill(1), 1)) })
   EYE_FIGS.forEach((f, i) => { const c = new THREE.Color(f.skinC); lids.setColorAt(i * 2, c); lids.setColorAt(i * 2 + 1, c) })
 }
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0)
@@ -983,11 +997,18 @@ function updateEyes(t) {
       const grim = Math.max(E[1], E[0] * 0.7)
       const by = (off ? 0.058 : 0.05) + FC.browUp + (FC.eyeY - 0.04) * 0.6 - 0.013 * grim + 0.012 * E[2]
       brows.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.074, by, 0.002, Math.PI / 2 + side * (FC.browTilt - 0.42 * grim + 0.22 * E[2]), FC.browW, 0.009, 0.006)))
-      if (f.fp || (f.op ?? 1) < 0.99) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO); brows.setMatrixAt(n, ZERO) }
+      if (f.fp) { pupils.setMatrixAt(n, ZERO); shines.setMatrixAt(n, ZERO); lids.setMatrixAt(n, ZERO); brows.setMatrixAt(n, ZERO) }
+      // the whites fade with him; the dark parts (pupils, brows, mouth) stay a
+      // good deal stronger than that, so on a see-through face the eyes keep
+      // their pupils instead of turning into blank white ovals
+      const fd = f.op ?? 1; const ink = Math.min(1, 0.2 + fd * 2.2)
+      shines.geometry.attributes.fade.array[n] = fd; lids.geometry.attributes.fade.array[n] = fd
+      pupils.geometry.attributes.fade.array[n] = ink; brows.geometry.attributes.fade.array[n] = ink
     })
     {
       const E = f.exx || [0, 0, 0]; const FC = f.face; const off = f.p.team === 'off'
-      const hide = f.fp || (f.op ?? 1) < 0.99
+      const hide = f.fp
+      mouths.geometry.attributes.fade.array[i] = Math.min(1, 0.2 + (f.op ?? 1) * 2.2); grins.geometry.attributes.fade.array[i] = mouths.geometry.attributes.fade.array[i]
       const my = off ? -0.088 : -0.094
       const arc = 0.8
       // the smile: deeper when pleased, flat when concentrating
@@ -998,7 +1019,7 @@ function updateEyes(t) {
       grins.setMatrixAt(i, hide || open < 0.05 ? ZERO : m.multiplyMatrices(f.head.matrixWorld, faceMatrix(0, my - 0.004, 0.004, 0, FC.mouthW * (0.62 + 0.25 * Math.min(1, open)), 0.006 + 0.016 * Math.min(1, open), 0.008)))
     }
   })
-  ;[pupils, shines, lids, brows, mouths, grins].forEach((mm) => { mm.instanceMatrix.needsUpdate = true })
+  ;[pupils, shines, lids, brows, mouths, grins].forEach((mm) => { mm.instanceMatrix.needsUpdate = true; mm.geometry.attributes.fade.needsUpdate = true })
 }
 
 // Cones and spare balls from the drawing board: they stand where they were
