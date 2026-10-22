@@ -1512,7 +1512,10 @@ function simulate(t, dt) {
     const turn = speed < 1 ? Math.min(1, yawRate / 3.5) : 0
     f.ampT = (f.ampT || 0) + (0.3 * turn - (f.ampT || 0)) * 0.3
     f.phase += Math.min(14, Math.max(speed / sweep, yawRate * 1.8 * turn)) * dt
-    pose(f, f.ampF + f.ampT, f.ampL, f.s, defense, hold)
+    // the first steps out of a standing start are short and driven (the
+    // body low, leaning in), then the stride opens up
+    const startW = Math.max(0, Math.min(1, f.accS / 4.5)) * (1 - Math.max(0, Math.min(1, (speed - 1.8) / 2.6)))
+    pose(f, (f.ampF + f.ampT) * (1 - 0.3 * startW), f.ampL, f.s, defense, hold)
     // Weight follows the movement: forward into a sprint, back and into the
     // knees braking to a stop, and banking into a turn like a runner on a
     // curve (his upper body leans to the inside, the head stays level).
@@ -1521,7 +1524,16 @@ function simulate(t, dt) {
       f.pspd = speed
       f.accS += (Math.max(-9, Math.min(9, acc)) - f.accS) * 0.12
       const run = Math.min(1, speed / 2.5)
-      f.torso.rotation.x += Math.max(-0.14, Math.min(0.16, f.accS * 0.022)) * (0.4 + 0.6 * run)
+      const lean = Math.max(-0.14, Math.min(0.16, f.accS * 0.022)) * (0.4 + 0.6 * run) + 0.1 * startW
+      f.torso.rotation.x += lean
+      // the head stays level and steady while the body leans and twists
+      f.head.rotation.x -= lean * 0.85
+      f.head.rotation.y *= 0.45
+      // driving off: down through the knees; running: the hips rise and fall
+      // with every stride, lowest as the foot is under him
+      const bobAmt = Math.min(1, speed / 3) * (defense ? 0.5 : 1)
+      const dip = Math.min(1, 0.6 * startW + 0.55 * bobAmt * (0.5 + 0.5 * Math.cos(2 * f.phase)))
+      if (dip > 0.01) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.09 * dip; L.kn.rotation.x += 0.2 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
       const brake = Math.max(0, -f.accS - 1.5) / 6 * Math.min(1, f.pspd / 1 + 0.4)
       if (brake > 0.02) {
         const bb = Math.min(1, brake)
@@ -1577,7 +1589,15 @@ function simulate(t, dt) {
     f.lift = lift
     f.root.position.y = lift
     // the head turns to follow the ball (as far as a neck turns)
-    let ha = Math.atan2(ball.position.x - x, ball.position.z - z) - f.yaw
+    // — except the passer, who looks at the man he is passing to, and the
+    // receiver, who looks back at him, before the ball is even on its way
+    let gx = ball.position.x; let gz = ball.position.z
+    if (passerFig && fr < 0.55 && CARRIERS[k + 1]) {
+      const rcv = figures[CARRIERS[k + 1].id]
+      if (f === passerFig && rcv && rcv !== f) { gx = rcv.root.position.x; gz = rcv.root.position.z }
+      else if (f === rcv && f !== passerFig) { gx = passerFig.root.position.x; gz = passerFig.root.position.z }
+    }
+    let ha = Math.atan2(gx - x, gz - z) - f.yaw
     while (ha > Math.PI) ha -= 2 * Math.PI
     while (ha < -Math.PI) ha += 2 * Math.PI
     f.headYaw = (f.headYaw || 0) + (Math.max(-1.1, Math.min(1.1, ha)) * 0.85 - (f.headYaw || 0)) * 0.25
@@ -1708,6 +1728,16 @@ function simulate(t, dt) {
         const e = 1 - Math.pow(1 - u, 1.5) // fast off the hands, slowing a touch
         ball.position.copy(flight.release.clone().lerp(catchPt, e))
         ball.position.y += 4 * flight.h * e * (1 - e)
+        // the receiver shows a target: the hand nearer the passer comes up
+        // before the ball is thrown
+        if (rc && passer && rc !== passer && e < 0.5) {
+          const wT = Math.max(0, Math.min(1, fr / 0.15)) * (1 - Math.max(0, Math.min(1, (e - 0.25) / 0.25)))
+          if (wT > 0.02) {
+            const sd = toPasser.dot(sideOf(rc)) > 0 ? 1 : -1
+            const tgt = chestPoint(rc, toPasser).addScaledVector(toPasser, 0.28 * wT).add(new THREE.Vector3(0, 0.3 * wT, 0))
+            reaches.push([rc, tgt, 'target', sd])
+          }
+        }
         // arms follow through, then the receiver's come up to meet it
         if (passer && u < 0.35) reaches.push([passer, chestPoint(passer, toRc).addScaledVector(toRc.clone().setY(0).normalize(), 0.25 * (u / 0.35)), 'follow'])
         if (rc && e > 0.5) reaches.push([rc, e > 0.8 ? ball.position.clone() : ball.position.clone().lerp(catchPt, 0.5), e > 0.97 ? 'hold' : 'catch'])
@@ -1723,7 +1753,8 @@ function simulate(t, dt) {
     else if (kind === 'dribble') {
       const hy = Math.max(ball.position.y, 0.62) + BALL_R + bodyOf(f).handR * 0.8
       reach(f, -1, ball.position.clone().setY(hy), new THREE.Vector3(0, -1, 0).addScaledVector(sideOf(f), -0.4).addScaledVector(fwdOf(f), -0.15))
-    } else if (kind === 'contest') reach(f, f.contestSide || 1, p, new THREE.Vector3(0, -0.3, 0).addScaledVector(sideOf(f), f.contestSide || 1))
+    } else if (kind === 'target') reach(f, u, p, new THREE.Vector3(0, -0.5, 0).addScaledVector(sideOf(f), u * 0.6))
+    else if (kind === 'contest') reach(f, f.contestSide || 1, p, new THREE.Vector3(0, -0.3, 0).addScaledVector(sideOf(f), f.contestSide || 1))
     else holdBall(f, p)
   })
   keepOutOfBodies(ball.position)
