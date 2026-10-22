@@ -701,10 +701,10 @@ const fourSteps = `
 // draw call, plus one for the outline and one for the shirt number —
 // instead of some eighty separate pieces. Units: the figure is 1 tall.
 const TOY_PALETTES = {
-  off: { kit: GOLD, trim: 0x15151a, shoe: 0x15151a, sock: 0xf4f4f4, band: 0x15151a, skin: SKIN, hair: HAIR },
-  def: { kit: 0x1c1d22, trim: 0xf2f2f2, shoe: 0xf2f2f2, sock: 0xf4f4f4, band: 0xf2f2f2, skin: SKIN, hair: HAIR },
+  off: { kit: GOLD, trim: 0x15151a, shoe: 0x15151a, sole: 0xf4f4f4, sock: 0xf4f4f4, band: 0x15151a, skin: SKIN, hair: HAIR },
+  def: { kit: 0x1c1d22, trim: 0xf2f2f2, shoe: 0xf2f2f2, sole: 0x15151a, sock: 0xf4f4f4, band: 0xf2f2f2, skin: SKIN, hair: HAIR },
 }
-const HAIRSTYLES = ['band', 'short', 'bun']
+const HAIRSTYLES = ['band', 'short', 'bun', 'afro', 'buzz']
 const TOY_BODY = { depth: 0.145, width: 0.213, torsoBot: 0.72, legD: 0.1, legW: 0.2, headR: 0.266, headUp: 0.14, handR: 0.068 }
 const TOY_BONES = [
   ['root', -1, 0, 0], ['pelvis', 0, 0, 0.4], ['spine', 1, 0, 0.46], ['chest', 2, 0, 0.62], ['head', 3, 0, 0.72],
@@ -727,7 +727,7 @@ function faceMatrix(dx, dy, lift, rz, sx, sy, sz) {
 function makeToyHuman(p, idx, style = {}) {
   const off = p.team === 'off'
   const pal = TOY_PALETTES[style.palette || (off ? 'off' : 'def')]
-  const hair = (style.hair && style.hair !== 'afro' ? style.hair : null) || HAIRSTYLES[idx % HAIRSTYLES.length]
+  const hair = style.hair || HAIRSTYLES[idx % HAIRSTYLES.length]
   const skinC = pal.skin[idx % pal.skin.length]; const hairC = pal.hair[idx % pal.hair.length]
   // collected pieces: outlined (the body) and detail (the face) separately
   const outlined = []; const detail = []; const armGeos = []
@@ -766,6 +766,10 @@ function makeToyHuman(p, idx, style = {}) {
   // shorts: hip piece (its waistband under the vest's hem) plus a tube per
   // leg, white hem at the bottom
   add(new THREE.CylinderGeometry(0.09, 0.106, 0.085, 40), pal.kit, 'pelvis', 0, -0.0075, 0, null, [1, 1, 0.7])
+  // trim on the jersey: round the neck, the arm holes and the hem
+  add(new THREE.TorusGeometry(0.056, 0.0065, 6, 28).rotateX(Math.PI / 2), pal.trim, 'spine', 0, 0.262, 0, null, [1, 1, 0.8])
+  add(new THREE.TorusGeometry(0.1035, 0.0048, 6, 44).rotateX(Math.PI / 2), pal.trim, 'pelvis', 0, -0.019, 0, null, [1, 1, 0.7])
+  for (const sd of [-1, 1]) add(new THREE.TorusGeometry(0.047, 0.0058, 6, 24).rotateY(Math.PI / 2), pal.trim, 'chest', sd * 0.1, 0.048, 0, null, [1, 1, 0.8])
   for (const S of ['L', 'R']) {
     add(new THREE.CylinderGeometry(0.06, 0.063, 0.125, 14, 1, true), pal.kit, 'hip' + S, 0, -0.055, 0)
     add(new THREE.TorusGeometry(0.0625, 0.0065, 4, 16), pal.trim, 'hip' + S, 0, -0.116, 0, [Math.PI / 2, 0, 0])
@@ -775,6 +779,12 @@ function makeToyHuman(p, idx, style = {}) {
     // sock: its own tube, a touch wider than the shin, so the edge is a clean line
     add(new THREE.CylinderGeometry(0.0405, 0.039, 0.07, 12, 1, true), pal.sock, 'knee' + S, 0, -0.123, 0)
     add(new THREE.CapsuleGeometry(0.039, 0.075, 3, 10), pal.shoe, 'ankle' + S, 0, -0.012, 0.022, [Math.PI / 2, 0, 0], [1.22, 1, 0.95])
+    // a thick sole in the other colour, and a lace panel on top
+    add(new THREE.CapsuleGeometry(0.04, 0.078, 3, 10), pal.sole, 'ankle' + S, 0, -0.04, 0.022, [Math.PI / 2, 0, 0], [1.27, 1.04, 0.3])
+    add(new THREE.SphereGeometry(0.02, 12, 8), pal.sole, 'ankle' + S, 0, 0.019, 0.047, null, [1.15, 0.5, 1.5])
+    // calf and thigh give the leg some shape
+    add(new THREE.SphereGeometry(0.034, 14, 10), skinC, 'knee' + S, 0, -0.07, -0.012, null, [1, 1.5, 1.05])
+    add(new THREE.SphereGeometry(0.043, 14, 10), skinC, 'hip' + S, 0, -0.05, 0.004, null, [1.04, 1.45, 1.05])
   }
   // arms along x (T-pose), bending at the elbow
   for (const [side, S] of [[-1, 'L'], [1, 'R']]) {
@@ -784,18 +794,23 @@ function makeToyHuman(p, idx, style = {}) {
     // Each joint is a finely rounded ball exactly as wide as the tube that
     // ends in it, riding on the limb that turns about it — so the tube's rim
     // always sits on the ball's surface and the outline stays one clean curve.
-    add(new THREE.SphereGeometry(0.0364, 28, 18), skinC, 'sh' + S)
-    add(new THREE.CylinderGeometry(0.0285, 0.036, 0.188, 28, 1, true), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
-    add(new THREE.SphereGeometry(0.0289, 24, 16), skinC, 'el' + S)
-    add(new THREE.CylinderGeometry(0.0215, 0.0285, 0.15, 24, 1, true), skinC, 'el' + S, side * 0.075, 0, 0, roll)
-    add(new THREE.SphereGeometry(0.0218, 18, 12), skinC, 'el' + S, side * 0.15, 0, 0)
+    add(new THREE.SphereGeometry(0.0435, 28, 18), skinC, 'sh' + S)
+    add(new THREE.CylinderGeometry(0.0335, 0.0435, 0.188, 28, 1, true), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
+    add(new THREE.SphereGeometry(0.0345, 24, 16), skinC, 'el' + S)
+    add(new THREE.CylinderGeometry(0.0255, 0.0345, 0.15, 24, 1, true), skinC, 'el' + S, side * 0.075, 0, 0, roll)
+    add(new THREE.SphereGeometry(0.0258, 18, 12), skinC, 'el' + S, side * 0.15, 0, 0)
     // a hand: flat palm, fingers together, and a thumb
     add(new THREE.SphereGeometry(0.034, 12, 8), skinC, 'el' + S, side * 0.181, -0.002, 0, null, [1.12, 0.62, 0.92])
     add(new THREE.SphereGeometry(0.0135, 8, 6), skinC, 'el' + S, side * 0.166, 0.004, 0.027, null, [1.5, 1, 1])
+    // four fingers (index to little) fanned a little, slightly curled down
+    ;[[0.026, 0.017, 0.0], [0.034, 0.006, 0.0], [0.03, -0.005, 0.0], [0.023, -0.016, 0.0]].forEach(([len, zz], i) => {
+      add(new THREE.CapsuleGeometry(0.0072, len, 2, 6), skinC, 'el' + S, side * (0.207 + len / 2), -0.004, zz, [0, side * (zz - 0.0005) * 1.6, Math.PI / 2 - side * 0.12])
+    })
   }
   // head and hair
   const HC = 0.14; const HR = 0.14
   add(new THREE.SphereGeometry(HR, 32, 22), skinC, 'head', 0, HC, 0)
+  for (const sd of [-1, 1]) add(new THREE.SphereGeometry(0.03, 12, 8), skinC, 'head', sd * 0.134, HC - 0.004, -0.004, null, [0.4, 1.05, 0.75])
   // Hair and headband lie on the skull: a thin layer round the head's own
   // centre, from polar angle `from` to `to` (about the layer's tilted axis),
   // as thick as thick(0…1) says. At its edges it thins to almost nothing and
@@ -811,6 +826,8 @@ function makeToyHuman(p, idx, style = {}) {
   if (hair === 'band') add(skullLayer(1.0, 1.32, (u) => 0.0085 * Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 4)))), pal.band, 'head', 0, HC, 0, [-0.16, 0, 0])
   // short hair: a cap tilted back, down to the hairline
   if (hair === 'short' || hair === 'bun') add(skullLayer(0, Math.PI * 0.42, (u) => 0.0062 * (1 - smooth(0.78, 1, u))), hairC, 'head', 0, HC, 0, [-0.32, 0, 0])
+  if (hair === 'afro') add(new THREE.SphereGeometry(0.165, 28, 18), hairC, 'head', 0, HC + 0.03, -0.04)
+  if (hair === 'buzz') add(skullLayer(0, Math.PI * 0.4, (u) => 0.0035 * (1 - smooth(0.75, 1, u))), hairC, 'head', 0, HC, 0, [-0.3, 0, 0])
   if (hair === 'bun') add(new THREE.SphereGeometry(0.045, 24, 16), hairC, 'head', 0, HC + HR + 0.022, -0.022)
   // face: eyes with pupils and a catch-light, brows, nose, mouth — set onto
   // the curve of the head. Attackers get relaxed brows and a smile,
@@ -841,7 +858,7 @@ function makeToyHuman(p, idx, style = {}) {
 
   // joints and the rig
   const root = new THREE.Group()
-  const SC = 1.9
+  const SC = 1.9 * (style.height || 1)
   const rig = new THREE.Group(); rig.scale.setScalar(SC); root.add(rig)
   const bones = TOY_BONES.map(([name]) => { const b = new THREE.Bone(); b.name = name; return b })
   TOY_BONES.forEach(([, parent], i) => {
@@ -894,7 +911,7 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: style.height ? Object.fromEntries(Object.entries(TOY_BODY).map(([k, v]) => [k, v * style.height])) : TOY_BODY }
 }
 
 let figures = {}
@@ -921,11 +938,15 @@ const eyeGeo = { pupil: new THREE.SphereGeometry(1, 8, 6), shine: new THREE.Sphe
 const faceGeo = { brow: new THREE.CapsuleGeometry(1, 3, 2, 6), mouth: new THREE.TorusGeometry(1, 0.22, 5, 12, Math.PI * 0.8), grin: new THREE.SphereGeometry(1, 10, 6) }
 const faceMat = new THREE.MeshBasicMaterial({ color: INK })
 const eyeMat = { pupil: new THREE.MeshBasicMaterial({ color: INK }), shine: new THREE.MeshBasicMaterial({ color: 0xffffff }), lid: new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: TOON_RAMP }) }
+// Guards are a little smaller, bigs a little taller: by shirt number 1 to 5
+// (any other label keeps the standard height)
+const HEIGHTS = { 1: 0.95, 2: 0.98, 3: 1.02, 4: 1.05, 5: 1.08 }
+const heightOf = (p) => HEIGHTS[parseInt(String(p.label).replace(/\D/g, ''), 10)] || 1
 function buildFigures(list) {
   EYE_FIGS.forEach(disposeFigure)
   ;[pupils, shines, lids, brows, mouths, grins].forEach((m) => { if (m) { scene.remove(m); m.dispose() } })
   figures = {}
-  list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true }), p, ...freshState(i) } })
+  list.forEach((p, i) => { figures[p.id] = { ...makeToyHuman(p, i % 5, { liveEyes: true, height: heightOf(p) }), p, ...freshState(i) } })
   EYE_FIGS = Object.values(figures)
   const EYES = Math.max(1, EYE_FIGS.length * 2)
   pupils = new THREE.InstancedMesh(eyeGeo.pupil, eyeMat.pupil, EYES)
