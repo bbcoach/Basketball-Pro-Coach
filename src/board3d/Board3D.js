@@ -803,7 +803,7 @@ function makeToyHuman(p, idx, style = {}) {
     add(new THREE.SphereGeometry(0.034, 12, 8), skinC, 'el' + S, side * 0.181, -0.002, 0, null, [1.12, 0.62, 0.92])
     add(new THREE.SphereGeometry(0.0135, 8, 6), skinC, 'el' + S, side * 0.166, 0.004, 0.027, null, [1.5, 1, 1])
     // four fingers (index to little) fanned a little, slightly curled down
-    ;[[0.026, 0.017, 0.0], [0.034, 0.006, 0.0], [0.03, -0.005, 0.0], [0.023, -0.016, 0.0]].forEach(([len, zz], i) => {
+    ;[[0.026, 0.017, 0.0], [0.034, 0.006, 0.0], [0.03, -0.005, 0.0], [0.023, -0.016, 0.0]].forEach(([len, zz]) => {
       add(new THREE.CapsuleGeometry(0.0072, len, 2, 6), skinC, 'el' + S, side * (0.207 + len / 2), -0.004, zz, [0, side * (zz - 0.0005) * 1.6, Math.PI / 2 - side * 0.12])
     })
   }
