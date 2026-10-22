@@ -468,9 +468,9 @@ function ledTexture(w) {
   // the laptops on the table
   const lap = new THREE.Mesh(mergeGeometries([12.7, 13.8, 14.8].map((z) => new THREE.BoxGeometry(0.03, 0.2, 0.32).rotateZ(0.25).translate(-9.7, 1.14, z))), new THREE.MeshBasicMaterial({ color: 0xb8dcff }))
   scene.add(lap)
-  // a low wall in front of the stands, navy with a gold top edge
-  const wallM = envMat({ color: 0x1e1e24 }); const capM = new THREE.MeshBasicMaterial({ color: 0xe8b13c })
-  const lowWall = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.8, d), wallM); m.position.set(x, 0.4, z); scene.add(m); const c = new THREE.Mesh(new THREE.BoxGeometry(w + (w > d ? 0 : 0.02), 0.04, d + (w > d ? 0.02 : 0)), capM); c.position.set(x, 0.82, z); scene.add(c) }
+  // a low wall in front of the stands
+  const wallM = envMat({ color: 0x1e1e24 })
+  const lowWall = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.8, d), wallM); m.position.set(x, 0.4, z); scene.add(m) }
   lowWall(0.18, 34.6, -10.5, 14); lowWall(0.18, 34.6, 10.5, 14); lowWall(21.2, 0.18, 0, -4.6); lowWall(21.2, 0.18, 0, 32.6)
   // the painted run-off: dark planks, and a thin gold line round the court
   const runoff = (() => {
