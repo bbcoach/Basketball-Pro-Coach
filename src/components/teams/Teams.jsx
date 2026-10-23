@@ -1,7 +1,7 @@
 import { useApp } from '../../state/store'
 import { ACCENT } from '../../state/config'
 import ScreenHeader from '../ScreenHeader'
-import RosterEditor from '../RosterEditor'
+import RosterEditor, { RosterTools } from '../RosterEditor'
 import CoachesEditor from '../CoachesEditor'
 import { raised, keycap, field } from '../../theme'
 
@@ -55,8 +55,11 @@ function TeamDetail() {
         <div onClick={backToTeamsList} style={{ padding: '8px 12px', borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Back</div>
       </div>
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <RosterEditor grow={false} emptyHint="Add every player on this team once — the roster is shared with the stat tracker and attendance for this team." />
+        <RosterEditor grow={false} toolsElsewhere emptyHint="Add every player on this team once — the roster is shared with the stat tracker and attendance for this team." />
         <CoachesEditor emptyHint="Add this team's coaches to track their training attendance." />
+        {/* a team that already has players keeps its import/export/copy tools at
+            the very bottom, under both lists; a new one has them at the top */}
+        {team.roster.length > 0 && <RosterTools inset />}
       </div>
     </div>
   )
