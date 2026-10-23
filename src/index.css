@@ -7,6 +7,12 @@ html, body {
   color: #fff;
   font-family: Barlow, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Phone browsers in landscape "autosize" text block by block (a wide block
+     with more words gets boosted more), so equal font sizes came out
+     different — "Tactics board" smaller than "My roster". Every size here is
+     set on purpose, so switch the boost off. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   overscroll-behavior: none;
   /* Fixed-width (tabular) figures everywhere. Barlow's default figures are
      proportional and very uneven — a "1" is 353 units wide against a "4" at
