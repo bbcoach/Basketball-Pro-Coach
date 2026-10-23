@@ -24,10 +24,17 @@ const sectionLabel = (text) => (
 // what went wrong for the board's full-screen exit button, since a headless
 // check can't tell the difference between a real notch and zero.
 export default function PlayerDetail() {
-  const { state, updatePlayer, closePlayerDetail, showToast } = useApp()
+  const { state, updatePlayer, closePlayerDetail, copyPlayerToTeam, unlinkPlayer, showToast } = useApp()
   const player = state.roster.find((p) => p.id === state.playerDetailId)
   const photoRef = useRef(null)
   if (!player) return null
+
+  // The other teams: is this person on each already (the same person, or the
+  // same name), and which ones share their details with this record?
+  const others = state.teams.filter((t) => t.id !== state.activeTeamId)
+  const norm = (n) => String(n || '').trim().toLowerCase()
+  const onTeam = (t) => t.roster.find((x) => (player.personId && x.personId === player.personId) || norm(x.name) === norm(player.name))
+  const linkedTeams = player.personId ? others.filter((t) => t.roster.some((x) => x.personId === player.personId)) : []
 
   const set = (patch) => updatePlayer(player.id, patch)
   const pickPhoto = () => photoRef.current?.click()
@@ -83,6 +90,29 @@ export default function PlayerDetail() {
           <input type="tel" value={player.parentPhone || ''} onChange={(e) => set({ parentPhone: e.target.value })} placeholder="Phone" style={{ ...field() }} />
           <input type="email" value={player.parentEmail || ''} onChange={(e) => set({ parentEmail: e.target.value })} placeholder="Email" style={{ ...field() }} />
         </div>
+
+        {others.length > 0 && (
+          <div style={{ padding: 12, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 8, ...raised(.04, .09) }}>
+            {sectionLabel('Other teams')}
+            {linkedTeams.length > 0 && (
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>
+                Name, birth date, contact details and photo are kept the same on {linkedTeams.map((t) => t.name).join(', ')}. The number is per team.{' '}
+                <span onClick={() => unlinkPlayer(player.id)} style={{ color: 'rgba(255,255,255,.7)', textDecoration: 'underline', cursor: 'pointer' }}>Stop syncing</span>
+              </div>
+            )}
+            {others.map((t) => {
+              const there = onTeam(t)
+              return (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,.05)' }}>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
+                  {there
+                    ? <div style={{ flex: 'none', fontSize: 11.5, color: 'rgba(255,255,255,.45)' }}>✓ {there.num ? '#' + there.num : 'On this team'}</div>
+                    : <div onClick={() => copyPlayerToTeam(player.id, t.id)} style={{ flex: 'none', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,.1)', color: '#fff', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>Copy here</div>}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

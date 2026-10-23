@@ -21,7 +21,7 @@ export default function RosterCopyModal({ onClose }) {
   const allPicked = canPick.length > 0 && canPick.every((p) => picked.has(p.id))
   const toggleAll = () => setPicked(allPicked ? new Set() : new Set(canPick.map((p) => p.id)))
   const confirm = () => {
-    copyRosterPlayers(canPick.filter((p) => picked.has(p.id)))
+    copyRosterPlayers(team.id, canPick.filter((p) => picked.has(p.id)).map((p) => p.id))
     onClose()
   }
 
