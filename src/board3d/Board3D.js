@@ -1799,18 +1799,19 @@ function simulate(t, dt) {
         if (o.p.team === carrier.p.team || isCone(o.p) || isBall(o.p)) return
         const dv = o.root.position.clone().sub(carrier.root.position).setY(0)
         const dd = dv.length()
-        if (dd > 3.4 || dd < 0.01 || dv.dot(fwdOf(carrier)) < -0.6 * dd) return
+        if (dd > 2.5 || dd < 0.01 || dv.dot(fwdOf(carrier)) < -0.6 * dd) return
         const lat = dv.dot(sideOf(carrier))
-        if (Math.abs(lat) > 0.45 && Math.abs(lat) / dd > pull) { pull = Math.abs(lat) / dd; want_h = lat > 0 ? -1 : 1 }
+        if (Math.abs(lat) > 0.8 && Math.abs(lat) / dd > pull) { pull = Math.abs(lat) / dd; want_h = lat > 0 ? -1 : 1 }
       })
       carrier.xoCool = Math.max(0, carrier.xoCool - dt)
-      if (carrier.xoT >= 0) { carrier.xoT += dt / 0.34; if (carrier.xoT >= 1) { carrier.xoT = -1; carrier.dribArm = carrier.dribHand } }
+      if (carrier.xoT >= 0) { carrier.xoT += dt / 0.5; if (carrier.xoT >= 1) { carrier.xoT = -1; carrier.dribArm = carrier.dribHand } }
       if (carrier.xoT < 0 && carrier.xoCool <= 0) {
         // a sharp change of direction: the ball goes to the hand on the side
         // he is now heading for (a left turn is a left-hand dribble)
-        const turned = carrier.yRate > 2.4 && carrier.spd > 0.4
+        // (only a real cut at pace — turning to face the way he sets off doesn't count)
+        const turned = carrier.yRate > 2.2 && carrier.spd > 1.4
         if (turned) want_h = carrier.yDir > 0 ? 1 : -1
-        if (want_h !== carrier.dribHand) { carrier.xoFrom = carrier.dribHand; carrier.dribHand = want_h; carrier.xoT = 0; carrier.xoCool = turned ? 1.8 : 0.9 }
+        if (want_h !== carrier.dribHand) { carrier.xoFrom = carrier.dribHand; carrier.dribHand = want_h; carrier.xoT = 0; carrier.xoCool = 2.6 }
       }
       // the arm follows the ball: it lets go of it half way across
       carrier.dribArm = carrier.xoT >= 0 && carrier.xoT < 0.5 ? carrier.xoFrom : carrier.dribHand
