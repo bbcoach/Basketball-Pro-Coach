@@ -1454,6 +1454,25 @@ function shotFollow(f, p, u) {
   reach(f, -1, hold.lerp(up, Math.min(1, u / 0.12)), new V3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, -0.25))
   reach(f, 1, p.clone().addScaledVector(sx, d), new V3(0, -0.5, 0).addScaledVector(sx, 1).addScaledVector(fw, 0.3))
 }
+// A layup. The shooting hand (right = -1, left = +1) under and behind the ball,
+// the other hand on its side, until the ball is let go — then the shooting arm
+// reaches on up towards the glass.
+function layGrip(f, p, hand) {
+  const sx = sideOf(f); const fw = fwdOf(f); const d = BALL_R + bodyOf(f).handR * 0.8
+  reach(f, hand, p.clone().addScaledVector(fw.clone().multiplyScalar(-0.55).add(new THREE.Vector3(0, -0.83, 0)).normalize(), d), new THREE.Vector3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
+  reach(f, -hand, p.clone().addScaledVector(sx, -hand * d), new THREE.Vector3(0, -0.5, 0).addScaledVector(sx, -hand).addScaledVector(fw, 0.3))
+}
+function layFollow(f, p, hand, u) {
+  const sx = sideOf(f); const fw = fwdOf(f); const d = BALL_R + bodyOf(f).handR * 0.8
+  const S = f.arms[hand].sh.getWorldPosition(new V3())
+  const up = S.addScaledVector(fw.clone().multiplyScalar(0.3).add(new V3(0, 0.95, 0)).normalize(), 0.7)
+  const hold = p.clone().addScaledVector(fw.clone().multiplyScalar(-0.55).add(new V3(0, -0.83, 0)).normalize(), d)
+  reach(f, hand, hold.lerp(up, Math.min(1, u / 0.25)), new V3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
+  // the other arm comes down and in
+  const guide = p.clone().addScaledVector(sx, -hand * d)
+  guide.lerp(f.arms[-hand].sh.getWorldPosition(new V3()).add(new V3(0, -0.25, 0).addScaledVector(fw, 0.25)), Math.min(1, u / 0.3))
+  reach(f, -hand, guide, new V3(0, -0.8, 0).addScaledVector(sx, -hand * 0.6))
+}
 // Height a pass has to reach to clear everybody standing in its lane.
 function clearance(a, b, skip) {
   let need = 0
@@ -1574,20 +1593,65 @@ function crossArms(f, w) {
   }
 }
 
+// What kind of shot a shot step is, worked out from the play alone (so it is
+// the same on every frame of the step):
+//   layup — he runs at the basket (within 3.2 m, at pace, heading for it), or
+//           is right under it: two steps, off one foot, the ball laid up on
+//           the glass or over the rim, with the hand on his side
+//   free  — standing still on the free-throw line with nobody near him
+//   jump  — everything else, and any shot not aimed at the basket
+// `lay` carries the timing (as fractions of the step) and the hand.
+function planShot(f, k, act) {
+  const end = act.pts[act.pts.length - 1]
+  const hp0 = hoopAt(toZ(end.y))
+  if (Math.hypot(toX(end.x) - hp0.x, toZ(end.y) - hp0.z) >= 1.3) return { kind: 'jump' }
+  const secs = STEPD[k - 1] || STEP_SECS
+  const at = (r) => { const q = board.entPos(f.p, (k - 1 + r) / N, N, MARKS); return { x: toX(q.x), z: toZ(q.y) } }
+  const a = at(0.5); const b = at(0.7)
+  const hp = hoopAt(b.z)
+  const dist = Math.hypot(hp.x - b.x, hp.z - b.z)
+  const mx = b.x - a.x; const mz = b.z - a.z; const ml = Math.hypot(mx, mz)
+  const speed = ml / (0.2 * secs)
+  const towards = ml > 1e-6 ? (mx * (hp.x - b.x) + mz * (hp.z - b.z)) / (ml * (dist || 1)) : 0
+  // the defender nearest to him
+  let nearD = Infinity; let defSide = 0
+  Object.values(figures).forEach((o) => {
+    if (o.p.team === f.p.team || isCone(o.p) || isBall(o.p)) return
+    const d = Math.hypot(o.root.position.x - b.x, o.root.position.z - b.z)
+    if (d < nearD) { nearD = d; defSide = (o.root.position.x - b.x) * (hp.z < b.z ? 1 : -1) }
+  })
+  if (dist < 1.3 || (dist <= 3.2 && speed >= 1.2 && towards >= 0.3)) {
+    const du = Math.max(0.12, Math.min(0.3, 0.6 / secs))
+    const t0 = Math.min(0.62, 0.9 - du)
+    // right hand from the right of the court, left from the left; with a
+    // defender close, the hand away from him
+    const side = (b.x - hp.x) * (hp.z < b.z ? 1 : -1)
+    let hand = side > 0.4 ? -1 : side < -0.4 ? 1 : -1
+    if (nearD < 2.2 && Math.abs(defSide) > 0.3) hand = defSide > 0 ? 1 : -1
+    const off = b.x - hp.x
+    return { kind: 'layup', lay: { t0, du, gather: t0 - 0.14, rel: t0 + 0.55 * du, hand, bank: Math.abs(off) > 0.8, bankX: hp.x + Math.sign(off) * 0.28, dir: hp.z < 14 ? 1 : -1 } }
+  }
+  if (speed < 0.3 && Math.abs(dist - 4.2) < 0.6 && Math.abs(b.x - hp.x) < 1 && nearD > 1.8) return { kind: 'free' }
+  return { kind: 'jump' }
+}
+
 function simulate(t, dt) {
   const k = stepAtTime(t, N)
   const fr = Math.max(0, Math.min(0.999999, t)) * N - (k - 1)
   const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
-  const carrier = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
+  const shooter = act && act.type === 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
+  const plan = shooter ? planShot(shooter, k, act) : { kind: 'jump' }
+  const lay = plan.kind === 'layup' ? plan.lay : null
+  // on the run in to a layup he still carries (dribbles) the ball, up to the gather
+  const carrier = (!act || (lay && fr < lay.gather)) && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const dribbling = carrier && actsOf(carrier.p).some((a) => a.step === k && a.type === 'dribble' && a.pts.length)
   const bp = board.ballPos(t)
   const ballXZ = new THREE.Vector3(toX(bp.x), 0, toZ(bp.y))
   // jump shot: the shooter sinks into his knees while bringing the ball up,
   // then jumps; his defender jumps a beat later with a hand up
   const G_SHOT = 0.22
-  const shooter = act && act.type === 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
-  const contester = shooter && Object.values(figures).find((f) => MARKS[f.p.id] === shooter.p.id)
-  const uShot = shooter ? (fr - G_SHOT) / (1 - G_SHOT) : -1
+  const contester = shooter && plan.kind !== 'free' && Object.values(figures).find((f) => MARKS[f.p.id] === shooter.p.id)
+  const uShot = !shooter ? -1 : lay ? (fr - (lay.rel - 0.12)) / 0.5 : (fr - G_SHOT) / (1 - G_SHOT)
   // handoff: the carrier holds the ball out to a team-mate coming by, who takes it
   const giver = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const taker = giver && CARRIERS[k + 1] && CARRIERS[k + 1].id !== giver.p.id ? figures[CARRIERS[k + 1].id] : null
@@ -1651,6 +1715,7 @@ function simulate(t, dt) {
     let want
     if ((!isDef || running) && speed > 0.6) want = Math.atan2(vx, vz)
     else if (hold) { const hp = hoopAt(z); want = Math.atan2(hp.x - x, hp.z - z) }
+    else if (f === shooter) { const hp = hoopAt(z); want = Math.atan2(hp.x - x, hp.z - z) }
     else want = Math.atan2(ball.position.x - x, ball.position.z - z)
     const yaw0 = f.yaw
     f.yaw = angLerp(f.yaw, want, f.prev ? 0.16 : 1)
@@ -1752,10 +1817,30 @@ function simulate(t, dt) {
     let dip = 0; let lift = 0
     // landing: down through the knees to soak it up
     const landing = (u) => (u >= 0 && u < 0.2 ? 0.85 * Math.sin((Math.PI * u) / 0.2) : 0)
-    if (f === shooter) { dip = Math.max(landing(uShot - 0.42), fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0); lift = uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0 }
+    let layU = -1
+    if (f === shooter && lay) {
+      // a layup: load the last step, spring off one foot, soak up the landing
+      layU = (fr - lay.t0) / lay.du
+      const load = fr > lay.gather && fr < lay.t0 ? 0.5 * Math.sin((Math.PI / 2) * ((fr - lay.gather) / (lay.t0 - lay.gather))) : 0
+      lift = layU > 0 && layU < 1 ? 0.55 * Math.sin(Math.PI * layU) : 0
+      dip = Math.max(load, landing((fr - (lay.t0 + lay.du)) * 1.2))
+    } else if (f === shooter) {
+      // a free throw is a quiet bend of the knees and hardly a jump
+      const calm = plan.kind === 'free' ? 0.12 : 1
+      dip = Math.max(landing(uShot - 0.42), fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0) * (plan.kind === 'free' ? 0.65 : 1)
+      lift = (uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0) * calm
+    }
     if (f === contester) { const uc = uShot - 0.06; dip = Math.max(landing(uc - 0.4), uShot > -0.3 && uc < 0.05 ? 0.7 : 0); lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
     if (dip) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.55 * dip; L.kn.rotation.x += 1.05 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
     if (lift) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.kn.rotation.x *= 0.4; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) + 0.5 } // legs straighten, toes point
+    if (lay && f === shooter && layU > 0 && layU < 1) {
+      // the knee on the shooting side is driven up, the other leg pushes off
+      const w = Math.sin(Math.PI * Math.min(1, layU * 1.15))
+      const Lk = f.legs[lay.hand]
+      Lk.hp.rotation.x = -1.15 * w; Lk.kn.rotation.x = 1.25 * w; Lk.ft.rotation.x = -(Lk.hp.rotation.x + Lk.kn.rotation.x) + 0.2
+      f.torso.rotation.x += 0.12 * w
+    }
+    if (lay && f === shooter && fr > lay.t0 - 0.06 && fr < lay.rel + 0.1) f.head.rotation.x -= 0.45 * Math.sin(Math.PI * Math.min(1, (fr - (lay.t0 - 0.06)) / (lay.rel + 0.16 - lay.t0)))
     plantFeet(f)
     lockStance(f, lift)
     f.lift = lift
@@ -1890,7 +1975,37 @@ function simulate(t, dt) {
       // a shot at the basket drops through it; one drawn elsewhere goes where it points
       const ex = toX(end.x); const ez = toZ(end.y); const hp = hoopAt(ez)
       const rimP = Math.hypot(ex - hp.x, ez - hp.z) < 1.3 ? new THREE.Vector3(hp.x, 3.12, hp.z) : new THREE.Vector3(ex, 3.12, ez)
-      if (passer && fr < G) {
+      if (lay && passer) {
+        // The ball comes up from the gather to the shooting hand at full stretch,
+        // is let go at the top of the jump, and is laid onto the glass (from an
+        // angle) or over the rim (from straight in front), then drops through.
+        const top = headCentre(passer).addScaledVector(fwdOf(passer), 0.3).addScaledVector(sideOf(passer), lay.hand * 0.22).add(new THREE.Vector3(0, 0.5, 0))
+        if (fr < lay.rel) {
+          const g = Math.max(0, Math.min(1, (fr - lay.gather) / (lay.rel - lay.gather)))
+          ball.position.copy(gatherPath(passer, flight.gatherFrom, top, easeInOut(g)))
+          reaches.push([passer, ball.position.clone(), 'layGrip', lay.hand])
+        } else {
+          if (!flight.release) flight.release = top.clone()
+          const from = flight.release
+          const ur = Math.max(0, Math.min(1, (fr - lay.rel) / (0.97 - lay.rel)))
+          if (ur < 0.74) {
+            const e2 = ur / 0.74
+            if (lay.bank) {
+              // to the glass first (its upper corner, on his side), then down to the rim
+              const glass = new THREE.Vector3(lay.bankX, 3.38, hp.z - lay.dir * 0.375 + lay.dir * 0.02 + lay.dir * BALL_R)
+              if (e2 < 0.55) { const a = e2 / 0.55; ball.position.copy(from.clone().lerp(glass, a)); ball.position.y += 0.25 * a * (1 - a) * 4 * 0.5 }
+              else { const a = (e2 - 0.55) / 0.45; ball.position.copy(glass.clone().lerp(rimP, a)); ball.position.y -= 0.1 * a * (1 - a) * 4 * 0.4 }
+            } else {
+              ball.position.copy(from.clone().lerp(rimP, e2))
+              ball.position.y = from.y + (rimP.y - from.y) * e2 + 4 * 0.5 * e2 * (1 - e2)
+            }
+          } else {
+            const g = (ur - 0.74) / 0.26
+            ball.position.copy(rimP).setY(rimP.y - (rimP.y - BALL_R) * g * g)
+          }
+          reaches.push([passer, from, 'layFollow', { hand: lay.hand, u: ur * 3 }])
+        }
+      } else if (passer && fr < G) {
         const g = easeInOut(fr / G)
         ball.position.copy(gatherPath(passer, flight.gatherFrom, shotPoint(passer), g))
         reaches.push([passer, ball.position.clone(), 'shoot'])
@@ -1985,6 +2100,8 @@ function simulate(t, dt) {
   reaches.forEach(([f, p, kind, u]) => {
     if (kind === 'shoot') shootGrip(f, p)
     else if (kind === 'shotFollow') shotFollow(f, p, u)
+    else if (kind === 'layGrip') layGrip(f, p, u)
+    else if (kind === 'layFollow') layFollow(f, p, u.hand, u.u)
     else if (kind === 'cross') crossArms(f, u)
     else if (kind === 'dribble') {
       const hy = Math.max(ball.position.y, 0.62) + BALL_R + bodyOf(f).handR * 0.8
@@ -2540,7 +2657,7 @@ function holderAt(t) {
   const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
   let who = null
   if (!act) who = CARRIERS[k]
-  else if (act.type === 'shot') who = fr < 0.3 ? CARRIERS[k] : null
+  else if (act.type === 'shot') { const pl = CARRIERS[k] && figures[CARRIERS[k].id] ? planShot(figures[CARRIERS[k].id], k, act) : null; who = fr < (pl && pl.kind === 'layup' ? pl.lay.rel : 0.3) ? CARRIERS[k] : null }
   else who = fr < 0.5 ? CARRIERS[k] : CARRIERS[k + 1]
   return who ? figures[who.id] || null : null
 }
