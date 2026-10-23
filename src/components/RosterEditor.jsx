@@ -14,9 +14,11 @@ const CSV_EXTRA_FIELDS = [
 
 const pill = { padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }
 
-export default function RosterEditor({ emptyHint, grow = true }) {
-  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, exportRosterCsv, openPlayerDetail, askConfirm } = useApp()
-  const { roster, nameIn, numIn, editId } = state
+// Import / export / copy-from-team: a row of buttons, a line of help, and the
+// two dialogs they open. `inset` pads it for a screen that places it on its own.
+export function RosterTools({ inset = false }) {
+  const { state, importRosterPlayers, exportRosterCsv } = useApp()
+  const { roster } = state
   const csvFileRef = useRef(null)
   const [csvPreview, setCsvPreview] = useState(null)
   const [csvError, setCsvError] = useState(null)
@@ -45,20 +47,8 @@ export default function RosterEditor({ emptyHint, grow = true }) {
   }
 
   return (
-    <div style={{ flex: grow ? 1 : 'none', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
-      <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
-        <input
-          type="text" value={numIn} onChange={(e) => set({ numIn: e.target.value })} placeholder="#"
-          style={{ width: 54, flex: 'none', ...field(), textAlign: 'center' }}
-        />
-        <input
-          type="text" value={nameIn} onChange={(e) => set({ nameIn: e.target.value })} placeholder="Player name"
-          style={{ flex: 1, minWidth: 0, ...field() }}
-        />
-        <div onClick={addPlayer} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{editId ? 'Save' : 'Add'}</div>
-        {editId && <div onClick={cancelEditPlayer} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: csvError ? 6 : 12 }}>
+    <div style={inset ? { padding: '6px 18px 18px' } : { paddingTop: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: csvError ? 6 : 8 }}>
         <div onClick={pickCsvFile} style={pill}>Import CSV</div>
         <div onClick={exportRosterCsv} style={pill}>Export CSV</div>
         {otherTeams.length > 0 && <div onClick={() => setCopyOpen(true)} style={pill}>Copy from team</div>}
@@ -66,28 +56,6 @@ export default function RosterEditor({ emptyHint, grow = true }) {
       </div>
       <div style={{ fontSize: 11, color: csvError ? '#d98a6a' : 'rgba(255,255,255,.35)', lineHeight: 1.4, paddingBottom: 12 }}>
         {csvError || 'Import a list with number and name — any common spreadsheet export works. Export writes every detail except the photo.'}
-      </div>
-      <div style={{ flex: grow ? 1 : 'none', minHeight: 0, overflowY: grow ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {roster.map((p) => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: editId === p.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (editId === p.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
-            {/* Everything but the pencil and delete buttons opens the extended
-                profile — birth date, contact, a parent's for a youth player, a
-                photo. The pencil keeps doing the one thing it always has:
-                a quick rename or renumber without leaving the list. */}
-            <div onClick={() => openPlayerDetail(p)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              {/* The number stays the badge here regardless of a photo — a
-                  coach scanning the list is matching jersey numbers, and a
-                  row of photos doesn't sort or scan the way numbers do. The
-                  photo has its place in the profile sheet this opens. */}
-              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num || '–'}</div>
-              <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-              <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
-            </div>
-            <div onClick={() => editPlayer(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
-            <div onClick={() => askConfirm({ title: 'Remove player', message: `Remove ${p.name}? This can't be undone.`, onConfirm: () => removePlayer(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
-          </div>
-        ))}
-        {!roster.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>{emptyHint}</div>}
       </div>
 
       {csvPreview && (
@@ -123,6 +91,59 @@ export default function RosterEditor({ emptyHint, grow = true }) {
         </div>
       )}
       {copyOpen && <RosterCopyModal onClose={() => setCopyOpen(false)} />}
+    </div>
+  )
+}
+
+// `toolsElsewhere`: the screen puts the tools (RosterTools) itself once the
+// roster has players — see TeamDetail, which wants them under the coaches too.
+export default function RosterEditor({ emptyHint, grow = true, toolsElsewhere = false }) {
+  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, openPlayerDetail, askConfirm } = useApp()
+  const { roster, nameIn, numIn, editId } = state
+  // Import, export and copy lead the screen while there is nobody on the
+  // roster yet (a new team starts with them); once it has players they are
+  // out of the way, under the list.
+  const toolsAbove = !roster.length
+  const toolsBelow = !!roster.length && !toolsElsewhere
+  return (
+    <div style={{ flex: grow ? 1 : 'none', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 18px' }}>
+      <div style={{ display: 'flex', gap: 6, paddingBottom: 12 }}>
+        <input
+          type="text" value={numIn} onChange={(e) => set({ numIn: e.target.value })} placeholder="#"
+          style={{ width: 54, flex: 'none', ...field(), textAlign: 'center' }}
+        />
+        <input
+          type="text" value={nameIn} onChange={(e) => set({ nameIn: e.target.value })} placeholder="Player name"
+          style={{ flex: 1, minWidth: 0, ...field() }}
+        />
+        <div onClick={addPlayer} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{editId ? 'Save' : 'Add'}</div>
+        {editId && <div onClick={cancelEditPlayer} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
+      </div>
+      {toolsAbove && <RosterTools />}
+      <div style={{ flex: grow ? 1 : 'none', minHeight: 0, overflowY: grow ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {roster.map((p) => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 12, ...raised(.05, .08), background: editId === p.id ? 'rgba(255,255,255,.11)' : 'rgba(255,255,255,.05)', border: '1px solid ' + (editId === p.id ? ACCENT : 'rgba(255,255,255,.08)') }}>
+            {/* Everything but the pencil and delete buttons opens the extended
+                profile — birth date, contact, a parent's for a youth player, a
+                photo. The pencil keeps doing the one thing it always has:
+                a quick rename or renumber without leaving the list. */}
+            <div onClick={() => openPlayerDetail(p)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              {/* The number stays the badge here regardless of a photo — a
+                  coach scanning the list is matching jersey numbers, and a
+                  row of photos doesn't sort or scan the way numbers do. The
+                  photo has its place in the profile sheet this opens. */}
+              <div style={{ width: 30, height: 30, flex: 'none', borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', ...chipSurface(.10), color: '#fff', fontWeight: 700, fontSize: 15 }}>{p.num || '–'}</div>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+              <div style={{ flex: 'none', fontSize: 13, color: 'rgba(255,255,255,.3)' }}>›</div>
+            </div>
+            <div onClick={() => editPlayer(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
+            <div onClick={() => askConfirm({ title: 'Remove player', message: `Remove ${p.name}? This can't be undone.`, onConfirm: () => removePlayer(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
+          </div>
+        ))}
+        {!roster.length && <div style={{ padding: '12px 2px', fontSize: 12, color: 'rgba(255,255,255,.4)', lineHeight: 1.5 }}>{emptyHint}</div>}
+      </div>
+
+      {toolsBelow && <RosterTools />}
       <PlayerDetail />
     </div>
   )
