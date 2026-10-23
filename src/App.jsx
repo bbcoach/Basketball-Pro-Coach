@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { AppProvider, useApp } from './state/store'
 import { useLandscape } from './lib/useLandscape'
 import { ACCENT, COND } from './theme'
@@ -127,33 +127,36 @@ function DunkBurst() {
   )
 }
 
-// Tap the ball 10 times for a hidden slam-dunk celebration.
-function RotateLock() {
-  const [taps, setTaps] = useState(0)
-  const [dunking, setDunking] = useState(false)
-
-  const onBallTap = () => {
-    if (dunking) return
-    const n = taps + 1
-    if (n >= 10) { setTaps(0); setDunking(true) } else setTaps(n)
-  }
-
+// A hidden slam-dunk celebration: tap the logo on the overview (or in the
+// info sheet) ten times in a row and the ball dunks through a hoop with a
+// comic-book "SLAM DUNK!" behind it. Logo.jsx counts the taps and fires
+// 'bpc-dunk'; this listens and plays the animation over whatever is on screen.
+function DunkEgg() {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const h = () => setOn(true)
+    window.addEventListener('bpc-dunk', h)
+    return () => window.removeEventListener('bpc-dunk', h)
+  }, [])
+  // gone after the animation (a timer, not its end event: with reduced motion
+  // there is no animation to end)
+  useEffect(() => {
+    if (!on) return undefined
+    const id = setTimeout(() => setOn(false), 2000)
+    return () => clearTimeout(id)
+  }, [on])
+  if (!on) return null
   return (
     <div
-      className={'rotate-lock' + (dunking ? ' rl-screen-shake' : '')}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999, background: '#0a0a0b',
-        flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24, textAlign: 'center',
-      }}
+      className="rl-screen-shake"
+      onClick={() => setOn(false)}
+      style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(10,10,11,.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
     >
-      {dunking && <DunkBurst />}
-      {/* Fixed 72×72 footprint — identical to the plain idle ball, so the
-          rest state stays perfectly centered. The hoop only exists while
-          dunking and is drawn above the box; overflow:visible lets it (and
+      <DunkBurst />
+      {/* The hoop is drawn above the 72×72 box; overflow:visible lets it (and
           the rising ball) show without changing the box's layout size. */}
       <svg width="72" height="72" viewBox="0 0 72 72" style={{ overflow: 'visible' }}>
-        {dunking && (
-          <g transform="translate(36,-6)">
+        <g transform="translate(36,-6)">
             <rect x="-24" y="-30" width="48" height="26" rx="1.5" fill="rgba(235,235,240,.92)" stroke="rgba(0,0,0,.3)" strokeWidth="1.3" />
             <rect x="-11" y="-16" width="22" height="13" fill="none" stroke="rgba(0,0,0,.3)" strokeWidth="1" />
             <g className="rl-rim-shake">
@@ -169,22 +172,16 @@ function RotateLock() {
               <path d="M-15 0 A15 3.6 0 0 0 15 0" fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1" />
             </g>
           </g>
-        )}
-        <g transform="translate(36,36)" onClick={onBallTap} style={{ cursor: 'pointer' }}>
+        <g transform="translate(36,36)">
           <circle r="34" fill="transparent" />
           <g
-            className={dunking ? 'rl-dunk' : 'rl-spin'}
-            onAnimationEnd={() => { if (dunking) setDunking(false) }}
+            className="rl-dunk"
           >
             <circle cx="0" cy="0" r="30" fill="#e2762b" stroke="rgba(0,0,0,.45)" strokeWidth="2" />
             <path d="M-30 0 H30 M0 -30 V30 M-21 -21 Q0 0 -21 21 M21 -21 Q0 0 21 21" stroke="rgba(0,0,0,.45)" strokeWidth="2" fill="none" />
           </g>
         </g>
       </svg>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Please rotate your device</div>
-      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', maxWidth: 280, lineHeight: 1.5 }}>
-        Basketball Pro Coach is designed for portrait mode — that's where all features are available.
-      </div>
     </div>
   )
 }
@@ -195,11 +192,9 @@ function AppShell() {
   // The Tactics Board and Stat Tracker get a landscape layout (useful held
   // sideways, e.g. on a tablet, to walk players through a play, or to see
   // both sides of a two-team game side by side without scrolling) — every
-  // other screen keeps the fixed phone-width portrait column and the
-  // rotate-lock prompt. Each screen's own layout replaces the lock.
+  // other screen keeps its column, centred, and scrolls inside it.
   const landscapeScreens = state.screen === 'board' || state.screen === 'stats'
   const wide = landscapeScreens && landscape
-  const showRotateLock = !landscapeScreens
   return (
     <>
       <div
@@ -220,7 +215,7 @@ function AppShell() {
           <Screen />
         </div>
       </div>
-      {showRotateLock && <RotateLock />}
+      <DunkEgg />
     </>
   )
 }
