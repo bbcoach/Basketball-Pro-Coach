@@ -4,6 +4,7 @@ import { ACCENT } from '../state/config'
 import { parseRosterCsv } from '../lib/rosterCsv'
 import { raised, keycap, chipSurface, field, centred } from '../theme'
 import PlayerDetail from './PlayerDetail'
+import RosterCopyModal from './RosterCopyModal'
 
 // Keys as parseRosterCsv writes them, labels for the import preview.
 const CSV_EXTRA_FIELDS = [
@@ -11,12 +12,16 @@ const CSV_EXTRA_FIELDS = [
   ['parentName', 'Parent'], ['parentPhone', 'Parent phone'], ['parentEmail', 'Parent email'],
 ]
 
+const pill = { padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }
+
 export default function RosterEditor({ emptyHint, grow = true }) {
-  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, openPlayerDetail, askConfirm } = useApp()
+  const { state, set, addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, exportRosterCsv, openPlayerDetail, askConfirm } = useApp()
   const { roster, nameIn, numIn, editId } = state
   const csvFileRef = useRef(null)
   const [csvPreview, setCsvPreview] = useState(null)
   const [csvError, setCsvError] = useState(null)
+  const [copyOpen, setCopyOpen] = useState(false)
+  const otherTeams = state.teams.filter((t) => t.id !== state.activeTeamId)
 
   const pickCsvFile = () => { setCsvError(null); csvFileRef.current?.click() }
   const onCsvFile = async (e) => {
@@ -53,12 +58,14 @@ export default function RosterEditor({ emptyHint, grow = true }) {
         <div onClick={addPlayer} style={{ ...centred, padding: '10px 14px', borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>{editId ? 'Save' : 'Add'}</div>
         {editId && <div onClick={cancelEditPlayer} style={{ ...centred, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.7)', fontSize: 13, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>✕</div>}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 12 }}>
-        <div onClick={pickCsvFile} style={{ padding: '7px 11px', borderRadius: 12, background: 'rgba(255,255,255,.06)', color: 'rgba(255,255,255,.6)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', flex: 'none' }}>Import CSV</div>
-        <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: csvError ? '#d98a6a' : 'rgba(255,255,255,.35)', lineHeight: 1.4 }}>
-          {csvError || 'A list with number and name — any common spreadsheet export works.'}
-        </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingBottom: csvError ? 6 : 12 }}>
+        <div onClick={pickCsvFile} style={pill}>Import CSV</div>
+        <div onClick={exportRosterCsv} style={pill}>Export CSV</div>
+        {otherTeams.length > 0 && <div onClick={() => setCopyOpen(true)} style={pill}>Copy from team</div>}
         <input ref={csvFileRef} type="file" accept=".csv,.txt,text/csv,text/plain" onChange={onCsvFile} style={{ display: 'none' }} />
+      </div>
+      <div style={{ fontSize: 11, color: csvError ? '#d98a6a' : 'rgba(255,255,255,.35)', lineHeight: 1.4, paddingBottom: 12 }}>
+        {csvError || 'Import a list with number and name — any common spreadsheet export works. Export writes every detail except the photo.'}
       </div>
       <div style={{ flex: grow ? 1 : 'none', minHeight: 0, overflowY: grow ? 'auto' : 'visible', display: 'flex', flexDirection: 'column', gap: 5 }}>
         {roster.map((p) => (
@@ -115,6 +122,7 @@ export default function RosterEditor({ emptyHint, grow = true }) {
           </div>
         </div>
       )}
+      {copyOpen && <RosterCopyModal onClose={() => setCopyOpen(false)} />}
       <PlayerDetail />
     </div>
   )

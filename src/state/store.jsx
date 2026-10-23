@@ -794,7 +794,7 @@ export function AppProvider({ children }) {
     // to leave it blank, not to get whatever number the roster's length
     // happened to land on. Every place a number displays shows '–' instead.
     const num = (s.numIn || '').trim()
-    if (s.editId) persistRoster((r) => r.map((x) => (x.id === s.editId ? { ...x, name, num } : x)))
+    if (s.editId) patchPlayer(s.editId, { name, num })
     else persistRoster((r) => r.concat([{ id: 'rp' + Date.now(), name, num }]))
     set({ nameIn: '', numIn: '', editId: null })
     showToast(s.editId ? 'Player updated' : 'Player added')
@@ -826,6 +826,96 @@ export function AppProvider({ children }) {
     persistRoster((r) => r.concat(add))
     showToast(add.length + (add.length === 1 ? ' player imported' : ' players imported'))
   }
+  // ── one person on several teams ────────────────────────────────
+  // A player who plays in more than one age group has one record per team (the
+  // number, and everything the team records, is per team), but the records
+  // belong to the same person: they share a personId, given the first time one
+  // is copied to another team. Those details that are about the person — name,
+  // birth date, contact, parent, photo — are kept the same on every team's
+  // record, whichever one is edited. The number stays per team.
+  const PERSON_FIELDS = ['name', 'dob', 'email', 'phone', 'address', 'parentName', 'parentPhone', 'parentEmail', 'photo']
+  const patchPlayer = (id, patch) => setState((s) => {
+    const me = s.roster.find((x) => x.id === id)
+    if (!me) return s
+    const shared = me.personId ? Object.fromEntries(Object.entries(patch).filter(([k]) => PERSON_FIELDS.includes(k))) : null
+    const teams = s.teams.map((t) => ({
+      ...t,
+      roster: t.roster.map((x) => {
+        if (t.id === s.activeTeamId && x.id === id) return { ...x, ...patch }
+        if (shared && Object.keys(shared).length && x.personId === me.personId) return { ...x, ...shared }
+        return x
+      }),
+    }))
+    saveJson(LS.teams, teams)
+    return { ...s, teams, roster: teams.find((t) => t.id === s.activeTeamId).roster }
+  })
+  // Copies players from one team's roster onto another's, as new records on
+  // the target: everything about the person comes along (number, birth date,
+  // contact, parent, photo) and the two records are linked (see above). What
+  // the source team recorded — its games, attendance — stays with that team. A
+  // number somebody on the target already wears is left blank rather than
+  // guessed at; somebody already there (same person or same name) is skipped.
+  // Returns how many were copied and how many lost their number.
+  const copyPlayersBetween = (fromId, toId, ids) => {
+    // worked out from the current state first, so the counts can be reported
+    // (an updater function may run later, or twice)
+    const s0 = stateRef.current
+    const from = s0.teams.find((t) => t.id === fromId); const to = s0.teams.find((t) => t.id === toId)
+    if (!from || !to) return { copied: 0, blanked: 0 }
+    const stamp = Date.now()
+    const linked = {}
+    let blanked = 0
+    const used = new Set(to.roster.map((p) => String(p.num)).filter(Boolean))
+    const have = new Set(to.roster.map((p) => p.name.trim().toLowerCase()))
+    const havePerson = new Set(to.roster.map((p) => p.personId).filter(Boolean))
+    const add = []
+    from.roster.filter((p) => ids.includes(p.id)).forEach((p, i) => {
+      if (have.has(p.name.trim().toLowerCase()) || (p.personId && havePerson.has(p.personId))) return
+      const personId = p.personId || 'pe' + stamp + '-' + i
+      linked[p.id] = personId
+      const { id: _id, ...rest } = p
+      let num = String(p.num || '').trim()
+      if (num && used.has(num)) { num = ''; blanked++ }
+      if (num) used.add(num)
+      add.push({ ...rest, personId, id: 'rp' + stamp + 'c' + i + toId, num })
+    })
+    if (!add.length) return { copied: 0, blanked: 0 }
+    setState((s) => {
+      const teams = s.teams.map((t) => {
+        if (t.id === fromId) return { ...t, roster: t.roster.map((x) => (linked[x.id] && !x.personId ? { ...x, personId: linked[x.id] } : x)) }
+        if (t.id === toId) return { ...t, roster: t.roster.concat(add) }
+        return t
+      })
+      saveJson(LS.teams, teams)
+      return { ...s, teams, roster: teams.find((t) => t.id === s.activeTeamId).roster }
+    })
+    return { copied: add.length, blanked }
+  }
+  const copyRosterPlayers = (fromId, ids) => {
+    const { copied, blanked } = copyPlayersBetween(fromId, stateRef.current.activeTeamId, ids)
+    if (!copied) { showToast('Nobody to copy'); return }
+    showToast(copied + (copied === 1 ? ' player copied' : ' players copied') + (blanked ? ' · ' + blanked + ' without a number (taken)' : ''))
+  }
+  // One player of this team to another team (from the player's profile).
+  const copyPlayerToTeam = (playerId, teamId) => {
+    const { copied, blanked } = copyPlayersBetween(stateRef.current.activeTeamId, teamId, [playerId])
+    const t = stateRef.current.teams.find((x) => x.id === teamId)
+    if (!copied) { showToast('Already on ' + (t ? t.name : 'that team')); return }
+    showToast('Copied to ' + (t ? t.name : 'the team') + (blanked ? ' · number taken there, left blank' : ''))
+  }
+  // Stops a player's details being kept the same on other teams (this team's
+  // record keeps what it has; the other teams' records stay linked to each other)
+  const unlinkPlayer = (id) => persistRoster((r) => r.map((x) => { if (x.id !== id) return x; const { personId: _p, ...rest } = x; return rest }))
+  const exportRosterCsv = async () => {
+    const s = stateRef.current
+    if (!s.roster.length) { showToast('No players to export yet'); return }
+    const { rosterToCsv } = await import('../lib/rosterCsv')
+    const { download } = await import('../lib/download')
+    const team = (s.teams.find((t) => t.id === s.activeTeamId) || {}).name || 'roster'
+    const base = team.replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'roster'
+    download(new Blob([rosterToCsv(s.roster)], { type: 'text/csv;charset=utf-8' }), base + '-roster.csv')
+    showToast('Roster exported')
+  }
   const editPlayer = (p) => set({ editId: p.id, nameIn: p.name, numIn: p.num })
   const cancelEditPlayer = () => set({ editId: null, nameIn: '', numIn: '' })
   const removePlayer = (p) => {
@@ -837,7 +927,7 @@ export function AppProvider({ children }) {
   // number and name, and is edited a field at a time from PlayerDetail
   // rather than through a staged draft: there's no add/cancel step here, so
   // whatever's typed is what's saved, the same way renaming a team works.
-  const updatePlayer = (id, patch) => persistRoster((r) => r.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  const updatePlayer = (id, patch) => patchPlayer(id, patch)
   const openPlayerDetail = (p) => set({ playerDetailId: p.id })
   const closePlayerDetail = () => set({ playerDetailId: null })
 
@@ -1196,7 +1286,7 @@ export function AppProvider({ children }) {
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
     selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, copyRosterPlayers, copyPlayerToTeam, unlinkPlayer, exportRosterCsv, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
     askReset, closeReset, resetGame, resetRoster,
