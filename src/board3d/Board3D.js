@@ -265,8 +265,19 @@ const camera = new THREE.PerspectiveCamera(50, W / H, 0.05, 160)
 // A tall, narrow picture (a phone held upright) would see only a sliver of
 // the court with a 50° lens; widen it as the picture narrows.
 let lensPov = false
+let lensOver = false
 function fitLens() {
   const a = W / H
+  if (lensOver) {
+    // the overview camera (the video): wide enough that the whole width of the
+    // court is in the picture, whatever shape the picture is
+    const dist = courtView === 'full' ? 27.6 : 22.1
+    const fov = Math.max(40, Math.min(90, (2 * Math.atan(8.4 / dist / a) * 180) / Math.PI))
+    camera.aspect = a
+    if (camera.fov !== fov) camera.fov = fov
+    camera.updateProjectionMatrix()
+    return
+  }
   // through his own eyes the lens is wider, to take in the hands as well
   const fov = lensPov ? (a < 1 ? 100 : 80) : a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
   camera.aspect = a
@@ -2033,7 +2044,8 @@ function view(t) {
   const carrier = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const povId = figures[cam.povId] ? cam.povId : (EYE_FIGS.find((f) => f.p.team === 'off') || EYE_FIGS[0] || { p: {} }).p.id
   const pov = cam.mode === 'pov'
-  if (pov !== lensPov) { lensPov = pov; fitLens() }
+  const over = cam.mode === 'overview'
+  if (pov !== lensPov || over !== lensOver || over) { lensPov = pov; lensOver = over; fitLens() }
   // first person: of his own body only the arms are drawn — the hands that
   // hold the ball are what you'd see looking down
   Object.values(figures).forEach((f) => {
@@ -2075,8 +2087,8 @@ function view(t) {
     // full court), looking down the court — everyone in view, nobody hidden
     // behind anybody, the paths readable. It drifts a little with the ball.
     const full = courtView === 'full'
-    camera.position.set(ball.position.x * 0.12, full ? 14.4 : 9, full ? 35.5 : 15.2)
-    const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.2)
+    camera.position.set(ball.position.x * 0.12, full ? 14.4 : 13.5, full ? 35.5 : 23)
+    const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.5)
     look = look ? look.lerp(target, 0.06) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
