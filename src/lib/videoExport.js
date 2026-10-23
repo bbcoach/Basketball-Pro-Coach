@@ -343,13 +343,13 @@ export async function renderPlayVideo(play, { fps = 30, speed = 1, onProgress } 
 // The same clip, filmed in the 3D view: a hidden 3D board is set up at the
 // video's size and each frame is drawn from the "overview" camera (high
 // behind the half-court line, everyone in view), copied onto a plain canvas
-// and handed to the encoder. Portrait 9:16, which is how a clip is watched on
-// a phone. The key to the route colours sits in the top-left corner.
-export async function renderPlayVideo3d(play, { fps = 30, speed = 1, onProgress } = {}) {
+// and handed to the encoder. Portrait 9:16 for a phone, or wide 16:9 for a
+// tablet, a laptop or a projector. The key to the route colours sits in the top-left corner.
+export async function renderPlayVideo3d(play, { fps = 30, speed = 1, wide = false, onProgress } = {}) {
   const totalSteps = Math.max(1, play.steps || 1)
   const players = play.players || []
-  const outW = 720
-  const outH = 1280
+  const outW = wide ? 1280 : 720
+  const outH = wide ? 720 : 1280
   const HOLD_START = 0.8
   const HOLD_END = 1.5
   const END_CARD = 2.2

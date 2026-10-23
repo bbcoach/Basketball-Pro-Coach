@@ -627,7 +627,7 @@ export function AppProvider({ children }) {
   // The same, filmed in 3D (see renderPlayVideo3d): portrait, from the
   // overview camera. A little slower than the top-down clip, since every
   // frame is a 3D picture.
-  const doExportVideo3d = async () => {
+  const doExportVideo3d = async (wide = false) => {
     const s = stateRef.current
     const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
     set({ videoExporting: true, shareStatus: 'Encoding 3D video… 0%' })
@@ -635,12 +635,13 @@ export function AppProvider({ children }) {
       const { renderPlayVideo3d } = await import('../lib/videoExport')
       const blob = await renderPlayVideo3d(play, {
         speed: s.speed,
+        wide: wide === true,
         onProgress: (frac) => set({ shareStatus: 'Encoding 3D video… ' + Math.round(frac * 100) + '%' }),
       })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = fileBase() + '-3d.mp4'
+      a.download = fileBase() + (wide === true ? '-3d-wide' : '-3d') + '.mp4'
       document.body.appendChild(a)
       a.click()
       a.remove()

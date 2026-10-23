@@ -268,13 +268,21 @@ const camera = new THREE.PerspectiveCamera(50, W / H, 0.05, 160)
 // the court with a 50° lens; widen it as the picture narrows.
 let lensPov = false
 let lensOver = false
+// Where the overview camera (the video) stands and what it looks at: high
+// behind the half-court line (behind the baseline on a full court). A wide
+// picture can come in closer and lower than a tall one. `dist` is the way
+// from the lens to the point it looks at, for the lens below.
+function overviewRig(full, wide) {
+  if (wide) return full ? { y: 14, z: 39, tz: 12, dist: 30.4, minFov: 40 } : { y: 10, z: 22, tz: 4.5, dist: 19, minFov: 30 }
+  return full ? { y: 11.5, z: 35.5, tz: 12, dist: 26.2, minFov: 40 } : { y: 10.5, z: 23, tz: 5.5, dist: 20.4, minFov: 40 }
+}
 function fitLens() {
   const a = W / H
   if (lensOver) {
-    // the overview camera (the video): wide enough that the whole width of the
-    // court is in the picture, whatever shape the picture is
-    const dist = courtView === 'full' ? 26.2 : 20.4
-    const fov = Math.max(40, Math.min(90, (2 * Math.atan(8.4 / dist / a) * 180) / Math.PI))
+    // wide enough that the whole width of the court is in the picture,
+    // whatever shape the picture is
+    const rig = overviewRig(courtView === 'full', a >= 1)
+    const fov = Math.max(rig.minFov, Math.min(90, (2 * Math.atan(8.4 / rig.dist / a) * 180) / Math.PI))
     camera.aspect = a
     if (camera.fov !== fov) camera.fov = fov
     camera.updateProjectionMatrix()
@@ -2089,8 +2097,9 @@ function view(t) {
     // full court), looking down the court — everyone in view, nobody hidden
     // behind anybody, the paths readable. It drifts a little with the ball.
     const full = courtView === 'full'
-    camera.position.set(ball.position.x * 0.12, full ? 11.5 : 10.5, full ? 35.5 : 23)
-    const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.5)
+    const rig = overviewRig(full, W >= H)
+    camera.position.set(ball.position.x * 0.12, rig.y, rig.z)
+    const target = new THREE.Vector3(ball.position.x * 0.3, 0, rig.tz)
     look = look ? look.lerp(target, 0.06) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
