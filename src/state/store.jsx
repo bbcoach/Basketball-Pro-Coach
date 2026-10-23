@@ -624,6 +624,35 @@ export function AppProvider({ children }) {
     }
   }
 
+  // The same, filmed in 3D (see renderPlayVideo3d): portrait, from the
+  // overview camera. A little slower than the top-down clip, since every
+  // frame is a 3D picture.
+  const doExportVideo3d = async () => {
+    const s = stateRef.current
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
+    set({ videoExporting: true, shareStatus: 'Encoding 3D video… 0%' })
+    try {
+      const { renderPlayVideo3d } = await import('../lib/videoExport')
+      const blob = await renderPlayVideo3d(play, {
+        speed: s.speed,
+        onProgress: (frac) => set({ shareStatus: 'Encoding 3D video… ' + Math.round(frac * 100) + '%' }),
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileBase() + '-3d.mp4'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      set({ shareOpen: false, videoExporting: false, shareStatus: 'Sends the current play to your team' })
+      showToast('Video saved')
+    } catch {
+      set({ shareOpen: false, videoExporting: false, shareStatus: 'Sends the current play to your team' })
+      showToast("Couldn't export the 3D video on this device")
+    }
+  }
+
   // Half-court in full screen wastes the one thing full screen is for —
   // showing the whole play as big as possible — so it always switches to
   // full court, and restores whatever view the coach had been editing in
@@ -1158,7 +1187,7 @@ export function AppProvider({ children }) {
     undo, clearRoutes, resetAll, setTool, toggleAutoDef, toggleHelpDef,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
-    openShare, closeShareModal, doExportSteps, doExportVideo,
+    openShare, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d,
     closeShareCode, sharePlay, shareDrill,
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen, setView3d, setCam3d, setPaths3d, setQuality3d, cyclePov,

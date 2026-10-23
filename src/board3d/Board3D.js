@@ -20,8 +20,9 @@ import { ROUTE_COLORS } from './routeColors'
 //   view.setBoard(state)          // players, ball, steps … (re-bakes)
 //   view.setCourtView('half' | 'full')
 //   view.setPaths(true | false)   // the step's routes drawn on the floor
-//   view.setQuality('high' | 'medium' | 'low')
-//   view.setCamera('court' | 'pov' | 'free', playerId)
+//   view.setQuality('high' | 'medium' | 'low' | 'export')
+//   view.setCamera('court' | 'pov' | 'free' | 'overview', playerId)
+//   view.renderNow(t)             // draws that frame right now (video export)
 //   view.render(t)                // t in 0…1 along the play; drawn soon
 //   view.dispose()
 export async function createBoard3D(container) {
@@ -2069,6 +2070,14 @@ function view(t) {
     }
     camera.position.copy(eye)
     look = look ? look.lerp(target, 0.08) : target
+  } else if (cam.mode === 'overview') {
+    // for the video: high behind the half-court line (behind the baseline on a
+    // full court), looking down the court — everyone in view, nobody hidden
+    // behind anybody, the paths readable. It drifts a little with the ball.
+    const full = courtView === 'full'
+    camera.position.set(ball.position.x * 0.12, full ? 14.4 : 9, full ? 35.5 : 15.2)
+    const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.2)
+    look = look ? look.lerp(target, 0.06) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
     // full court the camera takes the half the ball is in.
@@ -2462,6 +2471,8 @@ const dpr = window.devicePixelRatio || 1
 const QUALITY = {
   high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
   medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
+  // for the video export: everything on, at the video's own size (no extra pixel density)
+  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
   low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
 }
 let quality = 'medium'
@@ -2527,6 +2538,8 @@ return {
     dirty = true; schedule()
   },
   render(t) { target = Math.max(0, Math.min(1, t)); dirty = true; schedule() },
+  // draws the frame straight away and hands back the canvas, for the video export
+  renderNow(t) { target = Math.max(0, Math.min(1, t)); dirty = false; frame(target); return renderer.domElement },
   resize() {
     const w = Math.max(1, container.clientWidth); const h = Math.max(1, container.clientHeight)
     if (w === W && h === H) return
