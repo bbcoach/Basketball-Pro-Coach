@@ -153,3 +153,30 @@ export function parseRosterCsv(text) {
   if (!players.length) throw new Error("Couldn't find any player names in that file.")
   return players
 }
+
+// ── export ──────────────────────────────────────────────────────────────
+// Everything on a player record except the photo (a picture is no use in a
+// spreadsheet cell, and the data behind it would blow past a cell's size
+// limit). The headers are ones parseRosterCsv understands, so a file written
+// here reads straight back in. Semicolon-separated with a byte-order mark:
+// that is what German Excel opens as proper columns with umlauts intact.
+const EXPORT_COLS = [
+  ['Number', 'num'], ['Name', 'name'], ['Date of birth', 'dob'], ['Email', 'email'], ['Phone', 'phone'],
+  ['Address', 'address'], ['Parent', 'parentName'], ['Parent phone', 'parentPhone'], ['Parent email', 'parentEmail'],
+]
+
+function csvCell(value) {
+  let v = String(value == null ? '' : value)
+  // an address can run over several lines; the importer reads a file line by
+  // line, so it goes out on one
+  v = v.replace(/\r\n|\r|\n/g, ', ')
+  // a cell opening with = or @ would be run as a formula by a spreadsheet
+  if (/^[=@\t]/.test(v)) v = "'" + v
+  return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v
+}
+
+export function rosterToCsv(roster) {
+  const lines = [EXPORT_COLS.map(([head]) => head).join(';')]
+  roster.forEach((p) => { lines.push(EXPORT_COLS.map(([, key]) => csvCell(p[key])).join(';')) })
+  return '\ufeff' + lines.join('\r\n') + '\r\n'
+}

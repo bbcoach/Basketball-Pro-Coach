@@ -826,6 +826,36 @@ export function AppProvider({ children }) {
     persistRoster((r) => r.concat(add))
     showToast(add.length + (add.length === 1 ? ' player imported' : ' players imported'))
   }
+  // Players carried over from another team's roster. Everything about the
+  // person comes along (number, birth date, contact, parent, photo) as a fresh
+  // record on this team; what the other team recorded — its games, attendance —
+  // stays with that team. A number somebody here already wears is left blank
+  // rather than guessed at.
+  const copyRosterPlayers = (list) => {
+    const used = new Set(stateRef.current.roster.map((p) => String(p.num)).filter(Boolean))
+    const stamp = Date.now()
+    let blanked = 0
+    const add = list.map((p, i) => {
+      const { id: _id, ...rest } = p
+      let num = String(p.num || '').trim()
+      if (num && used.has(num)) { num = ''; blanked++ }
+      if (num) used.add(num)
+      return { ...rest, id: 'rp' + stamp + 'c-' + i, num }
+    })
+    if (!add.length) return
+    persistRoster((r) => r.concat(add))
+    showToast(add.length + (add.length === 1 ? ' player copied' : ' players copied') + (blanked ? ' · ' + blanked + ' without a number (taken)' : ''))
+  }
+  const exportRosterCsv = async () => {
+    const s = stateRef.current
+    if (!s.roster.length) { showToast('No players to export yet'); return }
+    const { rosterToCsv } = await import('../lib/rosterCsv')
+    const { download } = await import('../lib/download')
+    const team = (s.teams.find((t) => t.id === s.activeTeamId) || {}).name || 'roster'
+    const base = team.replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'roster'
+    download(new Blob([rosterToCsv(s.roster)], { type: 'text/csv;charset=utf-8' }), base + '-roster.csv')
+    showToast('Roster exported')
+  }
   const editPlayer = (p) => set({ editId: p.id, nameIn: p.name, numIn: p.num })
   const cancelEditPlayer = () => set({ editId: null, nameIn: '', numIn: '' })
   const removePlayer = (p) => {
@@ -1196,7 +1226,7 @@ export function AppProvider({ children }) {
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
     selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, copyRosterPlayers, exportRosterCsv, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
     addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
     askReset, closeReset, resetGame, resetRoster,
