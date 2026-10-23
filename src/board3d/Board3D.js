@@ -117,6 +117,8 @@ const OutlineShader = {
 const qual = { bgScale: 0.5, bgBlur: true, nets: true, reflectScale: 0.5 }
 // the glossy floor's mirror (see below), sized with the picture
 let reflector = null
+// the scoreboard over centre court (left out of the video, where it only gets in the way)
+let scoreboard = null
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -265,8 +267,27 @@ const camera = new THREE.PerspectiveCamera(50, W / H, 0.05, 160)
 // A tall, narrow picture (a phone held upright) would see only a sliver of
 // the court with a 50° lens; widen it as the picture narrows.
 let lensPov = false
+let lensOver = false
+// Where the overview camera (the video) stands and what it looks at: high
+// behind the half-court line (behind the baseline on a full court). A wide
+// picture can come in closer and lower than a tall one. `dist` is the way
+// from the lens to the point it looks at, for the lens below.
+function overviewRig(full, wide) {
+  if (wide) return full ? { y: 14, z: 39, tz: 12, dist: 30.4, minFov: 40 } : { y: 10, z: 22, tz: 4.5, dist: 19, minFov: 30 }
+  return full ? { y: 11.5, z: 35.5, tz: 12, dist: 26.2, minFov: 40 } : { y: 10.5, z: 23, tz: 5.5, dist: 20.4, minFov: 40 }
+}
 function fitLens() {
   const a = W / H
+  if (lensOver) {
+    // wide enough that the whole width of the court is in the picture,
+    // whatever shape the picture is
+    const rig = overviewRig(courtView === 'full', a >= 1)
+    const fov = Math.max(rig.minFov, Math.min(90, (2 * Math.atan(8.4 / rig.dist / a) * 180) / Math.PI))
+    camera.aspect = a
+    if (camera.fov !== fov) camera.fov = fov
+    camera.updateProjectionMatrix()
+    return
+  }
   // through his own eyes the lens is wider, to take in the hands as well
   const fov = lensPov ? (a < 1 ? 100 : 80) : a < 1 ? Math.min(72, 50 / Math.max(0.6, a)) : 50
   camera.aspect = a
@@ -601,7 +622,7 @@ function ledTexture(w) {
     const a = (i * Math.PI) / 2
     s.position.set(Math.sin(a) * 1.81, 0, Math.cos(a) * 1.81); s.rotation.y = a; sb.add(s)
   }
-  sb.position.set(0, 11.5, 14); scene.add(sb)
+  sb.position.set(0, 11.5, 14); scene.add(sb); scoreboard = sb
   // everything added since the stands began is soft background
   scene.children.filter((o) => !beforeBg.has(o)).forEach((o) => o.traverse((c) => c.layers.set(BG_LAYER)))
   // the lights light both layers
@@ -2033,7 +2054,8 @@ function view(t) {
   const carrier = !act && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const povId = figures[cam.povId] ? cam.povId : (EYE_FIGS.find((f) => f.p.team === 'off') || EYE_FIGS[0] || { p: {} }).p.id
   const pov = cam.mode === 'pov'
-  if (pov !== lensPov) { lensPov = pov; fitLens() }
+  const over = cam.mode === 'overview'
+  if (pov !== lensPov || over !== lensOver || over) { lensPov = pov; lensOver = over; fitLens() }
   // first person: of his own body only the arms are drawn — the hands that
   // hold the ball are what you'd see looking down
   Object.values(figures).forEach((f) => {
@@ -2075,8 +2097,9 @@ function view(t) {
     // full court), looking down the court — everyone in view, nobody hidden
     // behind anybody, the paths readable. It drifts a little with the ball.
     const full = courtView === 'full'
-    camera.position.set(ball.position.x * 0.12, full ? 14.4 : 9, full ? 35.5 : 15.2)
-    const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.2)
+    const rig = overviewRig(full, W >= H)
+    camera.position.set(ball.position.x * 0.12, rig.y, rig.z)
+    const target = new THREE.Vector3(ball.position.x * 0.3, 0, rig.tz)
     look = look ? look.lerp(target, 0.06) : target
   } else {
     // low, on the court behind the play, looking at where the ball is. On a
@@ -2472,7 +2495,7 @@ const QUALITY = {
   high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
   medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
   // for the video export: everything on, at the video's own size (no extra pixel density)
-  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
+  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5, noScoreboard: true },
   low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
 }
 let quality = 'medium'
@@ -2483,6 +2506,7 @@ function applyQuality(q) {
   outlinePass.uniforms.taps.value = Q.taps
   spots.forEach((l) => { l.visible = Q.spots })
   gradePass.enabled = Q.grade
+  if (scoreboard) scoreboard.visible = !Q.noScoreboard
   qual.reflectScale = Q.reflect || 0.5; reflector.visible = Q.reflect > 0; beams.visible = Q.reflect > 0
   // smoothing: the picture is drawn into these two, so they carry the samples
   ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })

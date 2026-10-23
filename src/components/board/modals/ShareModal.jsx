@@ -20,7 +20,12 @@ export default function ShareModal() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div onClick={doExportSteps} style={{ padding: 12, borderRadius: 12, ...keycap(), color: '#101012', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Step by step (PDF)</div>
             <div onClick={doExportVideo} style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Animation (video)</div>
-            {webgl3dSupported() && <div onClick={doExportVideo3d} style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>Animation in 3D (video)</div>}
+            {webgl3dSupported() && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div onClick={() => doExportVideo3d(false)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>3D video<div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>Upright · phone</div></div>
+                <div onClick={() => doExportVideo3d(true)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>3D video<div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>Wide · screen</div></div>
+              </div>
+            )}
             <div onClick={closeShareModal} style={{ padding: 10, borderRadius: 12, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
           </div>
         )}
