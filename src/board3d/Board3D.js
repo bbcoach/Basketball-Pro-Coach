@@ -273,7 +273,7 @@ function fitLens() {
   if (lensOver) {
     // the overview camera (the video): wide enough that the whole width of the
     // court is in the picture, whatever shape the picture is
-    const dist = courtView === 'full' ? 27.6 : 22.1
+    const dist = courtView === 'full' ? 26.2 : 20.4
     const fov = Math.max(40, Math.min(90, (2 * Math.atan(8.4 / dist / a) * 180) / Math.PI))
     camera.aspect = a
     if (camera.fov !== fov) camera.fov = fov
@@ -2089,7 +2089,7 @@ function view(t) {
     // full court), looking down the court — everyone in view, nobody hidden
     // behind anybody, the paths readable. It drifts a little with the ball.
     const full = courtView === 'full'
-    camera.position.set(ball.position.x * 0.12, full ? 14.4 : 13.5, full ? 35.5 : 23)
+    camera.position.set(ball.position.x * 0.12, full ? 11.5 : 10.5, full ? 35.5 : 23)
     const target = new THREE.Vector3(ball.position.x * 0.3, 0, full ? 12 : 5.5)
     look = look ? look.lerp(target, 0.06) : target
   } else {
