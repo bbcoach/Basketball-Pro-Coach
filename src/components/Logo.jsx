@@ -8,14 +8,28 @@ import { raised } from '../theme'
 // since the badge can appear more than once on screen at a time (e.g. the
 // landscape board header still shows the compact Header's badge alongside
 // nothing else today, but nested modals/overlays have in the past).
-export default function Logo({ size = 26, iconSize = 19 }) {
+// Ten taps on the logo in a row (each within 1.5 s of the one before) set off
+// the hidden slam dunk — see DunkEgg in App.jsx. `egg` turns the tap counting
+// on, for the places where a tap on the logo does nothing else.
+let eggTaps = 0
+let eggLast = 0
+function eggTap() {
+  const now = Date.now()
+  eggTaps = now - eggLast > 1500 ? 1 : eggTaps + 1
+  eggLast = now
+  if (eggTaps >= 10) { eggTaps = 0; window.dispatchEvent(new Event('bpc-dunk')) }
+}
+
+export default function Logo({ size = 26, iconSize = 19, egg = false }) {
   const uid = useId()
   const sphereId = 'logo-sphere-' + uid
   const haloId = 'logo-halo-' + uid
   return (
     <div
+      onClick={egg ? eggTap : undefined}
       style={{
         width: size, height: size, flex: 'none', borderRadius: size * 0.3,
+        ...(egg ? { cursor: 'pointer', userSelect: 'none', WebkitUserSelect: 'none' } : {}),
         ...raised(.06, .1),
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 
 // Shared orientation signal — used by the few screens (Tactics Board, Stat
-// Tracker) that reflow into a landscape layout instead of showing the
-// rotate-lock prompt the rest of the app uses.
+// Tracker) that reflow into a landscape layout; the rest keep their column.
 export function useLandscape() {
   const [landscape, setLandscape] = useState(() => window.matchMedia('(orientation: landscape)').matches)
   useEffect(() => {

@@ -170,34 +170,17 @@ input[type="range"]::-webkit-slider-thumb {
   mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent);
 }
 
-/* The app is a single fixed-width portrait column — on a rotated phone
-   (short viewport height) content gets clipped instead of reflowing, so
-   show a rotate prompt rather than a half-broken layout. Tablets in
-   landscape (much taller viewport) are left alone.
-
-   `pointer: coarse` restricts this to devices actually driven by a finger.
-   Without it a desktop qualified too — a window is practically always
-   "landscape", so the height was the only real condition, and it drops
-   under 520px as soon as someone raises the browser zoom (125% on an
-   ordinary laptop already does it) or doesn't run the window full height.
-   Those users got a black "Please rotate your device" page on a machine
-   with nothing to rotate, and no way past it. */
-.rotate-lock { display: none; }
-@media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
-  .rotate-lock { display: flex; }
+/* A phone held sideways has under 520px of height: the header gives up its
+   brand line and a little size so the lists under it keep as much room as
+   they can. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sh-brand { display: none; }
+  .sh-title { font-size: 19px !important; }
 }
 
-/* Rotate-lock mascot: a basketball that spins continuously in place. */
-.rl-spin { animation: rlSpin 1.6s linear infinite; transform-origin: 0 0; }
-
-@keyframes rlSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Hidden easter egg: tap the ball 10 times to see it slam-dunk through the
-   hoop while a full-screen comic-book "SLAM DUNK!" celebration bursts in
-   behind it, then settle back into its normal idle spin. Durations are
+/* Hidden easter egg: tap the logo 10 times to see the ball slam-dunk through
+   a hoop while a full-screen comic-book "SLAM DUNK!" celebration bursts in
+   behind it. Durations are
    stretched from the original 1.05s to 1.7s to give the bigger celebration
    room to land — 1.7s (not 1.5s) so this animation's end, which is what
    triggers unmounting the whole celebration, lands after every delayed
@@ -290,7 +273,7 @@ input[type="range"]::-webkit-slider-thumb {
   100%     { transform: scale(.9) rotate(35deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .rl-spin, .rl-dunk, .rl-net-flex, .rl-rim-shake, .toast-pop,
+  .rl-dunk, .rl-net-flex, .rl-rim-shake, .toast-pop,
   .rl-screen-shake, .rl-burst-wrap, .rl-burst-spin, .rl-burst-pop,
   .rl-comic-text-1, .rl-comic-text-2, .rl-sparkle { animation: none; }
 }

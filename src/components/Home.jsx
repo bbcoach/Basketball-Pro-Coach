@@ -71,7 +71,7 @@ export default function Home() {
       <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 24px calc(var(--safe-bottom) + 6px)' }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 26 }}>
-          <Logo size={52} iconSize={38} />
+          <Logo size={52} iconSize={38} egg />
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', color: '#fff', textTransform: 'uppercase' }}>{TEAM_NAME}</div>
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', ...goldText }}>OVERVIEW</div>

@@ -12,7 +12,7 @@ export default function InfoOverlay() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, paddingBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div onClick={closeInfo} style={{ cursor: 'pointer' }}>
-            <Logo size={30} iconSize={22} />
+            <Logo size={30} iconSize={22} egg />
           </div>
           <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.04, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>{info.title}</div>
         </div>

@@ -11,8 +11,8 @@ export default function ScreenHeader({ title, line, onClose, closeLabel = 'Menu'
           <Logo size={30} iconSize={22} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 15, lineHeight: 1.04, ...goldText, textTransform: 'uppercase', letterSpacing: '.5px' }}>{TEAM_NAME}</div>
-          <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.04, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px', marginTop: 1 }}>{title}</div>
+          <div className="sh-brand" style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 15, lineHeight: 1.04, ...goldText, textTransform: 'uppercase', letterSpacing: '.5px' }}>{TEAM_NAME}</div>
+          <div className="sh-title" style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 800, fontSize: 22, lineHeight: 1.04, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px', marginTop: 1 }}>{title}</div>
           {line && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{line}</div>}
         </div>
       </div>
