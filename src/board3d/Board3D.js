@@ -1022,7 +1022,7 @@ function makeToyHuman(p, idx, style = {}) {
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0 })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0, latV: 0, dribOn: false })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1661,6 +1661,13 @@ function simulate(t, dt) {
     const yawRate = f.prev ? Math.abs(yd) / dt : 0
     f.yRate = yawRate
     f.yDir = Math.sign(yd)
+    // his sideways speed as seen facing the basket (right is positive): moving
+    // right across the court is a right-hand dribble, left a left-hand one
+    {
+      const hp = hoopAt(z); const hl = Math.hypot(hp.x - x, hp.z - z) || 1
+      const dx = (hp.x - x) / hl; const dz = (hp.z - z) / hl
+      f.latV += ((vx * -dz + vz * dx) - f.latV) * 0.12
+    }
     f.dribbleT = t * N * 2.4 * Math.PI * 2
     // Speed in his own frame: forward strides, sideways shuffles.
     const fwd = vx * Math.sin(f.yaw) + vz * Math.cos(f.yaw)
@@ -1773,6 +1780,7 @@ function simulate(t, dt) {
   // chest (gathered up to the chest first if it was being dribbled), shot
   // from above the head.
   const reaches = []
+  Object.values(figures).forEach((o) => { o._dribNow = false })
   let catching = null
   Object.values(figures).forEach((f) => { if (f.screenW > 0.01) reaches.push([f, null, 'cross', f.screenW]) })
   let squash = 1
@@ -1789,29 +1797,49 @@ function simulate(t, dt) {
       // waist-high dribble out in front of the right hip: four bounces a
       // step, at the top of one when the step starts and ends; the hand
       // rides on top of the ball while it's up and waits there for it
-      // Which hand: the one away from the defender, so the body is between
-      // him and the ball. A change of hand (because the defender comes round
-      // the other side, or the dribbler cuts back sharply) is a crossover: the
-      // ball goes low across the front of the body to the other hand.
+      // Which hand. With a defender close, the hand furthest from him, so the
+      // body is between him and the ball. Otherwise by direction, facing the
+      // basket: dribbling to the right (or coming at the basket from the right
+      // side) is the right hand, to the left the left hand. A change of hand
+      // while he is dribbling is a crossover: the ball goes low across the
+      // front of the body. Picking the ball up to dribble is no change: the
+      // hand is simply chosen.
       let want_h = carrier.dribHand
       let pull = 0
       Object.values(figures).forEach((o) => {
         if (o.p.team === carrier.p.team || isCone(o.p) || isBall(o.p)) return
         const dv = o.root.position.clone().sub(carrier.root.position).setY(0)
         const dd = dv.length()
-        if (dd > 2.5 || dd < 0.01 || dv.dot(fwdOf(carrier)) < -0.6 * dd) return
+        if (dd > 3 || dd < 0.01 || dv.dot(fwdOf(carrier)) < -0.5 * dd) return
         const lat = dv.dot(sideOf(carrier))
-        if (Math.abs(lat) > 0.8 && Math.abs(lat) / dd > pull) { pull = Math.abs(lat) / dd; want_h = lat > 0 ? -1 : 1 }
+        if (Math.abs(lat) > 0.45 && Math.abs(lat) / dd > pull) { pull = Math.abs(lat) / dd; want_h = lat > 0 ? -1 : 1 }
       })
+      if (pull === 0) {
+        const cp = carrier.root.position
+        const hp = hoopAt(cp.z)
+        const hl = Math.hypot(hp.x - cp.x, hp.z - cp.z) || 1
+        const rx = -(hp.z - cp.z) / hl; const rz = (hp.x - cp.x) / hl // his right, facing the basket
+        // which side of the court he is on, facing the basket (right is positive)
+        const side = (cp.x - hp.x) * (hp.z < cp.z ? 1 : -1)
+        // how far this dribble takes him sideways, as planned: used to pick the
+        // hand the moment he starts, before he has any speed
+        let plan = 0
+        const da = actsOf(carrier.p).find((a) => a.step === k && a.type === 'dribble' && a.pts.length)
+        if (da) { const e = da.pts[da.pts.length - 1]; plan = (toX(e.x) - cp.x) * rx + (toZ(e.y) - cp.z) * rz }
+        const lat = carrier.dribOn ? carrier.latV : plan * 0.5
+        if (lat > 0.9) want_h = -1
+        else if (lat < -0.9) want_h = 1
+        else if (Math.abs(side) > 1) want_h = side > 0 ? -1 : 1
+      }
+      carrier._dribNow = true
       carrier.xoCool = Math.max(0, carrier.xoCool - dt)
+      if (!carrier.dribOn) {
+        // just started dribbling: the hand is simply chosen, no crossover
+        carrier.dribHand = want_h; carrier.dribArm = want_h; carrier.xoT = -1; carrier.xoCool = 1
+      }
       if (carrier.xoT >= 0) { carrier.xoT += dt / 0.5; if (carrier.xoT >= 1) { carrier.xoT = -1; carrier.dribArm = carrier.dribHand } }
-      if (carrier.xoT < 0 && carrier.xoCool <= 0) {
-        // a sharp change of direction: the ball goes to the hand on the side
-        // he is now heading for (a left turn is a left-hand dribble)
-        // (only a real cut at pace — turning to face the way he sets off doesn't count)
-        const turned = carrier.yRate > 2.2 && carrier.spd > 1.4
-        if (turned) want_h = carrier.yDir > 0 ? 1 : -1
-        if (want_h !== carrier.dribHand) { carrier.xoFrom = carrier.dribHand; carrier.dribHand = want_h; carrier.xoT = 0; carrier.xoCool = 2.6 }
+      if (carrier.xoT < 0 && carrier.xoCool <= 0 && carrier.spd > 0.6 && want_h !== carrier.dribHand) {
+        carrier.xoFrom = carrier.dribHand; carrier.dribHand = want_h; carrier.xoT = 0; carrier.xoCool = 1.6
       }
       // the arm follows the ball: it lets go of it half way across
       carrier.dribArm = carrier.xoT >= 0 && carrier.xoT < 0.5 ? carrier.xoFrom : carrier.dribHand
@@ -1953,6 +1981,7 @@ function simulate(t, dt) {
   } else {
     ball.position.set(ballXZ.x, BALL_R, ballXZ.z)
   }
+  Object.values(figures).forEach((o) => { o.dribOn = o._dribNow })
   reaches.forEach(([f, p, kind, u]) => {
     if (kind === 'shoot') shootGrip(f, p)
     else if (kind === 'shotFollow') shotFollow(f, p, u)
