@@ -1595,9 +1595,10 @@ function crossArms(f, w) {
 
 // What kind of shot a shot step is, worked out from the play alone (so it is
 // the same on every frame of the step):
-//   layup — he runs at the basket (within 3.2 m, at pace, heading for it), or
-//           is right under it: two steps, off one foot, the ball laid up on
-//           the glass or over the rim, with the hand on his side
+//   layup — he runs at the basket (within 3.2 m, at pace, heading for it, in
+//           this step or arriving from the one before), or is within 2 m of
+//           it: two steps, off one foot, the ball laid up on the glass or
+//           over the rim, with the hand on his side
 //   free  — standing still on the free-throw line with nobody near him
 //   jump  — everything else, and any shot not aimed at the basket
 // `lay` carries the timing (as fractions of the step) and the hand.
@@ -1620,7 +1621,19 @@ function planShot(f, k, act) {
     const d = Math.hypot(o.root.position.x - b.x, o.root.position.z - b.z)
     if (d < nearD) { nearD = d; defSide = (o.root.position.x - b.x) * (hp.z < b.z ? 1 : -1) }
   })
-  if (dist < 1.3 || (dist <= 3.2 && speed >= 1.2 && towards >= 0.3)) {
+  // he may also arrive on the run: moving at pace towards the basket at the end
+  // of the step before, then taking the shot from where he stopped
+  let arriving = false
+  if (k > 1 && dist <= 3.2) {
+    const prev = STEPD[k - 2] || STEP_SECS
+    const at2 = (r) => { const q = board.entPos(f.p, (k - 2 + r) / N, N, MARKS); return { x: toX(q.x), z: toZ(q.y) } }
+    // (sampled before the very end, where the walk eases to a stop)
+    const c = at2(0.5); const d = at2(0.8)
+    const pl = Math.hypot(d.x - c.x, d.z - c.z)
+    const hd = Math.hypot(hp.x - d.x, hp.z - d.z) || 1
+    arriving = pl > 1e-6 && pl / (0.3 * prev) >= 1.2 && ((d.x - c.x) * (hp.x - d.x) + (d.z - c.z) * (hp.z - d.z)) / (pl * hd) >= 0.3
+  }
+  if (dist < 2 || (dist <= 3.2 && ((speed >= 1.2 && towards >= 0.3) || arriving))) {
     const du = Math.max(0.12, Math.min(0.3, 0.6 / secs))
     const t0 = Math.min(0.62, 0.9 - du)
     // right hand from the right of the court, left from the left; with a
