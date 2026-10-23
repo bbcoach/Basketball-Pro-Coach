@@ -117,6 +117,8 @@ const OutlineShader = {
 const qual = { bgScale: 0.5, bgBlur: true, nets: true, reflectScale: 0.5 }
 // the glossy floor's mirror (see below), sized with the picture
 let reflector = null
+// the scoreboard over centre court (left out of the video, where it only gets in the way)
+let scoreboard = null
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
 const renderPass = new RenderPass(null, null)
 const outlinePass = new ShaderPass(OutlineShader)
@@ -612,7 +614,7 @@ function ledTexture(w) {
     const a = (i * Math.PI) / 2
     s.position.set(Math.sin(a) * 1.81, 0, Math.cos(a) * 1.81); s.rotation.y = a; sb.add(s)
   }
-  sb.position.set(0, 11.5, 14); scene.add(sb)
+  sb.position.set(0, 11.5, 14); scene.add(sb); scoreboard = sb
   // everything added since the stands began is soft background
   scene.children.filter((o) => !beforeBg.has(o)).forEach((o) => o.traverse((c) => c.layers.set(BG_LAYER)))
   // the lights light both layers
@@ -2484,7 +2486,7 @@ const QUALITY = {
   high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
   medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
   // for the video export: everything on, at the video's own size (no extra pixel density)
-  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
+  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5, noScoreboard: true },
   low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
 }
 let quality = 'medium'
@@ -2495,6 +2497,7 @@ function applyQuality(q) {
   outlinePass.uniforms.taps.value = Q.taps
   spots.forEach((l) => { l.visible = Q.spots })
   gradePass.enabled = Q.grade
+  if (scoreboard) scoreboard.visible = !Q.noScoreboard
   qual.reflectScale = Q.reflect || 0.5; reflector.visible = Q.reflect > 0; beams.visible = Q.reflect > 0
   // smoothing: the picture is drawn into these two, so they carry the samples
   ;[composer.renderTarget1, composer.renderTarget2].forEach((rt) => { if (rt.samples !== Q.msaa) { rt.samples = Q.msaa; rt.dispose() } })
