@@ -1022,7 +1022,7 @@ function makeToyHuman(p, idx, style = {}) {
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1 })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0 })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1195,7 +1195,11 @@ function pose(f, ampF, ampL, lean, defense, hold) {
   if (hold === 'hold') {
     for (const side of [-1, 1]) { arms[side].sh.rotation.set(-1.05, 0, -side * 1.0); arms[side].el.rotation.set(0, -side * 1.15, 0) }
   } else if (hold === 'dribble') {
-    arms[-1].sh.rotation.set(-0.35, 0, 1.25 - 0.08 * Math.cos(2 * f.dribbleT)); arms[-1].el.rotation.set(0, -0.35, 0)
+    // the dribbling hand (right or left, see simulate) low and out in front;
+    // the other arm up as a guard between the ball and the defender
+    const d = f.dribArm
+    arms[d].sh.rotation.set(-0.35, 0, -d * (1.25 - 0.08 * Math.cos(2 * f.dribbleT))); arms[d].el.rotation.set(0, d * 0.35, 0)
+    arms[-d].sh.rotation.set(-0.4 + 0.05 * Math.sin(f.dribbleT * 0.5), 0, d * 1.05); arms[-d].el.rotation.set(0, d * 0.55, 0)
   }
 }
 // ── foot locking ───────────────────────────────────────────────────────
@@ -1655,6 +1659,8 @@ function simulate(t, dt) {
     while (yd > Math.PI) yd -= 2 * Math.PI
     while (yd < -Math.PI) yd += 2 * Math.PI
     const yawRate = f.prev ? Math.abs(yd) / dt : 0
+    f.yRate = yawRate
+    f.yDir = Math.sign(yd)
     f.dribbleT = t * N * 2.4 * Math.PI * 2
     // Speed in his own frame: forward strides, sideways shuffles.
     const fwd = vx * Math.sin(f.yaw) + vz * Math.cos(f.yaw)
@@ -1783,7 +1789,35 @@ function simulate(t, dt) {
       // waist-high dribble out in front of the right hip: four bounces a
       // step, at the top of one when the step starts and ends; the hand
       // rides on top of the ball while it's up and waits there for it
-      const top = carrier.root.position.clone().addScaledVector(fwdOf(carrier), 0.32).addScaledVector(sideOf(carrier), -0.26)
+      // Which hand: the one away from the defender, so the body is between
+      // him and the ball. A change of hand (because the defender comes round
+      // the other side, or the dribbler cuts back sharply) is a crossover: the
+      // ball goes low across the front of the body to the other hand.
+      let want_h = carrier.dribHand
+      let pull = 0
+      Object.values(figures).forEach((o) => {
+        if (o.p.team === carrier.p.team || isCone(o.p) || isBall(o.p)) return
+        const dv = o.root.position.clone().sub(carrier.root.position).setY(0)
+        const dd = dv.length()
+        if (dd > 3.4 || dd < 0.01 || dv.dot(fwdOf(carrier)) < -0.6 * dd) return
+        const lat = dv.dot(sideOf(carrier))
+        if (Math.abs(lat) > 0.45 && Math.abs(lat) / dd > pull) { pull = Math.abs(lat) / dd; want_h = lat > 0 ? -1 : 1 }
+      })
+      carrier.xoCool = Math.max(0, carrier.xoCool - dt)
+      if (carrier.xoT >= 0) { carrier.xoT += dt / 0.34; if (carrier.xoT >= 1) { carrier.xoT = -1; carrier.dribArm = carrier.dribHand } }
+      if (carrier.xoT < 0 && carrier.xoCool <= 0) {
+        // a sharp change of direction: the ball goes to the hand on the side
+        // he is now heading for (a left turn is a left-hand dribble)
+        const turned = carrier.yRate > 2.4 && carrier.spd > 0.4
+        if (turned) want_h = carrier.yDir > 0 ? 1 : -1
+        if (want_h !== carrier.dribHand) { carrier.xoFrom = carrier.dribHand; carrier.dribHand = want_h; carrier.xoT = 0; carrier.xoCool = turned ? 1.8 : 0.9 }
+      }
+      // the arm follows the ball: it lets go of it half way across
+      carrier.dribArm = carrier.xoT >= 0 && carrier.xoT < 0.5 ? carrier.xoFrom : carrier.dribHand
+      const xu = carrier.xoT >= 0 ? carrier.xoT : 1
+      const sm = xu * xu * (3 - 2 * xu)
+      const lateral = (carrier.xoT >= 0 ? carrier.xoFrom : carrier.dribHand) * 0.26 + (carrier.dribHand * 0.26 - (carrier.xoT >= 0 ? carrier.xoFrom : carrier.dribHand) * 0.26) * sm
+      const top = carrier.root.position.clone().addScaledVector(fwdOf(carrier), 0.32 + (carrier.xoT >= 0 ? 0.12 * Math.sin(Math.PI * xu) : 0)).addScaledVector(sideOf(carrier), lateral)
       const TOP = 0.86
       // each bounce: pushed down out of the hand, speeding up under gravity
       // to the floor, slowing again on the way back up into the hand
@@ -1794,6 +1828,8 @@ function simulate(t, dt) {
       // a slight squash as it hits the floor
       squash = half > 0.93 ? 1 - 0.14 * (half - 0.93) / 0.07 : 1
       want = top.setY(TOP - (TOP - BALL_R * squash) * drop)
+      // across the body the ball is low and quick: down to the floor in the middle
+      if (carrier.xoT >= 0) want.y = BALL_R + (TOP - BALL_R) * Math.pow(Math.abs(2 * xu - 1), 1.5)
       reaches.push([carrier, want.clone(), 'dribble'])
     } else {
       want = chestPoint(carrier)
@@ -1922,7 +1958,7 @@ function simulate(t, dt) {
     else if (kind === 'cross') crossArms(f, u)
     else if (kind === 'dribble') {
       const hy = Math.max(ball.position.y, 0.62) + BALL_R + bodyOf(f).handR * 0.8
-      reach(f, -1, ball.position.clone().setY(hy), new THREE.Vector3(0, -1, 0).addScaledVector(sideOf(f), -0.4).addScaledVector(fwdOf(f), -0.15))
+      reach(f, f.dribArm, ball.position.clone().setY(hy), new THREE.Vector3(0, -1, 0).addScaledVector(sideOf(f), f.dribArm * 0.4).addScaledVector(fwdOf(f), -0.15))
     } else if (kind === 'target') reach(f, u, p, new THREE.Vector3(0, -0.5, 0).addScaledVector(sideOf(f), u * 0.6))
     else if (kind === 'contest') reach(f, f.contestSide || 1, p, new THREE.Vector3(0, -0.3, 0).addScaledVector(sideOf(f), f.contestSide || 1))
     else holdBall(f, p)
