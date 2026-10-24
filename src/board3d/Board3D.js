@@ -1043,7 +1043,7 @@ function makeToyHuman(p, idx, style = {}) {
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0, latV: 0, dribOn: false, pv: null, clothLag: null, clothFl: 0, latS: 0, shieldW: null })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0, latV: 0, dribOn: false, pv: null, clothLag: null, clothFl: 0, latS: 0, shieldW: null, legSnap: null, armSnap: null, handL: null, handPre: null })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1480,20 +1480,25 @@ function shotFollow(f, p, u) {
 // A layup. The shooting hand (right = -1, left = +1) under and behind the ball,
 // the other hand on its side, until the ball is let go — then the shooting arm
 // reaches on up towards the glass.
-function layGrip(f, p, hand) {
+// w eases the hands in from where they were (kept relative to his body, as he
+// runs on) to the grip, so the arms don't snap from a dribble to the ball.
+function layGrip(f, p, hand, w = 1) {
   const sx = sideOf(f); const fw = fwdOf(f); const d = BALL_R + bodyOf(f).handR * 0.8
-  reach(f, hand, p.clone().addScaledVector(fw.clone().multiplyScalar(-0.55).add(new THREE.Vector3(0, -0.83, 0)).normalize(), d), new THREE.Vector3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
-  reach(f, -hand, p.clone().addScaledVector(sx, -hand * d), new THREE.Vector3(0, -0.5, 0).addScaledVector(sx, -hand).addScaledVector(fw, 0.3))
+  const g1 = p.clone().addScaledVector(fw.clone().multiplyScalar(-0.55).add(new THREE.Vector3(0, -0.83, 0)).normalize(), d)
+  const g2 = p.clone().addScaledVector(sx, -hand * d)
+  if (w < 1 && f.handPre) { g1.lerpVectors(f.root.localToWorld(f.handPre[hand].clone()), g1, w); g2.lerpVectors(f.root.localToWorld(f.handPre[-hand].clone()), g2, w) }
+  reach(f, hand, g1, new THREE.Vector3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
+  reach(f, -hand, g2, new THREE.Vector3(0, -0.5, 0).addScaledVector(sx, -hand).addScaledVector(fw, 0.3))
 }
 function layFollow(f, p, hand, u) {
   const sx = sideOf(f); const fw = fwdOf(f); const d = BALL_R + bodyOf(f).handR * 0.8
   const S = f.arms[hand].sh.getWorldPosition(new V3())
   const up = S.addScaledVector(fw.clone().multiplyScalar(0.3).add(new V3(0, 0.95, 0)).normalize(), 0.7)
   const hold = p.clone().addScaledVector(fw.clone().multiplyScalar(-0.55).add(new V3(0, -0.83, 0)).normalize(), d)
-  reach(f, hand, hold.lerp(up, Math.min(1, u / 0.25)), new V3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
+  reach(f, hand, hold.lerp(up, sstep(0, 1.2, u)), new V3(0, -1, 0).addScaledVector(fw, 0.35).addScaledVector(sx, hand * 0.25))
   // the other arm comes down and in
   const guide = p.clone().addScaledVector(sx, -hand * d)
-  guide.lerp(f.arms[-hand].sh.getWorldPosition(new V3()).add(new V3(0, -0.25, 0).addScaledVector(fw, 0.25)), Math.min(1, u / 0.3))
+  guide.lerp(f.arms[-hand].sh.getWorldPosition(new V3()).add(new V3(0, -0.25, 0).addScaledVector(fw, 0.25)), sstep(0, 1.5, u))
   reach(f, -hand, guide, new V3(0, -0.8, 0).addScaledVector(sx, -hand * 0.6))
 }
 // Height a pass has to reach to clear everybody standing in its lane.
@@ -1637,12 +1642,16 @@ function planShot(f, k, act) {
   const mx = b.x - a.x; const mz = b.z - a.z; const ml = Math.hypot(mx, mz)
   const speed = ml / (0.2 * secs)
   const towards = ml > 1e-6 ? (mx * (hp.x - b.x) + mz * (hp.z - b.z)) / (ml * (dist || 1)) : 0
-  // the defender nearest to him
+  // the defender nearest to him — where he is at that same moment of the step,
+  // not where he is on this frame, so the plan (and with it the hand) never
+  // changes while the layup is under way
   let nearD = Infinity; let defSide = 0
   Object.values(figures).forEach((o) => {
     if (o.p.team === f.p.team || isCone(o.p) || isBall(o.p)) return
-    const d = Math.hypot(o.root.position.x - b.x, o.root.position.z - b.z)
-    if (d < nearD) { nearD = d; defSide = (o.root.position.x - b.x) * (hp.z < b.z ? 1 : -1) }
+    const q = board.entPos(o.p, (k - 1 + 0.7) / N, N, MARKS)
+    const ox = toX(q.x); const oz = toZ(q.y)
+    const d = Math.hypot(ox - b.x, oz - b.z)
+    if (d < nearD) { nearD = d; defSide = (ox - b.x) * (hp.z < b.z ? 1 : -1) }
   })
   // he may also arrive on the run: moving at pace towards the basket at the end
   // of the step before, then taking the shot from where he stopped
@@ -1721,7 +1730,16 @@ function passGather(f, kind, dir) {
   return c
 }
 
+const armBones = (o) => [-1, 1].flatMap((sd) => [o.arms[sd].sh, o.arms[sd].el])
+const legBones = (o) => [-1, 1].flatMap((sd) => [o.legs[sd].hp, o.legs[sd].kn, o.legs[sd].ft])
+function restoreSnaps() {
+  Object.values(figures).forEach((o) => {
+    if (o.armSnap && o.armSnap.raw) armBones(o).forEach((b, i) => b.quaternion.copy(o.armSnap.raw[i]))
+    if (o.legSnap && o.legSnap.raw) legBones(o).forEach((b, i) => b.quaternion.copy(o.legSnap.raw[i]))
+  })
+}
 function simulate(t, dt) {
+  restoreSnaps()
   const k = stepAtTime(t, N)
   const fr = Math.max(0, Math.min(0.999999, t)) * N - (k - 1)
   const act = actsOf(play.ball).find((a) => a.step === k && a.pts.length)
@@ -2112,7 +2130,8 @@ function simulate(t, dt) {
         if (fr < lay.rel) {
           const g = Math.max(0, Math.min(1, (fr - lay.gather) / (lay.rel - lay.gather)))
           ball.position.copy(gatherPath(passer, flight.gatherFrom, top, easeInOut(g)))
-          reaches.push([passer, ball.position.clone(), 'layGrip', lay.hand])
+          if (fr < lay.gather) passer.handPre = passer.handL
+          reaches.push([passer, ball.position.clone(), 'layGrip', { hand: lay.hand, w: sstep(lay.gather, lay.gather + 0.1, fr) }])
         } else {
           if (!flight.release) flight.release = top.clone()
           const from = flight.release
@@ -2248,7 +2267,7 @@ function simulate(t, dt) {
   reaches.forEach(([f, p, kind, u]) => {
     if (kind === 'shoot') shootGrip(f, p)
     else if (kind === 'shotFollow') shotFollow(f, p, u)
-    else if (kind === 'layGrip') layGrip(f, p, u)
+    else if (kind === 'layGrip') layGrip(f, p, u.hand, u.w)
     else if (kind === 'layFollow') layFollow(f, p, u.hand, u.u)
     else if (kind === 'cross') crossArms(f, u)
     else if (kind === 'dribble') {
@@ -2257,6 +2276,36 @@ function simulate(t, dt) {
     } else if (kind === 'target') reach(f, u, p, new THREE.Vector3(0, -0.5, 0).addScaledVector(sideOf(f), u * 0.6))
     else if (kind === 'contest') reach(f, f.contestSide || 1, p, new THREE.Vector3(0, -0.3, 0).addScaledVector(sideOf(f), f.contestSide || 1))
     else holdBall(f, p)
+  })
+  // where his hands are, relative to his body, for the next frame to ease in from
+  Object.values(figures).forEach((o) => {
+    o.root.updateMatrixWorld(true)
+    o.handL = { [-1]: o.root.worldToLocal(o.arms[-1].hand.getWorldPosition(new V3())), 1: o.root.worldToLocal(o.arms[1].hand.getWorldPosition(new V3())) }
+  })
+  // Any joint that would jump in one sample (an arm swapping from a dribble to
+  // a layup grip, the legs leaving the planted pose at take-off) eases over a
+  // moment instead: from the pose of the frame before to the new one.
+  // (the pose the frame worked out is kept apart from the eased one that is
+  // shown, and put back at the start of the next frame — see restoreSnaps)
+  Object.values(figures).forEach((o) => {
+    const part = (key, bones, limit, dur) => {
+      const st = o[key] || (o[key] = { raw: null, disp: null, t: null, from: null })
+      const raw = bones.map((b) => b.quaternion.clone())
+      if (st.raw && st.t == null) {
+        const jump = Math.max(...raw.map((q, i) => 2 * Math.acos(Math.min(1, Math.abs(q.dot(st.raw[i]))))))
+        if (jump > limit) { st.t = 0; st.from = st.disp }
+      }
+      if (st.t != null) {
+        const w = sstep(0, dur, st.t)
+        bones.forEach((b, i) => b.quaternion.slerpQuaternions(st.from[i], raw[i], w))
+        st.t += dt
+        if (st.t >= dur) st.t = null
+      }
+      st.raw = raw
+      st.disp = bones.map((b) => b.quaternion.clone())
+    }
+    part('armSnap', armBones(o), 0.7, 0.25)
+    part('legSnap', legBones(o), 0.8, 0.14)
   })
   // taking a pass in stride: the chest gives back as the ball arrives (the
   // legs are left alone: the feet are already planted)
