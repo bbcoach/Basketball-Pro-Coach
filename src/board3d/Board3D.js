@@ -841,10 +841,17 @@ function makeToyHuman(p, idx, style = {}) {
   const col = new THREE.Color()
   // blend (optional): [other bone, weight(y)] — shares each vertex with a
   // second joint by its height, so a piece can bend smoothly between two
+  // cloth: how free a vertex is to swing and flutter (0 = fixed to the body,
+  // 1 = a loose hem), with the axis it hangs round — see the body material
+  let loose = null
   const put = (list, geo, color, bone, matrix, blend) => {
     const g = geo.clone(); g.deleteAttribute('uv')
-    g.applyMatrix4(matrix); g.translate(TOY_REST[TBI[bone]].x, TOY_REST[TBI[bone]].y, 0)
+    g.applyMatrix4(matrix)
     const n = g.attributes.position.count
+    const ls = new Float32Array(n * 3)
+    if (loose) for (let i = 0; i < n; i++) { ls[i * 3] = loose(g.attributes.position.getY(i)); ls[i * 3 + 1] = TOY_REST[TBI[bone]].x }
+    g.setAttribute('loose', new THREE.BufferAttribute(ls, 3))
+    g.translate(TOY_REST[TBI[bone]].x, TOY_REST[TBI[bone]].y, 0)
     col.setHex(color)
     const c = new Float32Array(n * 3); for (let i = 0; i < n; i++) c.set([col.r, col.g, col.b], i * 3)
     const si = new Uint16Array(n * 4); const sw = new Float32Array(n * 4)
@@ -868,18 +875,25 @@ function makeToyHuman(p, idx, style = {}) {
   // the chest with the spine, the belly blends between the two.
   const prof = [[0.0, -0.078], [0.101, -0.078], [0.1045, -0.0755], [0.1055, -0.07], [0.105, -0.063], [0.1, -0.02], [0.108, 0.07], [0.112, 0.15], [0.1, 0.22], [0.07, 0.262], [0.0, 0.265]].map(([r, y]) => new THREE.Vector2(r, y))
   const smooth = (a, b, v) => { const h = Math.min(1, Math.max(0, (v - a) / (b - a))); return h * h * (3 - 2 * h) }
+  loose = (y) => 1 - smooth(-0.078, 0.05, y)
   add(new THREE.LatheGeometry(prof, 40), pal.kit, 'spine', 0, 0, 0, null, [1, 1, 0.7], ['pelvis', (y) => 1 - smooth(0.4, 0.5, y)])
+  loose = null
   add(new THREE.CylinderGeometry(0.036, 0.04, 0.06, 10, 1, true), skinC, 'head', 0, 0.01, 0)
   // shorts: hip piece (its waistband under the vest's hem) plus a tube per
   // leg, white hem at the bottom
   add(new THREE.CylinderGeometry(0.09, 0.106, 0.085, 40), pal.kit, 'pelvis', 0, -0.0075, 0, null, [1, 1, 0.7])
   // trim on the jersey: round the neck, the arm holes and the hem
   add(new THREE.TorusGeometry(0.056, 0.0065, 6, 28).rotateX(Math.PI / 2), pal.trim, 'spine', 0, 0.262, 0, null, [1, 1, 0.8])
+  loose = () => 1
   add(new THREE.TorusGeometry(0.1035, 0.0048, 6, 44).rotateX(Math.PI / 2), pal.trim, 'pelvis', 0, -0.019, 0, null, [1, 1, 0.7])
+  loose = null
   for (const sd of [-1, 1]) add(new THREE.TorusGeometry(0.047, 0.0058, 6, 24).rotateY(Math.PI / 2), pal.trim, 'chest', sd * 0.1, 0.048, 0, null, [1, 1, 0.8])
   for (const S of ['L', 'R']) {
+    loose = (y) => 1 - smooth(-0.116, -0.01, y)
     add(new THREE.CylinderGeometry(0.06, 0.063, 0.125, 14, 1, true), pal.kit, 'hip' + S, 0, -0.055, 0)
+    loose = () => 1
     add(new THREE.TorusGeometry(0.0625, 0.0065, 4, 16), pal.trim, 'hip' + S, 0, -0.116, 0, [Math.PI / 2, 0, 0])
+    loose = null
     add(new THREE.CapsuleGeometry(0.041, 0.13, 2, 10), skinC, 'hip' + S, 0, -0.085, 0)
     add(new THREE.SphereGeometry(0.0395, 20, 14), skinC, 'knee' + S)
     add(new THREE.CapsuleGeometry(0.036, 0.12, 2, 10), skinC, 'knee' + S, 0, -0.075, 0)
@@ -977,7 +991,14 @@ function makeToyHuman(p, idx, style = {}) {
   const bodyM = TOON ? new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: SOFT_RAMP, vertexColors: true }) : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.65 })
   // a cool rim of light round the silhouette, from any camera angle — it
   // lifts the player off whatever is behind him
+  // the hems of the vest and the shorts swing: trailing behind a push, rising
+  // as he lands, fluttering at speed (values come from simulate(), see `cloth`)
+  const cloth = { uLag: { value: new THREE.Vector3() }, uFl: { value: 0 }, uPh: { value: 0 } }
   bodyM.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, cloth)
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 loose; uniform vec3 uLag; uniform float uFl; uniform float uPh;').replace('#include <begin_vertex>', `#include <begin_vertex>
+      { vec3 rad = vec3( position.x - loose.y, 0.0, position.z ); rad /= max( length( rad ), 1e-4 );
+        transformed += loose.x * ( uLag + rad * ( sin( uPh * 2.0 + atan( rad.x, rad.z ) * 3.0 ) * uFl ) ); }`)
     sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', TOON ? fourSteps + `
       #include <opaque_fragment>
       float rimD = 1.0 - max( dot( normalize( normal ), normalize( vViewPosition ) ), 0.0 );
@@ -1018,11 +1039,11 @@ function makeToyHuman(p, idx, style = {}) {
     arms[side] = { sh: B('sh' + S), el: B('el' + S), hand }
   }
   scene.add(root)
-  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: style.height ? Object.fromEntries(Object.entries(TOY_BODY).map(([k, v]) => [k, v * style.height])) : TOY_BODY }
+  return { root, bones, skinC, hips: B('pelvis'), torso: B('spine'), chest: B('chest'), head: B('head'), arms, legs, eyeY: FACE.eyeY, face: FACE, mats: [bodyM, decalM], cloth, bodyMesh: body, fpArms, decal, preMesh: pre, scale: SC, pelvisY: 0.4, ath: true, body: style.height ? Object.fromEntries(Object.entries(TOY_BODY).map(([k, v]) => [k, v * style.height])) : TOY_BODY }
 }
 
 let figures = {}
-const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0, latV: 0, dribOn: false })
+const freshState = (i) => ({ prev: null, phase: (i * 1.7) % 6, yaw: Math.PI, s: 0, ampF: 0, ampL: 0, ampT: 0, headYaw: 0, lift: 0, stance: null, lock: null, pspd: null, accS: 0, bank: 0, ex0: 0, ex1: 0, ex2: 0, offX: 0, offZ: 0, runW: 0, closeW: 0, leadSide: 1, dribHand: -1, dribArm: -1, xoT: -1, xoFrom: -1, xoCool: 0, yRate: 0, latV: 0, dribOn: false, pv: null, clothLag: null, clothFl: 0, latS: 0, shieldW: null })
 function disposeFigure(f) {
   scene.remove(f.root)
   f.root.traverse((o) => {
@@ -1163,10 +1184,11 @@ function pose(f, ampF, ampL, lean, defense, hold) {
   for (const side of [-1, 1]) {
     const sw = Math.sin(ph) * side
     const L = legs[side]
-    L.hp.rotation.x = -(defense ? 0.5 : 0.05 + 0.2 * ready) + sw * ampF
-    L.hp.rotation.z = (defense ? side * 0.12 : 0) + Math.sin(ph) * ampL
+    L.hp.rotation.x = -(defense ? 0.6 : 0.05 + 0.2 * ready) + sw * ampF
+    L.hp.rotation.z = (defense ? side * 0.2 : 0) + Math.sin(ph) * ampL
     // the trailing leg folds up well behind on a run, the planted one keeps a little give
-    L.kn.rotation.x = (defense ? 0.9 : 0.1 + 0.38 * ready) + 0.18 * Math.min(1, Math.abs(ampF) * 1.5) + Math.max(0, -Math.cos(ph) * side) * 1.7 * Math.min(1, amp * 1.6)
+    // (in a defensive slide the feet stay low and close to the floor — a shuffle, not a run)
+    L.kn.rotation.x = (defense ? 1.05 : 0.1 + 0.38 * ready) + 0.18 * Math.min(1, Math.abs(ampF) * 1.5) + Math.max(0, -Math.cos(ph) * side) * (defense ? 0.5 : 1.7) * Math.min(1, amp * 1.6)
     L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x)
     L.ft.rotation.z = -L.hp.rotation.z
     const A = arms[side]
@@ -1192,6 +1214,7 @@ function pose(f, ampF, ampL, lean, defense, hold) {
       A.el.rotation.set(0, -side * ((lead ? 0.75 : 0.5) + (0.2 - (lead ? 0.75 : 0.5)) * w), 0)
     }
   }
+  if (hold === 'dribble') torso.rotation.x += 0.08 // a dribbler keeps low over the ball
   if (hold === 'hold') {
     for (const side of [-1, 1]) { arms[side].sh.rotation.set(-1.05, 0, -side * 1.0); arms[side].el.rotation.set(0, -side * 1.15, 0) }
   } else if (hold === 'dribble') {
@@ -1648,6 +1671,49 @@ function planShot(f, k, act) {
   return { kind: 'jump' }
 }
 
+// What kind of pass a pass step is, worked out from the play alone:
+//   long     — over 13 m: a one-handed throw from beside the head
+//   bounce   — a defender beside the lane (and not far): it goes in off the
+//              floor, under his hands
+//   overhead — a defender right in the lane or on the passer, or a big man
+//              with a longer pass: the ball goes up and over, thrown from
+//              above the head
+//   chest    — everything else
+function planPass(passer, k) {
+  const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
+  if (!rc || rc === passer) return { kind: 'chest' }
+  const at = (f, r) => { const q = board.entPos(f.p, (k - 1 + r) / N, N, MARKS); return { x: toX(q.x), z: toZ(q.y) } }
+  const a = at(passer, 0.25); const b = at(rc, 0.95)
+  const dx = b.x - a.x; const dz = b.z - a.z; const d = Math.hypot(dx, dz)
+  if (d < 2.4) return { kind: 'chest' }
+  let lane = Infinity; let near = Infinity
+  Object.values(figures).forEach((o) => {
+    if (o.p.team === passer.p.team || isCone(o.p) || isBall(o.p)) return
+    for (const r of [0.25, 0.5]) {
+      const q = at(o, r)
+      const t = ((q.x - a.x) * dx + (q.z - a.z) * dz) / (d * d)
+      if (t > 0.08 && t < 0.97) lane = Math.min(lane, Math.hypot(q.x - (a.x + t * dx), q.z - (a.z + t * dz)))
+      if (r === 0.25) near = Math.min(near, Math.hypot(q.x - a.x, q.z - a.z))
+    }
+  })
+  const big = heightOf(passer.p) >= 1.05
+  if (d > 13) return { kind: 'long' }
+  // right in the lane he is passed over; a step to the side of it, under his hands
+  if (lane < 0.5 && d >= 3.5) return { kind: 'overhead' }
+  if (lane < 1.1 && d <= 9) return { kind: near < 1.6 && big ? 'overhead' : 'bounce' }
+  if (near < 1.6 && d >= 3.5) return { kind: 'overhead' }
+  if (big && d > 7) return { kind: 'overhead' }
+  return { kind: 'chest' }
+}
+// Where the ball is when a pass is let go (and held before it)
+function passGather(f, kind, dir) {
+  if (kind === 'overhead') return headCentre(f).addScaledVector(fwdOf(f), 0.14).add(new V3(0, 0.38, 0))
+  if (kind === 'long') return headCentre(f).addScaledVector(sideOf(f), -0.27).addScaledVector(fwdOf(f), 0.02).add(new V3(0, 0.12, 0))
+  const c = chestPoint(f, dir)
+  if (kind === 'bounce') c.y -= 0.3
+  return c
+}
+
 function simulate(t, dt) {
   const k = stepAtTime(t, N)
   const fr = Math.max(0, Math.min(0.999999, t)) * N - (k - 1)
@@ -1670,6 +1736,7 @@ function simulate(t, dt) {
   const taker = giver && CARRIERS[k + 1] && CARRIERS[k + 1].id !== giver.p.id ? figures[CARRIERS[k + 1].id] : null
   const handoff = taker && [giver, taker].some((q) => actsOf(q.p).some((a) => a.step === k && a.type === 'handoff' && a.pts.length)) ? { giver, taker } : null
   const passerFig = act && act.type !== 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
+  const passKind = passerFig ? planPass(passerFig, k).kind : 'chest'
   const lunge = passerFig && fr > 0.1 && fr < 0.6 ? Math.sin((Math.PI * (fr - 0.1)) / 0.5) : 0
 
   // Bodies don't pass through each other. The board lets two tokens sit on
@@ -1794,6 +1861,22 @@ function simulate(t, dt) {
       f.bank += (bankWant - f.bank) * 0.15
       f.torso.rotation.z = f.bank
       f.head.rotation.z = -f.bank * 0.7
+      // Weight over the planted foot: the pelvis shifts towards the leg he
+      // stands on and tilts down on the swinging side, the shoulders stay
+      // level above it; a sideways push (a slide, a cut) leans him into it.
+      const latNow = vx * Math.cos(f.yaw) - vz * Math.sin(f.yaw)
+      f.latS = (f.latS || 0) + (latNow - (f.latS || 0)) * 0.2
+      const sw1 = Math.sin(f.phase) * Math.min(1, speed / 2.4)
+      const push = Math.max(-1, Math.min(1, f.latS / 2.2)) * (defense ? 1 : 0.5)
+      f.hips.position.x = 0.02 * sw1 * (defense ? 0.6 : 1) + 0.03 * push
+      f.hips.rotation.z = 0.035 * sw1
+      f.torso.rotation.z += -0.03 * sw1 - 0.13 * push
+      f.head.rotation.z += 0.03 * sw1 + 0.12 * push
+      // a dribbler turns the shoulder away from the ball towards a defender
+      if (hold === 'dribble') {
+        const sh = f.dribArm * 0.16 * (f.shieldW == null ? 0.35 : f.shieldW)
+        f.torso.rotation.y += sh; f.head.rotation.y -= sh * 0.8
+      }
       // the face: effort in a sprint, concentration on a shot, a grin once it drops
       const exT = Math.max(0, Math.min(1, (speed - 2.8) / 3))
       let foT = 0
@@ -1821,11 +1904,15 @@ function simulate(t, dt) {
     // stepping into a pass: lead foot forward, weight over it
     if (f === passerFig && lunge > 0) {
       const Lf = f.legs[1]; const Lb = f.legs[-1]
-      Lf.hp.rotation.x -= 0.5 * lunge; Lf.kn.rotation.x += 0.25 * lunge
-      Lb.hp.rotation.x += 0.28 * lunge; Lb.kn.rotation.x += 0.12 * lunge
+      // a bounce pass is thrown from down low, a long one takes a bigger step
+      const LK = passKind === 'long' ? 1.4 : 1
+      Lf.hp.rotation.x -= 0.5 * lunge * LK; Lf.kn.rotation.x += (0.25 + (passKind === 'bounce' ? 0.3 : 0)) * lunge * LK
+      Lb.hp.rotation.x += 0.28 * lunge * LK; Lb.kn.rotation.x += (0.12 + (passKind === 'bounce' ? 0.2 : 0)) * lunge * LK
       for (const L of [Lf, Lb]) L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x)
-      f.torso.rotation.x += 0.18 * lunge
+      f.torso.rotation.x += (0.18 + (passKind === 'bounce' ? 0.12 : 0)) * lunge
     }
+    // an overhead pass: the body stretches up and back as the ball goes over the head
+    if (f === passerFig && passKind === 'overhead' && fr < 0.45) f.torso.rotation.x -= 0.2 * Math.max(0, 1 - Math.abs(fr - 0.2) / 0.2)
     // sink into the knees (shooter gathering, defender loading to jump)
     let dip = 0; let lift = 0
     // landing: down through the knees to soak it up
@@ -1858,6 +1945,19 @@ function simulate(t, dt) {
     lockStance(f, lift)
     f.lift = lift
     f.root.position.y = lift
+    // the cloth: the hems trail behind an acceleration (sideways, forwards,
+    // up and down), stream back at speed and flutter with the stride
+    {
+      const ax = f.pv ? (vx - f.pv.x) / dt : 0; const az = f.pv ? (vz - f.pv.z) / dt : 0
+      const vy = f.pv ? (lift - f.pv.y) / dt : 0
+      f.pv = { x: vx, z: vz, y: lift }
+      const aL = ax * Math.cos(f.yaw) - az * Math.sin(f.yaw); const aF = ax * Math.sin(f.yaw) + az * Math.cos(f.yaw)
+      const c = f.clothLag || (f.clothLag = new THREE.Vector3())
+      c.x += (clampN(-aL * 0.0016, -0.016, 0.016) - c.x) * 0.22
+      c.y += (clampN(-vy * 0.0035, -0.02, 0.02) - c.y) * 0.22
+      c.z += (clampN(-aF * 0.0016 - 0.006 * Math.min(1, speed / 4), -0.022, 0.022) - c.z) * 0.22
+      f.clothFl = Math.min(1, speed / 4) * 0.0045
+    }
     // the head turns to follow the ball (as far as a neck turns)
     // — except the passer, who looks at the man he is passing to, and the
     // receiver, who looks back at him, before the ball is even on its way
@@ -1930,6 +2030,7 @@ function simulate(t, dt) {
         else if (Math.abs(side) > 1) want_h = side > 0 ? -1 : 1
       }
       carrier._dribNow = true
+      carrier.shieldW = pull > 0 ? 1 : 0.35
       carrier.xoCool = Math.max(0, carrier.xoCool - dt)
       if (!carrier.dribOn) {
         // just started dribbling: the hand is simply chosen, no crossover
@@ -2048,7 +2149,8 @@ function simulate(t, dt) {
       }
     } else {
       const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
-      const G = 0.18
+      const pk = passer ? planPass(passer, k).kind : 'chest'
+      const G = pk === 'long' ? 0.26 : pk === 'overhead' ? 0.22 : pk === 'bounce' ? 0.2 : 0.18
       // with nobody to pass to (a pass drawn to an empty spot) he throws towards the spot
       const toRc = passer ? (rc ? rc.root.position.clone() : new THREE.Vector3(toX(end.x), 0, toZ(end.y))).sub(passer.root.position) : null
       // caught with the arms out a little towards the pass; the next step
@@ -2068,20 +2170,31 @@ function simulate(t, dt) {
         }
       }
       const catchPt = rc ? chestPoint(rc, catchDir).addScaledVector(catchDir || new THREE.Vector3(), 0.14) : new THREE.Vector3(toX(end.x), 1.2, toZ(end.y))
+      // a bounce pass is taken low, at the waist
+      if (pk === 'bounce' && rc) catchPt.y -= 0.3
       if (passer && fr < G) {
-        // gather: the ball comes up into both hands at the chest
+        // gather: the ball comes up into both hands at the chest (above the
+        // head for an overhead pass, beside it for a long throw, down low for a bounce)
         const g = easeInOut(fr / G)
-        ball.position.copy(gatherPath(passer, flight.gatherFrom, chestPoint(passer, toRc), g))
-        reaches.push([passer, ball.position.clone(), 'hold'])
+        ball.position.copy(gatherPath(passer, flight.gatherFrom, passGather(passer, pk, toRc), g))
+        reaches.push([passer, ball.position.clone(), pk === 'long' ? 'shoot' : 'hold'])
       } else {
         if (!flight.release) {
-          flight.release = passer ? chestPoint(passer, toRc) : flight.gatherFrom.clone()
+          flight.release = passer ? passGather(passer, pk, toRc) : flight.gatherFrom.clone()
           flight.h = clearance(flight.release, catchPt, [passer, rc])
+          if (pk === 'long') flight.h = Math.max(flight.h, 0.7 + 0.07 * flight.release.distanceTo(catchPt))
         }
         const u = passer ? (fr - G) / (1 - G) : fr
-        const e = 1 - Math.pow(1 - u, 1.5) // fast off the hands, slowing a touch
+        const e = 1 - Math.pow(1 - u, pk === 'long' ? 1.15 : pk === 'bounce' ? 1.25 : 1.5) // fast off the hands, slowing a touch
         ball.position.copy(flight.release.clone().lerp(catchPt, e))
-        ball.position.y += 4 * flight.h * e * (1 - e)
+        if (pk === 'bounce') {
+          // down to the floor two thirds of the way, and up into the hands
+          const EF = 0.62; const rel = flight.release
+          if (e < EF) { const s2 = 1 - e / EF; ball.position.y = BALL_R + (rel.y - BALL_R) * s2 * s2 }
+          else { const s2 = (e - EF) / (1 - EF); ball.position.y = BALL_R + (catchPt.y - BALL_R) * (1 - (1 - s2) * (1 - s2)) }
+          const dEF = Math.abs(e - EF)
+          if (dEF < 0.03) squash = 1 - 0.14 * (1 - dEF / 0.03)
+        } else ball.position.y += 4 * flight.h * e * (1 - e)
         // A soft catch: the hands meet the ball a little out in front and give
         // with it, drawing it in towards the chest, rather than stopping it
         // dead where it arrived.
@@ -2101,7 +2214,13 @@ function simulate(t, dt) {
           }
         }
         // arms follow through, then the receiver's come up to meet it
-        if (passer && u < 0.35) reaches.push([passer, chestPoint(passer, toRc).addScaledVector(toRc.clone().setY(0).normalize(), 0.25 * (u / 0.35)), 'follow'])
+        if (passer && u < 0.35) {
+          const uu = u / 0.35; const fd = toRc.clone().setY(0).normalize()
+          if (pk === 'long') reaches.push([passer, flight.release.clone(), 'shotFollow', u])
+          else if (pk === 'overhead') reaches.push([passer, flight.release.clone().addScaledVector(fd, 0.32 * uu).add(new THREE.Vector3(0, -0.45 * uu, 0)), 'follow'])
+          else if (pk === 'bounce') reaches.push([passer, flight.release.clone().addScaledVector(fd, 0.28 * uu).add(new THREE.Vector3(0, -0.08 * uu, 0)), 'follow'])
+          else reaches.push([passer, chestPoint(passer, toRc).addScaledVector(fd, 0.25 * uu), 'follow'])
+        }
         if (rc && e > 0.5) reaches.push([rc, e > 0.8 ? ball.position.clone() : ball.position.clone().lerp(catchPt, 0.5), e > 0.97 ? 'hold' : 'catch'])
         if (rc && rc !== passer) catching = { f: rc, w: Math.max(0, Math.min(1, (e - 0.78) / 0.22)) }
       }
@@ -2165,9 +2284,10 @@ function simulate(t, dt) {
 // shows exactly what straight playback shows, each frame costs next to
 // nothing, and an exported video would match the screen frame for frame.
 const SPS = 60
+const _zero3 = new THREE.Vector3()
 let SAMPLES = 1
 let FIGS = []
-const PER_FIG = 7 + 15 * 7 + 3 // root, 15 bones, expression (effort, focus, joy)
+const PER_FIG = 7 + 15 * 7 + 3 + 5 // root, 15 bones, expression (effort, focus, joy), cloth (lag x y z, flutter, stride)
 const PER_BALL = 10
 let BAKED = null
 function bake() {
@@ -2192,6 +2312,8 @@ function bake() {
       f.root.position.toArray(figs, o); f.root.quaternion.toArray(figs, o + 3); o += 7
       f.bones.forEach((b) => { b.position.toArray(figs, o); b.quaternion.toArray(figs, o + 3); o += 7 })
       figs[o] = f.ex0; figs[o + 1] = f.ex1; figs[o + 2] = f.ex2; o += 3
+      const cl = f.clothLag || _zero3
+      figs[o] = cl.x; figs[o + 1] = cl.y; figs[o + 2] = cl.z; figs[o + 3] = f.clothFl || 0; figs[o + 4] = f.phase; o += 5
     })
     ball.position.toArray(balls, i * PER_BALL); ball.quaternion.toArray(balls, i * PER_BALL + 3); ball.scale.toArray(balls, i * PER_BALL + 7)
     nets.forEach((nt, j) => { const o = (i * nets.length + j) * 3; swish[o] = nt.swish; swish[o + 1] = nt.sx; swish[o + 2] = nt.sz })
@@ -2215,6 +2337,9 @@ function applyBaked(t) {
     f.yaw = 2 * Math.atan2(f.root.quaternion.y, f.root.quaternion.w)
     f.bones.forEach((b) => { blend(figs, o0, o1, b); o0 += 7; o1 += 7 })
     f.exx = [0, 1, 2].map((k) => figs[o0 + k] * (1 - a) + figs[o1 + k] * a)
+    o0 += 3; o1 += 3
+    const mixc = (k) => figs[o0 + k] * (1 - a) + figs[o1 + k] * a
+    f.cloth.uLag.value.set(mixc(0), mixc(1), mixc(2)); f.cloth.uFl.value = mixc(3); f.cloth.uPh.value = mixc(4)
   })
   blend(balls, i0 * PER_BALL, (i0 + 1) * PER_BALL, ball)
   ball.scale.lerpVectors(_va.fromArray(balls, i0 * PER_BALL + 7), _vb.fromArray(balls, (i0 + 1) * PER_BALL + 7), a)
