@@ -1675,10 +1675,8 @@ function planShot(f, k, act) {
 //   long     — over 13 m: a one-handed throw from beside the head
 //   bounce   — a defender beside the lane (and not far): it goes in off the
 //              floor, under his hands
-//   overhead — a defender right in the lane or on the passer, or a big man
-//              with a longer pass: the ball goes up and over, thrown from
-//              above the head
-//   chest    — everything else
+//   chest    — everything else (a defender right in the lane is passed over
+//              on a higher arc)
 function planPass(passer, k) {
   const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
   if (!rc || rc === passer) return { kind: 'chest' }
@@ -1686,28 +1684,22 @@ function planPass(passer, k) {
   const a = at(passer, 0.25); const b = at(rc, 0.95)
   const dx = b.x - a.x; const dz = b.z - a.z; const d = Math.hypot(dx, dz)
   if (d < 2.4) return { kind: 'chest' }
-  let lane = Infinity; let near = Infinity
+  let lane = Infinity
   Object.values(figures).forEach((o) => {
     if (o.p.team === passer.p.team || isCone(o.p) || isBall(o.p)) return
     for (const r of [0.25, 0.5]) {
       const q = at(o, r)
       const t = ((q.x - a.x) * dx + (q.z - a.z) * dz) / (d * d)
       if (t > 0.08 && t < 0.97) lane = Math.min(lane, Math.hypot(q.x - (a.x + t * dx), q.z - (a.z + t * dz)))
-      if (r === 0.25) near = Math.min(near, Math.hypot(q.x - a.x, q.z - a.z))
     }
   })
-  const big = heightOf(passer.p) >= 1.05
   if (d > 13) return { kind: 'long' }
-  // right in the lane he is passed over; a step to the side of it, under his hands
-  if (lane < 0.5 && d >= 3.5) return { kind: 'overhead' }
-  if (lane < 1.1 && d <= 9) return { kind: near < 1.6 && big ? 'overhead' : 'bounce' }
-  if (near < 1.6 && d >= 3.5) return { kind: 'overhead' }
-  if (big && d > 7) return { kind: 'overhead' }
+  // a step to the side of the lane, under his hands (right in it, over him)
+  if (lane >= 0.5 && lane < 1.1 && d <= 9) return { kind: 'bounce' }
   return { kind: 'chest' }
 }
 // Where the ball is when a pass is let go (and held before it)
 function passGather(f, kind, dir) {
-  if (kind === 'overhead') return headCentre(f).addScaledVector(fwdOf(f), 0.14).add(new V3(0, 0.38, 0))
   if (kind === 'long') return headCentre(f).addScaledVector(sideOf(f), -0.27).addScaledVector(fwdOf(f), 0.02).add(new V3(0, 0.12, 0))
   const c = chestPoint(f, dir)
   if (kind === 'bounce') c.y -= 0.3
@@ -1911,8 +1903,6 @@ function simulate(t, dt) {
       for (const L of [Lf, Lb]) L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x)
       f.torso.rotation.x += (0.18 + (passKind === 'bounce' ? 0.12 : 0)) * lunge
     }
-    // an overhead pass: the body stretches up and back as the ball goes over the head
-    if (f === passerFig && passKind === 'overhead' && fr < 0.45) f.torso.rotation.x -= 0.2 * Math.max(0, 1 - Math.abs(fr - 0.2) / 0.2)
     // sink into the knees (shooter gathering, defender loading to jump)
     let dip = 0; let lift = 0
     // landing: down through the knees to soak it up
@@ -2150,7 +2140,7 @@ function simulate(t, dt) {
     } else {
       const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
       const pk = passer ? planPass(passer, k).kind : 'chest'
-      const G = pk === 'long' ? 0.26 : pk === 'overhead' ? 0.22 : pk === 'bounce' ? 0.2 : 0.18
+      const G = pk === 'long' ? 0.26 : pk === 'bounce' ? 0.2 : 0.18
       // with nobody to pass to (a pass drawn to an empty spot) he throws towards the spot
       const toRc = passer ? (rc ? rc.root.position.clone() : new THREE.Vector3(toX(end.x), 0, toZ(end.y))).sub(passer.root.position) : null
       // caught with the arms out a little towards the pass; the next step
@@ -2173,8 +2163,8 @@ function simulate(t, dt) {
       // a bounce pass is taken low, at the waist
       if (pk === 'bounce' && rc) catchPt.y -= 0.3
       if (passer && fr < G) {
-        // gather: the ball comes up into both hands at the chest (above the
-        // head for an overhead pass, beside it for a long throw, down low for a bounce)
+        // gather: the ball comes up into both hands at the chest (beside the
+        // head for a long throw, down low for a bounce)
         const g = easeInOut(fr / G)
         ball.position.copy(gatherPath(passer, flight.gatherFrom, passGather(passer, pk, toRc), g))
         reaches.push([passer, ball.position.clone(), pk === 'long' ? 'shoot' : 'hold'])
@@ -2217,7 +2207,6 @@ function simulate(t, dt) {
         if (passer && u < 0.35) {
           const uu = u / 0.35; const fd = toRc.clone().setY(0).normalize()
           if (pk === 'long') reaches.push([passer, flight.release.clone(), 'shotFollow', u])
-          else if (pk === 'overhead') reaches.push([passer, flight.release.clone().addScaledVector(fd, 0.32 * uu).add(new THREE.Vector3(0, -0.45 * uu, 0)), 'follow'])
           else if (pk === 'bounce') reaches.push([passer, flight.release.clone().addScaledVector(fd, 0.28 * uu).add(new THREE.Vector3(0, -0.08 * uu, 0)), 'follow'])
           else reaches.push([passer, chestPoint(passer, toRc).addScaledVector(fd, 0.25 * uu), 'follow'])
         }
