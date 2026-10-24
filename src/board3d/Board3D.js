@@ -1698,6 +1698,22 @@ function planPass(passer, k) {
   if (lane >= 0.5 && lane < 1.1 && d <= 9) return { kind: 'bounce' }
   return { kind: 'chest' }
 }
+// A ball can't be held out behind a man's back: the direction a pass leaves
+// in is at most about 70° off the way he faces (the body twists the rest of
+// the way, see passTwist in simulate()), so the arms never fold round behind him.
+const PASS_ARC = 1.25
+function angTo(f, dir) {
+  let rel = Math.atan2(dir.x, dir.z) - f.yaw
+  while (rel > Math.PI) rel -= 2 * Math.PI
+  while (rel < -Math.PI) rel += 2 * Math.PI
+  return rel
+}
+function passDir(f, dir) {
+  const rel = angTo(f, dir)
+  if (Math.abs(rel) <= PASS_ARC) return dir.clone().setY(0).normalize()
+  const a = f.yaw + Math.sign(rel) * PASS_ARC
+  return new V3(Math.sin(a), 0, Math.cos(a))
+}
 // Where the ball is when a pass is let go (and held before it)
 function passGather(f, kind, dir) {
   if (kind === 'long') return headCentre(f).addScaledVector(sideOf(f), -0.27).addScaledVector(fwdOf(f), 0.02).add(new V3(0, 0.12, 0))
@@ -1729,6 +1745,15 @@ function simulate(t, dt) {
   const handoff = taker && [giver, taker].some((q) => actsOf(q.p).some((a) => a.step === k && a.type === 'handoff' && a.pts.length)) ? { giver, taker } : null
   const passerFig = act && act.type !== 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const passKind = passerFig ? planPass(passerFig, k).kind : 'chest'
+  // a pass to somebody off to the side or behind: the shoulders twist round to him
+  let passTwist = 0
+  if (passerFig) {
+    const rcF = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
+    if (rcF && rcF !== passerFig) {
+      const rel = angTo(passerFig, rcF.root.position.clone().sub(passerFig.root.position))
+      passTwist = Math.sign(rel) * Math.min(0.7, Math.max(0, Math.abs(rel) - 0.5) * 0.55) * Math.sin(Math.PI * clampN((fr - 0.04) / 0.6, 0, 1))
+    }
+  }
   const lunge = passerFig && fr > 0.1 && fr < 0.6 ? Math.sin((Math.PI * (fr - 0.1)) / 0.5) : 0
 
   // Bodies don't pass through each other. The board lets two tokens sit on
@@ -1893,6 +1918,7 @@ function simulate(t, dt) {
         L.ft.rotation.z = -L.hp.rotation.z
       }
     }
+    if (f === passerFig && passTwist) { f.torso.rotation.y += passTwist; f.head.rotation.y -= passTwist * 0.7 }
     // stepping into a pass: lead foot forward, weight over it
     if (f === passerFig && lunge > 0) {
       const Lf = f.legs[1]; const Lb = f.legs[-1]
@@ -2143,6 +2169,7 @@ function simulate(t, dt) {
       const G = pk === 'long' ? 0.26 : pk === 'bounce' ? 0.2 : 0.18
       // with nobody to pass to (a pass drawn to an empty spot) he throws towards the spot
       const toRc = passer ? (rc ? rc.root.position.clone() : new THREE.Vector3(toX(end.x), 0, toZ(end.y))).sub(passer.root.position) : null
+      const toRcH = passer ? passDir(passer, toRc) : null
       // caught with the arms out a little towards the pass; the next step
       // starts by pulling it in to the chest
       const toPasser = rc && passer ? passer.root.position.clone().sub(rc.root.position).setY(0).normalize() : null
@@ -2166,11 +2193,11 @@ function simulate(t, dt) {
         // gather: the ball comes up into both hands at the chest (beside the
         // head for a long throw, down low for a bounce)
         const g = easeInOut(fr / G)
-        ball.position.copy(gatherPath(passer, flight.gatherFrom, passGather(passer, pk, toRc), g))
+        ball.position.copy(gatherPath(passer, flight.gatherFrom, passGather(passer, pk, toRcH), g))
         reaches.push([passer, ball.position.clone(), pk === 'long' ? 'shoot' : 'hold'])
       } else {
         if (!flight.release) {
-          flight.release = passer ? passGather(passer, pk, toRc) : flight.gatherFrom.clone()
+          flight.release = passer ? passGather(passer, pk, toRcH) : flight.gatherFrom.clone()
           flight.h = clearance(flight.release, catchPt, [passer, rc])
           if (pk === 'long') flight.h = Math.max(flight.h, 0.7 + 0.07 * flight.release.distanceTo(catchPt))
         }
@@ -2205,10 +2232,10 @@ function simulate(t, dt) {
         }
         // arms follow through, then the receiver's come up to meet it
         if (passer && u < 0.35) {
-          const uu = u / 0.35; const fd = toRc.clone().setY(0).normalize()
+          const uu = u / 0.35; const fd = toRcH
           if (pk === 'long') reaches.push([passer, flight.release.clone(), 'shotFollow', u])
           else if (pk === 'bounce') reaches.push([passer, flight.release.clone().addScaledVector(fd, 0.28 * uu).add(new THREE.Vector3(0, -0.08 * uu, 0)), 'follow'])
-          else reaches.push([passer, chestPoint(passer, toRc).addScaledVector(fd, 0.25 * uu), 'follow'])
+          else reaches.push([passer, chestPoint(passer, toRcH).addScaledVector(fd, 0.25 * uu), 'follow'])
         }
         if (rc && e > 0.5) reaches.push([rc, e > 0.8 ? ball.position.clone() : ball.position.clone().lerp(catchPt, 0.5), e > 0.97 ? 'hold' : 'catch'])
         if (rc && rc !== passer) catching = { f: rc, w: Math.max(0, Math.min(1, (e - 0.78) / 0.22)) }
