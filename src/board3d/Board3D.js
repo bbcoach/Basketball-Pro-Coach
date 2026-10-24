@@ -1675,8 +1675,7 @@ function planShot(f, k, act) {
 //   long     — over 13 m: a one-handed throw from beside the head
 //   bounce   — a defender beside the lane (and not far): it goes in off the
 //              floor, under his hands
-//   chest    — everything else (a defender right in the lane is passed over
-//              on a higher arc)
+//   chest    — everything else: straight to the team-mate, never in an arc
 function planPass(passer, k) {
   const rc = CARRIERS[k + 1] && figures[CARRIERS[k + 1].id]
   if (!rc || rc === passer) return { kind: 'chest' }
@@ -1694,7 +1693,7 @@ function planPass(passer, k) {
     }
   })
   if (d > 13) return { kind: 'long' }
-  // a step to the side of the lane, under his hands (right in it, over him)
+  // a step to the side of the lane: under his hands
   if (lane >= 0.5 && lane < 1.1 && d <= 9) return { kind: 'bounce' }
   return { kind: 'chest' }
 }
@@ -2198,7 +2197,8 @@ function simulate(t, dt) {
       } else {
         if (!flight.release) {
           flight.release = passer ? passGather(passer, pk, toRcH) : flight.gatherFrom.clone()
-          flight.h = clearance(flight.release, catchPt, [passer, rc])
+          // a chest pass goes straight to the team-mate; only the long throw arcs
+          flight.h = pk === 'chest' ? 0 : clearance(flight.release, catchPt, [passer, rc])
           if (pk === 'long') flight.h = Math.max(flight.h, 0.7 + 0.07 * flight.release.distanceTo(catchPt))
         }
         const u = passer ? (fr - G) / (1 - G) : fr
