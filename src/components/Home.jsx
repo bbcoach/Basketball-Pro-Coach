@@ -59,6 +59,10 @@ export default function Home() {
       .slice(0, 3)
   })()
 
+  // ✕ puts today's reminder away until tomorrow
+  const [reminderGone, setReminderGone] = useState(() => { try { return localStorage.getItem('tb.todayReminder.v1') === today } catch { return false } })
+  const dismissReminder = () => { setReminderGone(true); try { localStorage.setItem('tb.todayReminder.v1', today) } catch { /* private mode */ } }
+
   const hasData = teams.some((t) => (t.roster || []).length || (t.games || []).length || (t.sessions || []).length) || plays.length > 0 || drills.length > 0
   // Teams load from localStorage in an effect after the first render, so
   // hasData starts false on every mount — a useState initializer would
@@ -90,6 +94,39 @@ export default function Home() {
     // cards: pushed to the bottom by margin-top:auto when everything fits,
     // simply scrolled to when it doesn't. The cards keep their own block
     // wrapper so their vertical margins still collapse as before.
+    <>
+    {todayItems.length > 0 && !reminderGone && (
+      // A reminder floating over the screen, like a calendar's notification —
+      // the cards underneath stay exactly where they are.
+      <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--safe-top, 0px) + 8px)', zIndex: 60, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+        <div role="status" style={{ pointerEvents: 'auto', width: '100%', maxWidth: 440, borderRadius: 18, background: 'rgba(28,28,31,.97)', border: '1px solid rgba(232,177,60,.4)', boxShadow: '0 14px 36px rgba(0,0,0,.6)', color: '#fff', overflow: 'hidden', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 3px 14px' }}>
+            <div style={{ width: 7, height: 7, borderRadius: 99, background: ACCENT, flex: 'none' }} />
+            <div style={{ flex: 1, fontSize: 10.5, fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: ACCENT }}>Today</div>
+            <div onClick={dismissReminder} aria-label="Dismiss" style={{ flex: 'none', width: 28, height: 28, borderRadius: 99, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.55)', fontSize: 14, cursor: 'pointer' }}>✕</div>
+          </div>
+          {todayItems.map((it, i) => {
+            const plan = it.kind === 'training' && it.planId ? plans.find((p) => p.id === it.planId) : null
+            return (
+              <div key={it.key} onClick={it.open} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px 10px 14px', borderTop: i ? '1px solid rgba(255,255,255,.07)' : 'none', cursor: 'pointer' }}>
+                <div style={{ flex: 'none', minWidth: 44, fontFamily: COND, fontWeight: 700, fontSize: 20, lineHeight: 1, color: '#fff' }}>{it.time || '—'}</div>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {it.kind === 'training' ? 'Training' + (it.title && it.title !== 'Training' ? ' · ' + it.title : '') : it.title}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 500, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {[teams.length > 1 ? it.teamName : '', it.sub, it.kind === 'training' ? 'Attendance' : it.kind === 'game' ? 'Track stats' : 'Schedule'].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+                {plan && (plan.items || []).length > 0 && (
+                  <div onClick={(e) => { e.stopPropagation(); runPlanCmd(plan.id) }} style={{ flex: 'none', padding: '7px 11px', borderRadius: 9, ...keycap(), color: '#101012', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>▶ Plan</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )}
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', overflowY: 'auto' }}>
       <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 24px calc(var(--safe-bottom) + 6px)' }}>
       <div>
@@ -100,38 +137,6 @@ export default function Home() {
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', ...goldText }}>OVERVIEW</div>
           </div>
         </div>
-
-        {todayItems.map((it) => {
-          const plan = it.kind === 'training' && it.planId ? plans.find((p) => p.id === it.planId) : null
-          return (
-            <div
-              key={it.key}
-              className="home-card" onClick={it.open}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, ...raised(.06, .1), border: '1px solid rgba(232,177,60,.3)', color: '#fff', cursor: 'pointer', marginBottom: 14 }}
-            >
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: ACCENT }}>
-                  Today{it.time ? ' · ' + it.time : ''}
-                </div>
-                <div style={{ fontSize: 15.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {it.kind === 'training' ? 'Training' + (it.title && it.title !== 'Training' ? ' · ' + it.title : '') : it.title}
-                </div>
-                <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {[teams.length > 1 ? it.teamName : '', it.sub, it.kind === 'training' ? 'Attendance' : it.kind === 'game' ? 'Track stats' : 'Schedule'].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-              {plan && (plan.items || []).length > 0 && (
-                <div
-                  onClick={(e) => { e.stopPropagation(); runPlanCmd(plan.id) }}
-                  style={{ flex: 'none', padding: '8px 12px', borderRadius: 10, ...keycap(), color: '#101012', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  ▶ Plan
-                </div>
-              )}
-              <div style={{ flex: 'none', fontSize: 16, color: 'rgba(255,255,255,.4)' }}>›</div>
-            </div>
-          )
-        })}
 
         {showBackupReminder && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
@@ -300,5 +305,6 @@ export default function Home() {
       </div>
       </div>
     </div>
+    </>
   )
 }
