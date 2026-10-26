@@ -14,26 +14,35 @@ import { registerSW } from 'virtual:pwa-register'
 // Side-effect import: attaches the `beforeinstallprompt` listener as early
 // as possible, before React even mounts, so the event isn't missed.
 import './lib/installPrompt'
+import { markUpdateReady, setUpdateApplier } from './lib/appUpdate'
 
 // iOS keeps a standalone (Home Screen) PWA's process suspended instead of
 // reloading it when it's reopened, so the browser's normal "a fresh page
 // load checks for a new service worker" update path doesn't reliably fire —
 // a device can stay on a stale build indefinitely. Force a real update
 // check (registration.update()) whenever the app returns to the
-// foreground; registerType 'autoUpdate' already reloads the page
-// automatically once a newer service worker activates.
+// foreground.
+//
+// A newer build is downloaded in the background and then waits for the
+// coach: onNeedRefresh raises the "New version ready" bar (UpdateBanner), and
+// its Update button hands the waiting worker control and reloads the page.
+// (Closing the app completely and opening it again also picks it up.)
 let swRegistration
-registerSW({
+const updateSW = registerSW({
   immediate: true,
+  onNeedRefresh: markUpdateReady,
   onRegisteredSW(_swUrl, registration) {
     swRegistration = registration
   },
 })
-const checkForUpdate = () => swRegistration && swRegistration.update()
+setUpdateApplier(updateSW)
+const checkForUpdate = () => swRegistration && swRegistration.update().catch(() => {})
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') checkForUpdate()
 })
 window.addEventListener('focus', checkForUpdate)
+// …and while the app simply stays open (a tablet on the bench all evening)
+setInterval(checkForUpdate, 20 * 60 * 1000)
 
 // iOS misreports 100dvh in a standalone (Home Screen) PWA — it can settle on
 // a value noticeably shorter than the real visible viewport. Measure the

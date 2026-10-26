@@ -7,7 +7,7 @@ import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 import { kindOf, KIND_LABEL } from '../lib/playKind'
 import { canPromptInstall, promptInstall, shouldShowInstallHint, snoozeInstallHint, subscribeInstallPrompt } from '../lib/installPrompt'
-import { plural, todayIso } from '../lib/dates'
+import { fmtDate, plural, todayIso } from '../lib/dates'
 
 function playMeta(p) {
   const steps = p.steps || maxStepOf(p.players.concat([p.ball]))
@@ -27,7 +27,7 @@ function CardIcon({ glyph }) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm } = useApp()
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm, goToSession, goToGame, runPlanCmd } = useApp()
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -35,6 +35,34 @@ export default function Home() {
   const upcoming = sessions.filter((s) => s.date >= today).length
     + games.filter((g) => g.type === 'game' && g.date >= today).length
     + events.filter((e) => e.date >= today).length
+
+  // The next thing in the diary, over every team: today's training or game
+  // stays on until a couple of hours after it started
+  const nextUp = (() => {
+    const now = new Date()
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+    const startMin = (t) => (t && /^\d{1,2}:\d{2}/.test(t) ? parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3, 5), 10) : null)
+    const items = []
+    teams.forEach((team) => {
+      const tag = { teamId: team.id, teamName: team.name }
+      ;(team.sessions || []).forEach((s) => items.push({ ...tag, kind: 'training', date: s.date, time: s.time || '', title: s.label || 'Training', sub: '', planId: s.planId, open: () => goToSession(s.id, team.id) }))
+      ;(team.games || []).forEach((g) => {
+        if (g.type !== 'game') return
+        items.push({ ...tag, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub: [g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : '', g.location].filter(Boolean).join(' · '), open: () => goToGame(g.id, team.id) })
+      })
+      ;(team.events || []).forEach((e) => items.push({ ...tag, kind: 'event', date: e.date, time: e.time || '', title: e.title || 'Event', sub: e.location || '', open: openSchedule }))
+    })
+    return items
+      .filter((it) => it.date && (it.date > today || (it.date === today && (startMin(it.time) == null || nowMin <= startMin(it.time) + 120))))
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))[0] || null
+  })()
+  const nextDay = nextUp && (() => {
+    if (nextUp.date === today) return 'Today'
+    const t = new Date(); t.setDate(t.getDate() + 1)
+    const tomorrow = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0')
+    return nextUp.date === tomorrow ? 'Tomorrow' : fmtDate(nextUp.date)
+  })()
+  const nextPlan = nextUp && nextUp.kind === 'training' && nextUp.planId ? plans.find((p) => p.id === nextUp.planId) : null
 
   const hasData = teams.some((t) => (t.roster || []).length || (t.games || []).length || (t.sessions || []).length) || plays.length > 0 || drills.length > 0
   // Teams load from localStorage in an effect after the first render, so
@@ -77,6 +105,34 @@ export default function Home() {
             <div style={{ fontFamily: COND, fontStyle: 'italic', fontWeight: 700, fontSize: 26, lineHeight: 1.02, letterSpacing: '.4px', textTransform: 'uppercase', ...goldText }}>OVERVIEW</div>
           </div>
         </div>
+
+        {nextUp && (
+          <div
+            className="home-card" onClick={nextUp.open}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, ...raised(.06, .1), border: '1px solid rgba(232,177,60,.3)', color: '#fff', cursor: 'pointer', marginBottom: 14 }}
+          >
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.8px', textTransform: 'uppercase', color: ACCENT }}>
+                Next up · {nextDay}{nextUp.time ? ' · ' + nextUp.time : ''}
+              </div>
+              <div style={{ fontSize: 15.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {nextUp.kind === 'training' ? 'Training' + (nextUp.title && nextUp.title !== 'Training' ? ' · ' + nextUp.title : '') : nextUp.title}
+              </div>
+              <div style={{ fontSize: 11.5, fontWeight: 500, color: 'rgba(255,255,255,.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {[teams.length > 1 ? nextUp.teamName : '', nextUp.sub, nextUp.kind === 'training' ? 'Attendance' : nextUp.kind === 'game' ? 'Track stats' : 'Schedule'].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+            {nextPlan && (nextPlan.items || []).length > 0 && (
+              <div
+                onClick={(e) => { e.stopPropagation(); runPlanCmd(nextPlan.id) }}
+                style={{ flex: 'none', padding: '8px 12px', borderRadius: 10, ...keycap(), color: '#101012', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                ▶ Plan
+              </div>
+            )}
+            <div style={{ flex: 'none', fontSize: 16, color: 'rgba(255,255,255,.4)' }}>›</div>
+          </div>
+        )}
 
         {showBackupReminder && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
