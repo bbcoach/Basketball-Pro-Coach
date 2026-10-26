@@ -306,6 +306,13 @@ input[type="range"]::-webkit-slider-thumb {
   }
 }
 
+/* Today's reminder slides down from the top and back up again. */
+.remind-in { animation: remindIn .38s cubic-bezier(.2, .9, .25, 1.05) 1 both; }
+.remind-out { animation: remindOut .26s ease-in 1 both; }
+@keyframes remindIn { 0% { opacity: 0; transform: translateY(-130%); } 100% { opacity: 1; transform: none; } }
+@keyframes remindOut { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-130%); } }
+@media (prefers-reduced-motion: reduce) { .remind-in, .remind-out { animation: none; } }
+
 /* Brief confirmation toast: settles in, holds, then fades — timed against
    the ~2.2s the store keeps it mounted, not looped. */
 .toast-pop { animation: toastPop 2.2s ease-out 1; }
