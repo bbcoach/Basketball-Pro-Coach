@@ -96,9 +96,9 @@ export default function Home() {
     // wrapper so their vertical margins still collapse as before.
     <>
     {todayItems.length > 0 && !reminderGone && (
-      // A reminder floating over the screen, like a calendar's notification —
-      // the cards underneath stay exactly where they are.
-      <div style={{ position: 'absolute', left: 12, right: 12, top: 'calc(var(--safe-top, 0px) + 8px)', zIndex: 60, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+      // A reminder floating in the middle of the screen, like a calendar's
+      // notification — the cards underneath stay exactly where they are.
+      <div style={{ position: 'absolute', left: 12, right: 12, top: 'var(--safe-top, 0px)', bottom: 'var(--safe-bottom, 0px)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
         <div role="status" style={{ pointerEvents: 'auto', width: '100%', maxWidth: 440, borderRadius: 18, background: 'rgba(28,28,31,.97)', border: '1px solid rgba(232,177,60,.4)', boxShadow: '0 14px 36px rgba(0,0,0,.6)', color: '#fff', overflow: 'hidden', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 8px 3px 14px' }}>
             <div style={{ width: 7, height: 7, borderRadius: 99, background: ACCENT, flex: 'none' }} />
