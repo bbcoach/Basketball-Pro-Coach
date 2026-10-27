@@ -81,7 +81,7 @@ export default function PlaysSheet() {
               </div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
             </div>
-            <div onClick={() => sharePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>⇪</div>
+            <div onClick={() => sharePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(232,177,60,.14)', color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Share</div>
             <div onClick={() => renamePlay(p)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✎</div>
             <div onClick={() => askConfirm({ title: 'Delete play', message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.6)', fontSize: 12, cursor: 'pointer' }}>✕</div>
           </div>

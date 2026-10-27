@@ -208,7 +208,7 @@ function DrillsTab() {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.min || 0} min{d.category ? ' · ' + d.category : ''}{d.desc ? ' · ' + d.desc : ''}</div>
               </div>
               <div onClick={() => toggleDrillFavorite(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: d.fav ? ACCENT : 'rgba(255,255,255,.4)', fontSize: 13, cursor: 'pointer', flex: 'none' }}>{d.fav ? '★' : '☆'}</div>
-              <div onClick={() => shareDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>⇪</div>
+              <div onClick={() => shareDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(232,177,60,.14)', color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', flex: 'none' }}>Share</div>
               <div onClick={() => editDrill(d)} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✎</div>
               <div onClick={() => askConfirm({ title: 'Delete drill', message: `Delete "${d.name}"? It will be removed from any plans that use it.`, onConfirm: () => removeDrill(d) })} style={{ padding: '6px 9px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer', flex: 'none' }}>✕</div>
             </div>

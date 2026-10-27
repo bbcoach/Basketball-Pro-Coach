@@ -28,7 +28,7 @@ function CardIcon({ glyph }) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm, goToSession, goToGame, runPlanCmd } = useApp()
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm, goToSession, goToGame, runPlanCmd, sharePlay, openImport } = useApp()
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -199,6 +199,7 @@ export default function Home() {
                         </div>
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)' }}>{playMeta(p)}</div>
                       </div>
+                      <div onClick={() => sharePlay(p)} style={{ flex: 'none', padding: '7px 9px', borderRadius: 8, background: 'rgba(232,177,60,.14)', color: ACCENT, fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>Share</div>
                       <div onClick={() => askConfirm({ title: 'Delete ' + KIND_LABEL[kindOf(p)].toLowerCase(), message: `Delete "${p.name}"? This can't be undone.`, onConfirm: () => removePlay(p) })} style={{ padding: '7px 10px', borderRadius: 8, background: 'rgba(255,255,255,.07)', color: 'rgba(255,255,255,.55)', fontSize: 12, cursor: 'pointer' }}>✕</div>
                     </div>
                   ))}
@@ -208,6 +209,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+                <div onClick={openImport} style={{ padding: '9px 4px 2px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: ACCENT, cursor: 'pointer' }}>Import a play or drill from another coach</div>
               </div>
             )}
           </div>

@@ -550,6 +550,14 @@ export function AppProvider({ children }) {
   const openShareCode = (title, code) => set({ shareCode: { title, code } })
   const closeShareCode = () => set({ shareCode: null })
   const sharePlay = (p) => openShareCode(p.name, encodePlayShare(p))
+  // the play on the board right now (saved or not), for the share sheet
+  const shareCurrentPlay = () => {
+    const s = stateRef.current
+    const saved = s.plays.find((p) => p.id === s.currentId)
+    const name = s.playName || (saved && saved.name) || 'Play'
+    set({ shareOpen: false })
+    sharePlay({ name, kind: saved ? saved.kind : 'play', view: s.view, steps: nSteps(), players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))) })
+  }
   const shareDrill = (d) => openShareCode(d.name, encodeDrillShare(d, stateRef.current.plays))
 
   const openImport = () => set({ importOpen: true, importText: '', importErr: '' })
@@ -1279,7 +1287,7 @@ export function AppProvider({ children }) {
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openShare, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d,
-    closeShareCode, sharePlay, shareDrill,
+    closeShareCode, sharePlay, shareDrill, shareCurrentPlay,
     openImport, closeImport, setImportText, submitImport,
     enterFullScreen, exitFullScreen, setView3d, setCam3d, setPaths3d, setQuality3d, cyclePov,
     openStats, closeStats, openAttend, closeAttend, openPractice, closePractice, openTeams, closeTeams, openInfo, closeInfo,
