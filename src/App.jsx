@@ -14,6 +14,7 @@ import BackupModal from './components/BackupModal'
 import RunScreen from './components/practice/RunScreen'
 import ConfirmModal from './components/ConfirmModal'
 import Toast from './components/Toast'
+import UpdateBanner from './components/UpdateBanner'
 import ShareCodeModal from './components/ShareCodeModal'
 import ImportModal from './components/ImportModal'
 
@@ -53,6 +54,7 @@ function Screen() {
       <RunScreen />
       <ConfirmModal />
       <Toast />
+      <UpdateBanner />
       <ShareCodeModal />
       <ImportModal />
     </>

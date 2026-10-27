@@ -3,6 +3,7 @@ import { useApp } from '../state/store'
 import { ACCENT, TEAM_NAME, DONATE_URL } from '../state/config'
 import {COND, raised, keycap, haloRing, goldText} from '../theme'
 import Logo from './Logo'
+import TodayReminder from './TodayReminder'
 import { maxStepOf } from '../lib/board-geometry'
 import { shouldShowBackupReminder, snoozeBackupReminder } from '../lib/backup'
 import { kindOf, KIND_LABEL } from '../lib/playKind'
@@ -27,7 +28,7 @@ function CardIcon({ glyph }) {
 }
 
 export default function Home() {
-  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm } = useApp()
+  const { state, toggleBoardMenu, startNewPlay, toggleLoad, openPlayFromHome, removePlay, openStats, openPractice, openAttend, openTeams, openSchedule, openInfo, openBackup, openSync, askConfirm, goToSession, goToGame, runPlanCmd } = useApp()
   const { plays, boardMenu, loadOpen, roster, sessions, drills, plans, games, events, teams, activeTeamId } = state
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -35,6 +36,29 @@ export default function Home() {
   const upcoming = sessions.filter((s) => s.date >= today).length
     + games.filter((g) => g.type === 'game' && g.date >= today).length
     + events.filter((e) => e.date >= today).length
+
+  // A reminder, like a calendar's: whatever is on today — training, game or
+  // event, any team — until a couple of hours after it started. Nothing on
+  // today, nothing shown.
+  const todayItems = (() => {
+    const now = new Date()
+    const nowMin = now.getHours() * 60 + now.getMinutes()
+    const startMin = (t) => (t && /^\d{1,2}:\d{2}/.test(t) ? parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3, 5), 10) : null)
+    const items = []
+    teams.forEach((team) => {
+      const tag = { teamId: team.id, teamName: team.name }
+      ;(team.sessions || []).forEach((s) => items.push({ ...tag, key: 'training-' + s.id, kind: 'training', date: s.date, time: s.time || '', title: s.label || 'Training', sub: '', planId: s.planId, open: () => goToSession(s.id, team.id) }))
+      ;(team.games || []).forEach((g) => {
+        if (g.type !== 'game') return
+        items.push({ ...tag, key: 'game-' + g.id, kind: 'game', date: g.date, time: g.time || '', title: g.opponent ? 'vs ' + g.opponent : 'Game', sub: [g.home === 'home' ? 'Home' : g.home === 'away' ? 'Away' : '', g.location].filter(Boolean).join(' · '), open: () => goToGame(g.id, team.id) })
+      })
+      ;(team.events || []).forEach((e) => items.push({ ...tag, key: 'event-' + e.id, kind: 'event', date: e.date, time: e.time || '', title: e.title || 'Event', sub: e.location || '', open: openSchedule }))
+    })
+    return items
+      .filter((it) => it.date === today && (startMin(it.time) == null || nowMin <= startMin(it.time) + 120))
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+      .slice(0, 3)
+  })()
 
   const hasData = teams.some((t) => (t.roster || []).length || (t.games || []).length || (t.sessions || []).length) || plays.length > 0 || drills.length > 0
   // Teams load from localStorage in an effect after the first render, so
@@ -67,6 +91,8 @@ export default function Home() {
     // cards: pushed to the bottom by margin-top:auto when everything fits,
     // simply scrolled to when it doesn't. The cards keep their own block
     // wrapper so their vertical margins still collapse as before.
+    <>
+    <TodayReminder items={todayItems} today={today} plans={plans} multiTeam={teams.length > 1} runPlan={runPlanCmd} openSchedule={openSchedule} />
     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 70% at 50% 0%,#1d1d21 0%,#0d0d0f 60%,#08080a 100%)', overflowY: 'auto' }}>
       <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column', padding: 'var(--safe-top) 24px calc(var(--safe-bottom) + 6px)' }}>
       <div>
@@ -78,7 +104,7 @@ export default function Home() {
           </div>
         </div>
 
-        {showBackupReminder && (
+        {showBackupReminder && todayItems.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, background: 'rgba(232,177,60,.09)', border: '1px solid rgba(232,177,60,.3)', marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>💾</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
@@ -99,7 +125,7 @@ export default function Home() {
           </div>
         )}
 
-        {showInstallHint && (
+        {showInstallHint && todayItems.length === 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 14px', borderRadius: 18, ...raised(.06, .14), marginBottom: 14 }}>
             <div style={{ fontSize: 18, lineHeight: 1, flex: 'none' }}>📲</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: 'rgba(255,255,255,.75)', lineHeight: 1.4 }}>
@@ -245,5 +271,6 @@ export default function Home() {
       </div>
       </div>
     </div>
+    </>
   )
 }
