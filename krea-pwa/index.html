@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e0e11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Krea Studio</title>
+<style>
+:root{--bg:#0e0e11;--card:#18181d;--fg:#ececf1;--mut:#8d8d99;--acc:#8b7cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif;padding:16px;padding-bottom:env(safe-area-inset-bottom)}
+main{max-width:640px;margin:auto;display:grid;gap:12px}
+textarea,input,select,button{width:100%;font:inherit;color:var(--fg);background:var(--card);border:1px solid #2a2a32;border-radius:12px;padding:12px}
+textarea{min-height:110px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button.go{background:var(--acc);border:0;color:#fff;font-weight:600}
+button:disabled{opacity:.5}
+img{width:100%;border-radius:12px;display:block}
+.mut{color:var(--mut);font-size:14px}
+details{background:var(--card);border-radius:12px;padding:12px}
+summary{cursor:pointer}
+.hist{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+</style>
+</head>
+<body>
+<main>
+  <h2 style="margin:0">Krea Studio</h2>
+  <textarea id="prompt" placeholder="Beschreibe dein Bild …"></textarea>
+  <div class="row">
+    <select id="size">
+      <option value="1024x1024">1:1 · 1024²</option>
+      <option value="832x1216">Hochformat</option>
+      <option value="1216x832">Querformat</option>
+      <option value="768x768">Schnell · 768²</option>
+    </select>
+    <input id="seed" type="number" placeholder="Seed (leer = zufällig)">
+  </div>
+  <button class="go" id="go">Generieren</button>
+  <div id="status" class="mut"></div>
+  <div id="out"></div>
+  <div id="hist" class="hist"></div>
+  <details>
+    <summary>Einstellungen</summary>
+    <p class="mut">Space-URL, z. B. https://DEINNAME-krea.hf.space</p>
+    <input id="url" placeholder="https://…hf.space" autocapitalize="off">
+    <p class="mut">HF-Token (nur bei privatem Space; bleibt nur auf diesem Gerät)</p>
+    <input id="tok" type="password" placeholder="hf_…" autocapitalize="off">
+    <p><button id="save">Speichern</button></p>
+  </details>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const ls = { get:k=>{try{return localStorage.getItem(k)||""}catch{return ""}}, set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}} };
+$("url").value = ls.get("url"); $("tok").value = ls.get("tok");
+$("save").onclick = () => { ls.set("url",$("url").value.trim().replace(/\/$/,"")); ls.set("tok",$("tok").value.trim()); $("status").textContent="Gespeichert."; };
+
+const headers = () => { const h={"Content-Type":"application/json"}; const t=ls.get("tok"); if(t)h.Authorization="Bearer "+t; return h; };
+
+async function generate() {
+  const base = ls.get("url");
+  if (!base) { $("status").textContent = "Bitte zuerst die Space-URL in den Einstellungen eintragen."; return; }
+  const [w,h] = $("size").value.split("x").map(Number);
+  const seed = $("seed").value === "" ? -1 : Number($("seed").value);
+  $("go").disabled = true; $("status").textContent = "Läuft … (erster Aufruf kann ~1 Min dauern, GPU wird gestartet)";
+  try {
+    const r = await fetch(base + "/gradio_api/call/generate", { method:"POST", headers:headers(),
+      body: JSON.stringify({ data:[$("prompt").value, w, h, seed] }) });
+    if (!r.ok) throw new Error("Start fehlgeschlagen: " + r.status);
+    const { event_id } = await r.json();
+    const s = await fetch(`${base}/gradio_api/call/generate/${event_id}`, { headers:headers() });
+    const txt = await s.text(); // SSE: endet nach "complete" oder "error"
+    const blocks = txt.split("\n\n").filter(Boolean);
+    const last = blocks[blocks.length-1].split("\n");
+    const ev = last[0].replace("event: ","").trim();
+    const data = JSON.parse(last.find(l=>l.startsWith("data:")).slice(5));
+    if (ev !== "complete") throw new Error("Fehler vom Server: " + JSON.stringify(data));
+    const imgUrl = data[0].url || (base + "/gradio_api/file=" + data[0].path);
+    const blob = await (await fetch(imgUrl, { headers: ls.get("tok")?{Authorization:"Bearer "+ls.get("tok")}:{} })).blob();
+    show(URL.createObjectURL(blob), data[1]);
+  } catch (e) { $("status").textContent = String(e.message || e); }
+  finally { $("go").disabled = false; }
+}
+function show(src, seed) {
+  $("out").innerHTML = `<img src="${src}" alt="Ergebnis"><p class="mut">Seed ${seed} · lange drücken zum Speichern</p>`;
+  $("status").textContent = "";
+  const t = document.createElement("img"); t.src = src; t.onclick = () => show(src, seed);
+  $("hist").prepend(t);
+}
+$("go").onclick = generate;
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
