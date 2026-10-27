@@ -3,7 +3,7 @@ import {COND, keycap} from '../../../theme'
 import { webgl3dSupported } from '../../../board3d/support'
 
 export default function ShareModal() {
-  const { state, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d } = useApp()
+  const { state, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d, shareCurrentPlay } = useApp()
   if (!state.shareOpen) return null
   const { shareStatus, videoExporting } = state
   return (
@@ -26,6 +26,11 @@ export default function ShareModal() {
                 <div onClick={() => doExportVideo3d(true)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>3D video<div style={{ fontSize: 10.5, fontWeight: 600, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>Wide · screen</div></div>
               </div>
             )}
+            <div style={{ height: 1, background: 'rgba(255,255,255,.1)', margin: '4px 0 2px' }} />
+            <div onClick={shareCurrentPlay} style={{ padding: '11px 12px', borderRadius: 12, background: 'rgba(232,177,60,.14)', border: '1px solid rgba(232,177,60,.35)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>
+              For other coaches (file / code)
+              <div style={{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,.55)', marginTop: 2 }}>They import it in their own app and can edit it</div>
+            </div>
             <div onClick={closeShareModal} style={{ padding: 10, borderRadius: 12, background: 'transparent', color: 'rgba(255,255,255,.55)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
           </div>
         )}

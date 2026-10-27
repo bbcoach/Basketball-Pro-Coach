@@ -145,14 +145,48 @@ const blurMat = new THREE.ShaderMaterial({
     }`,
 })
 const blurQuad = new FullScreenQuad(blurMat)
+// Things in the middle distance — the benches and the scorer's table — are
+// drawn with the sharp scene (so the boards and players hide them properly)
+// but flagged in the alpha channel: SOFT_ALPHA instead of 1. The composite
+// softens exactly those pixels, using only other flagged pixels, so the
+// blur stays inside them (with a faint bleed at the edge) and nothing else
+// smears into the bench.
+const SOFT_ALPHA = 0.996
+function softFlag(mat) {
+  mat.transparent = true; mat.opacity = SOFT_ALPHA; mat.depthWrite = true
+  mat.blending = THREE.CustomBlending; mat.blendEquation = THREE.AddEquation
+  mat.blendSrc = THREE.SrcAlphaFactor; mat.blendDst = THREE.OneMinusSrcAlphaFactor
+  mat.blendSrcAlpha = THREE.OneFactor; mat.blendDstAlpha = THREE.ZeroFactor
+  return mat
+}
 const CompositeShader = {
-  uniforms: { tDiffuse: { value: null }, tBg: { value: null }, dim: { value: BG_DIM } },
+  uniforms: { tDiffuse: { value: null }, tBg: { value: null }, dim: { value: BG_DIM }, texel: { value: new THREE.Vector2(1, 1) }, soft: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform sampler2D tBg; uniform float dim; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform sampler2D tBg; uniform float dim; uniform vec2 texel; uniform float soft; varying vec2 vUv;
+    float flagOf(vec4 c) { return c.a > 0.99 ? clamp((1.0 - c.a) / 0.004, 0.0, 1.0) : 0.0; }
     void main() {
       vec4 fg = texture2D(tDiffuse, vUv);
+      vec3 rgb = fg.rgb;
+      if (soft > 0.0 && fg.a > 0.99) {
+        // is there anything flagged within reach?
+        float near = flagOf(fg);
+        near += flagOf(texture2D(tDiffuse, vUv + texel * soft * vec2(1.0, 1.0)));
+        near += flagOf(texture2D(tDiffuse, vUv + texel * soft * vec2(-1.0, 1.0)));
+        near += flagOf(texture2D(tDiffuse, vUv + texel * soft * vec2(1.0, -1.0)));
+        near += flagOf(texture2D(tDiffuse, vUv + texel * soft * vec2(-1.0, -1.0)));
+        if (near > 0.0) {
+          vec3 cs = vec3(0.0); float ws = 0.0;
+          for (int i = 0; i < 16; i++) {
+            float a = float(i) * 2.399963; float r = soft * sqrt((float(i) + 0.5) / 16.0);
+            vec4 s = texture2D(tDiffuse, vUv + texel * r * vec2(cos(a), sin(a)));
+            float f = flagOf(s);
+            cs += s.rgb * f; ws += f;
+          }
+          if (ws > 0.0) rgb = mix(rgb, cs / ws, clamp(ws / 16.0, 0.0, 1.0) * 0.9);
+        }
+      }
       vec3 bg = texture2D(tBg, vUv).rgb * dim;
-      gl_FragColor = vec4(fg.rgb + bg * (1.0 - fg.a), 1.0);
+      gl_FragColor = vec4(rgb + bg * (1.0 - fg.a), 1.0);
     }`,
 }
 const compositePass = new ShaderPass(CompositeShader)
@@ -193,6 +227,8 @@ function sizeComposer() {
   // phone, where everything is smaller, it shrinks with it (never below half)
   outlinePass.uniforms.px.value = 2.4 * Math.max(0.5, Math.min(1, Math.hypot(W, H) / 1130)) * pr
   fxaaPass.material.uniforms.resolution.value.set(1 / (W * pr), 1 / (H * pr))
+  compositePass.uniforms.texel.value.set(1 / (W * pr), 1 / (H * pr))
+  compositePass.uniforms.soft.value = qual.bgBlur ? 4 * pr : 0
   const bw = Math.max(1, Math.round(W * pr * qual.bgScale)); const bh = Math.max(1, Math.round(H * pr * qual.bgScale))
   bgRT.setSize(bw, bh); blurRT.setSize(bw, bh)
   bgTexel.set(1 / bw, 1 / bh)
@@ -486,10 +522,11 @@ function ledTexture(w) {
   parts.push(bx(0.6, 1.0, 4.4, -9.85, 0.5, 14, 0x24242a), bx(0.04, 0.12, 4.4, -9.53, 0.8, 14, 0xe8b13c), bx(0.7, 0.04, 4.5, -9.85, 1.02, 14, 0x3a3a40))
   for (const z of [12.4, 13.5, 14.5, 15.6]) put(sitting(pick([0x9a9aa1, 0xcacacd, 0x5e5e66]), 0x1a1a1f, 0x15151a, pick(skins), pick(hairs)), Math.PI / 2, -10.3, z)
   const stuff = new THREE.Mesh(mergeGeometries(parts), envMat({ color: 0xffffff, vertexColors: true }))
-  stuff.castShadow = true; stuff.layers.enable(1); scene.add(stuff)
+  // (not outlined: the benches and the table are softened in the composite, see softFlag)
+  softFlag(stuff.material); stuff.castShadow = true; scene.add(stuff)
   // the laptops on the table
   const lap = new THREE.Mesh(mergeGeometries([12.7, 13.8, 14.8].map((z) => new THREE.BoxGeometry(0.03, 0.2, 0.32).rotateZ(0.25).translate(-9.7, 1.14, z))), new THREE.MeshBasicMaterial({ color: 0xb8dcff }))
-  scene.add(lap)
+  softFlag(lap.material); scene.add(lap)
   // a low wall in front of the stands
   const wallM = envMat({ color: 0x1e1e24 })
   const lowWall = (w, d, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.8, d), wallM); m.position.set(x, 0.4, z); scene.add(m) }
