@@ -5,6 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
@@ -56,7 +57,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(1)
 renderer.setSize(W, H, false)
 renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.shadowMap.type = THREE.PCFShadowMap
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1.05
@@ -194,12 +195,15 @@ const compositePass = new ShaderPass(CompositeShader)
 // broadcast: shadows a touch cool, highlights a touch warm, slightly more
 // contrast and colour, and the corners drawn in a little.
 const GradeShader = {
-  uniforms: { tDiffuse: { value: null }, aspect: { value: 1 } },
+  uniforms: { tDiffuse: { value: null }, aspect: { value: 1 }, film: { value: 1 }, time: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float aspect; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float aspect; uniform float film; uniform float time; varying vec2 vUv;
     void main() {
+      // a lens: red and blue land a hair apart towards the corners
+      vec2 dc = vUv - 0.5;
+      float ca = 0.0017 * film * dot(dc, dc) * 4.0;
       vec4 t = texture2D(tDiffuse, vUv);
-      vec3 c = t.rgb;
+      vec3 c = vec3(texture2D(tDiffuse, vUv + dc * ca).r, t.g, texture2D(tDiffuse, vUv - dc * ca).b);
       float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
       c *= mix(vec3(0.95, 0.98, 1.05), vec3(1.05, 1.01, 0.94), smoothstep(0.04, 0.9, l));
       c = 0.18 * pow(max(c, vec3(0.0)) / 0.18, vec3(1.07));
@@ -207,6 +211,9 @@ const GradeShader = {
       c = mix(vec3(l2), c, 1.07);
       vec2 d = (vUv - 0.5) * vec2(aspect, 1.0);
       c *= 1.0 - 0.3 * smoothstep(0.42, 1.0, length(d) * 1.25);
+      // film grain, stronger in the mid-tones, different every frame
+      float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy + time * 37.0, vec2(0.06711056, 0.00583715))));
+      c += (n - 0.5) * 0.03 * film * smoothstep(0.03, 0.25, l2) * (1.0 - smoothstep(0.5, 1.2, l2));
       gl_FragColor = vec4(c, t.a);
     }`,
 }
@@ -214,7 +221,10 @@ const gradePass = new ShaderPass(GradeShader)
 // FXAA last, on the finished picture: smooths the stair-steps on lines and
 // outlines in the distance
 const fxaaPass = new ShaderPass(FXAAShader)
-composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(gradePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
+// light that spills off the brightest things — the lamps, the scoreboard, the glints on the varnish
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.5, 1.6)
+bloomPass.enabled = false
+composer.addPass(renderPass); composer.addPass(compositePass); composer.addPass(outlinePass); composer.addPass(bloomPass); composer.addPass(gradePass); composer.addPass(new OutputPass()); composer.addPass(fxaaPass)
 renderer.setClearColor(0x000000, 0)
 function sizeComposer() {
   const pr = renderer.getPixelRatio()
@@ -345,7 +355,7 @@ sun.shadow.mapSize.set(2048, 2048)
 Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 16, bottom: -16, near: 1, far: 60 })
 sun.shadow.bias = -0.0005
 sun.shadow.normalBias = 0.035 // keeps round heads and limbs free of self-shadow streaks
-sun.shadow.radius = 1.5
+sun.shadow.radius = 2.4
 scene.add(sun, sun.target)
 // back light: cool, from the far end and above
 const back = new THREE.DirectionalLight(0xeef0f5, 1.25)
@@ -353,23 +363,53 @@ back.position.set(6, 14, -18); back.target.position.set(0, 0, 10)
 scene.add(back, back.target)
 // warm pools over each half
 const spots = []
+const pools = []
 for (const z of [6, 22]) { const s = new THREE.PointLight(0xffe2b8, 12, 24); s.position.set(0, 9, z); scene.add(s); spots.push(s) }
 
 // ── floor + court lines ────────────────────────────────────────────────
 function courtTexture() {
-  const S = 0.6
+  const S = 0.8
   const c = document.createElement('canvas')
   c.width = 1500 * S; c.height = 2800 * S
   const g = c.getContext('2d')
   g.scale(S, S)
+  // the same boards as a height map in disguise (a normal map: the bevel of
+  // each plank edge and joint, a little grain) and a roughness map (varnish
+  // glossy, worn and painted places duller), so the lamps and the sun glint
+  // on the wood instead of lighting it flat
+  const nc = document.createElement('canvas'); nc.width = c.width; nc.height = c.height
+  const ng = nc.getContext('2d'); ng.scale(S, S)
+  ng.fillStyle = 'rgb(128,128,255)'; ng.fillRect(0, 0, 1500, 2800)
+  const rc = document.createElement('canvas'); rc.width = c.width; rc.height = c.height
+  const rg = rc.getContext('2d'); rg.scale(S, S)
+  rg.fillStyle = 'rgb(178,178,178)'; rg.fillRect(0, 0, 1500, 2800)
   const rnd = (() => { let s = 11; return () => { s = (s * 16807) % 2147483647; return s / 2147483647 } })()
   // light maple planks, each with a little grain and the odd end joint
   const tones = ['#e6c89b', '#e1c193', '#e9cda2', '#dcbb8b', '#e4c597']
   for (let x = 0, i = 0; x < 1500; x += 38, i++) {
     g.fillStyle = tones[(i * 7) % tones.length]; g.fillRect(x, 0, 38, 2800)
+    // each board runs a little lighter or darker along its length
+    const lg = g.createLinearGradient(0, 0, 0, 2800); const sh = rnd() * 0.5
+    lg.addColorStop(0, `rgba(255,236,200,${0.05 + rnd() * 0.06})`); lg.addColorStop(sh, 'rgba(255,236,200,0)'); lg.addColorStop(1, `rgba(120,76,30,${0.03 + rnd() * 0.07})`)
+    g.fillStyle = lg; g.fillRect(x, 0, 38, 2800)
     for (let k = 0; k < 7; k++) { g.fillStyle = `rgba(140,90,40,${0.03 + rnd() * 0.05})`; g.fillRect(x + 3 + rnd() * 32, rnd() * 2800, 1 + rnd() * 1.5, 120 + rnd() * 500) }
-    for (let y = rnd() * 400; y < 2800; y += 260 + rnd() * 420) { g.fillStyle = 'rgba(80,50,20,.12)'; g.fillRect(x, y, 38, 1.5) }
+    // fine grain: many thin streaks, dark and light
+    for (let k = 0; k < 46; k++) {
+      const dark = rnd() < 0.62; const gx = x + 1 + rnd() * 36; const gy = rnd() * 2800; const len = 90 + rnd() * 620
+      g.fillStyle = dark ? `rgba(110,68,28,${0.025 + rnd() * 0.055})` : `rgba(255,240,215,${0.03 + rnd() * 0.05})`
+      g.fillRect(gx, gy, 0.5 + rnd() * 0.9, len)
+      ng.fillStyle = `rgba(${dark ? 118 : 138},128,255,0.5)`; ng.fillRect(gx, gy, 0.8, len)
+    }
+    // the odd end joint, staggered from board to board
+    for (let y = rnd() * 400; y < 2800; y += 260 + rnd() * 420) {
+      g.fillStyle = 'rgba(80,50,20,.16)'; g.fillRect(x, y, 38, 1.5)
+      ng.fillStyle = 'rgb(128,96,250)'; ng.fillRect(x, y - 1.5, 38, 1.8); ng.fillStyle = 'rgb(128,160,250)'; ng.fillRect(x, y + 0.4, 38, 1.8)
+    }
     g.fillStyle = 'rgba(70,45,20,.09)'; g.fillRect(x, 0, 1.5, 2800)
+    // the bevel between boards: the left edge tips one way, the right edge the other
+    ng.fillStyle = 'rgb(86,128,246)'; ng.fillRect(x, 0, 2.4, 2800); ng.fillStyle = 'rgb(170,128,246)'; ng.fillRect(x + 35.6, 0, 2.4, 2800)
+    // a little differently glossy from board to board
+    const rv = 164 + Math.floor(rnd() * 24); rg.fillStyle = `rgb(${rv},${rv},${rv})`; rg.fillRect(x + 2.4, 0, 33, 2800)
   }
   // painted keys and centre circle, a mid charcoal
   g.fillStyle = '#54545c'
@@ -389,6 +429,23 @@ function courtTexture() {
   g.beginPath(); g.moveTo(14, 1400); g.lineTo(1486, 1400); g.stroke()
   g.beginPath(); g.arc(750, 1400, 180, 0, Math.PI * 2); g.stroke()
   half(false); half(true)
+  rg.fillStyle = 'rgb(200,200,200)'
+  rg.fillRect(505, 14, 490, 566); rg.fillRect(505, 2220, 490, 566)
+  rg.beginPath(); rg.arc(750, 1400, 180, 0, Math.PI * 2); rg.fill()
+  // wear: black rubber scuffs and pale scratches where the feet go — under the
+  // baskets, along the arcs, at the centre — each a duller patch in the gloss
+  const hot = [[750, 330, 260], [750, 2470, 260], [750, 1400, 190], [300, 330, 220], [1200, 330, 220], [300, 2470, 220], [1200, 2470, 220], [750, 760, 330], [750, 2040, 330]]
+  const gauss = () => (rnd() + rnd() + rnd() - 1.5) * 0.9
+  for (let k = 0; k < 420; k++) {
+    const [hx, hy, hr] = hot[Math.floor(rnd() * hot.length)]
+    const x0 = hx + gauss() * hr; const y0 = hy + gauss() * hr; const a = rnd() * Math.PI; const len = 14 + rnd() * 54
+    const rub = rnd() < 0.7
+    g.strokeStyle = rub ? `rgba(34,26,22,${0.03 + rnd() * 0.06})` : `rgba(255,248,235,${0.05 + rnd() * 0.07})`
+    g.lineWidth = rub ? 1.4 + rnd() * 2.6 : 0.8 + rnd() * 0.8; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + Math.cos(a) * len, y0 + Math.sin(a) * len); g.stroke()
+    rg.strokeStyle = 'rgba(210,210,210,0.18)'; rg.lineWidth = 4 + rnd() * 6; rg.beginPath(); rg.moveTo(x0, y0); rg.lineTo(x0 + Math.cos(a) * len, y0 + Math.sin(a) * len); rg.stroke()
+  }
+  for (const [hx, hy, hr] of hot) { const gr = rg.createRadialGradient(hx, hy, 0, hx, hy, hr * 1.2); gr.addColorStop(0, 'rgba(255,255,255,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); rg.fillStyle = gr; rg.fillRect(hx - hr * 1.2, hy - hr * 1.2, hr * 2.4, hr * 2.4) }
   // a soft falloff of light towards the sidelines and baselines, as under
   // real arena lights — the middle of the court reads as the brightest place
   const fall = (x0, y0, x1, y1) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, 'rgba(40,30,20,.22)'); gr.addColorStop(1, 'rgba(40,30,20,0)'); return gr }
@@ -401,9 +458,12 @@ function courtTexture() {
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.SRGBColorSpace
   t.anisotropy = 8
-  return t
+  const rough = new THREE.CanvasTexture(rc); rough.anisotropy = 8
+  const normal = new THREE.CanvasTexture(nc); normal.anisotropy = 8
+  return { map: t, rough, normal }
 }
-const court = new THREE.Mesh(new THREE.PlaneGeometry(15, 28), new THREE.MeshStandardMaterial({ map: courtTexture(), roughness: 0.82, metalness: 0 }))
+const courtMaps = courtTexture()
+const court = new THREE.Mesh(new THREE.PlaneGeometry(15, 28), new THREE.MeshStandardMaterial({ map: courtMaps.map, roughnessMap: courtMaps.rough, normalMap: courtMaps.normal, normalScale: new THREE.Vector2(0.45, 0.45), roughness: 1, metalness: 0 }))
 court.rotation.x = -Math.PI / 2
 court.position.set(0, 0, 14)
 court.receiveShadow = true
@@ -559,6 +619,20 @@ function ledTexture(w) {
     m.rotation.order = 'YXZ'; m.rotation.set(-Math.PI / 2, ry, 0); m.position.set(x, 0.006, z); scene.add(m)
   }
   strip(34, -8.78, 14, Math.PI / 2); strip(34, 8.78, 14, -Math.PI / 2); strip(18.4, 0, -2.95, 0); strip(18.4, 0, 30.95, Math.PI)
+  // warm pools of lamp light on the varnish: a wide soft one over each half
+  // and a tighter one on the key, so the floor is brightest under the baskets
+  const poolTex = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128
+    const g = c.getContext('2d'); const r = g.createRadialGradient(64, 64, 0, 64, 64, 64)
+    r.addColorStop(0, 'rgba(255,226,172,1)'); r.addColorStop(0.45, 'rgba(255,220,160,.45)'); r.addColorStop(1, 'rgba(255,214,150,0)')
+    g.fillStyle = r; g.fillRect(0, 0, 128, 128)
+    return new THREE.CanvasTexture(c)
+  })()
+  const pool = (w, d, x, z, a) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, opacity: a, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }))
+    m.rotation.x = -Math.PI / 2; m.position.set(x, 0.007, z); scene.add(m); pools.push(m)
+  }
+  pool(15, 15, 0, 7.5, 0.03); pool(15, 15, 0, 20.5, 0.03); pool(6.4, 7.5, 0, 3.4, 0.035); pool(6.4, 7.5, 0, 24.6, 0.035)
 
   const beforeBg = new Set(scene.children)
   // ── bleachers with a crowd ───────────────────────────────────────────
@@ -652,7 +726,7 @@ function ledTexture(w) {
     const g = c.getContext('2d'); g.fillStyle = '#0d0d10'; g.fillRect(0, 0, 512, 256)
     g.fillStyle = '#e8b13c'; g.font = 'italic 800 64px Arial, sans-serif'; g.textAlign = 'center'; g.fillText('PRO COACH', 256, 110)
     g.fillStyle = '#ffffff'; g.font = '700 46px Arial, sans-serif'; g.fillText('HOME  ·  AWAY', 256, 190)
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t })
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(1.4, 1.4, 1.4) })
   })()
   for (let i = 0; i < 4; i++) {
     const s = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.7), screen)
@@ -703,6 +777,12 @@ const blobTex = (() => {
 const blobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, color: 0x0a0a0c }), 64)
 blobs.frustumCulled = false; blobs.renderOrder = 1
 scene.add(blobs)
+// …and a much wider, fainter one round each player: the light that does not
+// reach the floor close to a body. Where two players stand together their
+// patches add up, so the ground between them is darker, as it is in a room.
+const ambientBlobs = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false, opacity: 0.2, color: 0x120d0a }), 32)
+ambientBlobs.frustumCulled = false; ambientBlobs.renderOrder = 0
+scene.add(ambientBlobs)
 
 // ── hoops ──────────────────────────────────────────────────────────────
 // Glass board with an aluminium frame and painted border + shooter's
@@ -2453,11 +2533,12 @@ function applyBaked(t) {
 }
 
 function updateBlobs() {
-  const m = new THREE.Matrix4(); let n = 0
+  const m = new THREE.Matrix4(); let n = 0; let na = 0
   const put = (x, z, size) => { blobs.setMatrixAt(n++, m.makeScale(size, 1, size).setPosition(x, 0.006 + n * 0.0001, z)) }
   Object.values(figures).forEach((f) => {
     if (!f.root.visible) return
     const up = f.root.position.y
+    ambientBlobs.setMatrixAt(na++, m.makeScale(2.3 - up * 0.8, 1, 2.3 - up * 0.8).setPosition(f.root.position.x, 0.005, f.root.position.z))
     put(f.root.position.x, f.root.position.z, Math.max(0.3, 0.95 - up * 1.6))
     ;[-1, 1].forEach((sd) => {
       const s = f.legs[sd].soleMark.getWorldPosition(new THREE.Vector3())
@@ -2468,6 +2549,8 @@ function updateBlobs() {
   put(ball.position.x, ball.position.z, Math.max(0.12, 0.42 - by * 0.09))
   blobs.count = n
   blobs.instanceMatrix.needsUpdate = true
+  ambientBlobs.count = na
+  ambientBlobs.instanceMatrix.needsUpdate = true
 }
 
 // ── view: camera, fading anyone right in front of the lens, draw ───────
@@ -2622,7 +2705,7 @@ dom.addEventListener('wheel', (e) => {
   free.dist = clampN(free.dist * Math.exp(e.deltaY * 0.001), 4, 24)
   redraw()
 }, { passive: false })
-const frame = (t) => { applyBaked(t); view(t) }
+const frame = (t) => { gradePass.uniforms.time.value = Math.round(t * 600) % 997; applyBaked(t); view(t) }
 
 // ── paths on the floor ────────────────────────────────────────────────
 // What the 2D court draws for the step being played, laid on the floor: each
@@ -2915,11 +2998,11 @@ function holderAt(t) {
 //            warm pools of light left out, fewer samples for the outlines
 const dpr = window.devicePixelRatio || 1
 const QUALITY = {
-  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5 },
-  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0 },
+  high: { pr: Math.min(dpr, 2), shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5, bloom: true, film: 1 },
+  medium: { pr: Math.min(dpr, 1.5), shadows: true, map: 1024, msaa: 2, bgScale: 0.5, bgBlur: true, taps: 8, spots: false, nets: true, grade: true, reflect: 0, bloom: false, film: 0.7 },
   // for the video export: everything on, at the video's own size (no extra pixel density)
-  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5, noScoreboard: true },
-  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0 },
+  export: { pr: 1, shadows: true, map: 2048, msaa: 4, bgScale: 0.5, bgBlur: true, taps: 8, spots: true, nets: true, grade: true, reflect: 0.5, bloom: true, film: 1, noScoreboard: true },
+  low: { pr: 1, shadows: false, map: 512, msaa: 0, bgScale: 0.25, bgBlur: false, taps: 4, spots: false, nets: false, grade: false, reflect: 0, bloom: false, film: 0 },
 }
 let quality = 'medium'
 function applyQuality(q) {
@@ -2928,7 +3011,9 @@ function applyQuality(q) {
   qual.bgScale = Q.bgScale; qual.bgBlur = Q.bgBlur; qual.nets = Q.nets
   outlinePass.uniforms.taps.value = Q.taps
   spots.forEach((l) => { l.visible = Q.spots })
+  pools.forEach((m) => { m.visible = Q.spots })
   gradePass.enabled = Q.grade
+  bloomPass.enabled = !!Q.bloom; gradePass.uniforms.film.value = Q.film
   if (scoreboard) scoreboard.visible = !Q.noScoreboard
   qual.reflectScale = Q.reflect || 0.5; reflector.visible = Q.reflect > 0; beams.visible = Q.reflect > 0
   // smoothing: the picture is drawn into these two, so they carry the samples
