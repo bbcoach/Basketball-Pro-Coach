@@ -912,14 +912,8 @@ const TOON_STEPS = { t: [0.26, 0.42, 0.58], l: [0.28, 0.50, 0.72, 0.94] }
 const fourSteps = `
       float lumD = max( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ), 0.01 );
       float Lf = dot( outgoingLight, vec3( 0.2126, 0.7152, 0.0722 ) ) / lumD;
-      // four tones, but the edges between them are soft — a lit form, not a cut-out
-      float qs = ${TOON_STEPS.l[0].toFixed(3)};
-      qs = mix( qs, ${TOON_STEPS.l[1].toFixed(3)}, smoothstep( ${(TOON_STEPS.t[0] - 0.06).toFixed(3)}, ${(TOON_STEPS.t[0] + 0.06).toFixed(3)}, Lf ) );
-      qs = mix( qs, ${TOON_STEPS.l[2].toFixed(3)}, smoothstep( ${(TOON_STEPS.t[1] - 0.06).toFixed(3)}, ${(TOON_STEPS.t[1] + 0.06).toFixed(3)}, Lf ) );
-      qs = mix( qs, ${TOON_STEPS.l[3].toFixed(3)}, smoothstep( ${(TOON_STEPS.t[2] - 0.06).toFixed(3)}, ${(TOON_STEPS.t[2] + 0.06).toFixed(3)}, Lf ) );
+      float qs = Lf < ${TOON_STEPS.t[0].toFixed(3)} ? ${TOON_STEPS.l[0].toFixed(3)} : Lf < ${TOON_STEPS.t[1].toFixed(3)} ? ${TOON_STEPS.l[1].toFixed(3)} : Lf < ${TOON_STEPS.t[2].toFixed(3)} ? ${TOON_STEPS.l[2].toFixed(3)} : ${TOON_STEPS.l[3].toFixed(3)};
       outgoingLight = diffuseColor.rgb * qs;
-      // skin: the shadows go warm, not grey
-      if ( vKind < 0.5 ) outgoingLight *= mix( vec3( 1.0, 0.82, 0.74 ), vec3( 1.0 ), smoothstep( 0.3, 0.8, qs ) );
 `
 // ── "toy" figure: smooth shapes on real joints, drawn in one piece ──────
 // Modelled on the reference lineup: a fitted tank top, shorts with a white
@@ -935,9 +929,9 @@ const TOY_PALETTES = {
   def: { kit: 0x1c1d22, trim: 0xf2f2f2, shoe: 0xf2f2f2, sole: 0x15151a, sock: 0xf4f4f4, band: 0xf2f2f2, skin: SKIN, hair: HAIR },
 }
 const HAIRSTYLES = ['band', 'short', 'bun', 'afro', 'buzz']
-const TOY_BODY = { depth: 0.145, width: 0.213, torsoBot: 0.72, legD: 0.1, legW: 0.2, headR: 0.234, headUp: 0.14, handR: 0.068 }
+const TOY_BODY = { depth: 0.145, width: 0.213, torsoBot: 0.72, legD: 0.1, legW: 0.2, headR: 0.266, headUp: 0.14, handR: 0.068 }
 const TOY_BONES = [
-  ['root', -1, 0, 0], ['pelvis', 0, 0, 0.4], ['spine', 1, 0, 0.46], ['chest', 2, 0, 0.62], ['head', 3, 0, 0.752],
+  ['root', -1, 0, 0], ['pelvis', 0, 0, 0.4], ['spine', 1, 0, 0.46], ['chest', 2, 0, 0.62], ['head', 3, 0, 0.72],
   ['hipL', 1, -0.056, 0.375], ['kneeL', 5, -0.056, 0.215], ['ankleL', 6, -0.056, 0.055],
   ['hipR', 1, 0.056, 0.375], ['kneeR', 8, 0.056, 0.215], ['ankleR', 9, 0.056, 0.055],
   ['shL', 3, -0.112, 0.672], ['elL', 11, -0.3, 0.672], ['shR', 3, 0.112, 0.672], ['elR', 13, 0.3, 0.672],
@@ -967,9 +961,6 @@ function makeToyHuman(p, idx, style = {}) {
   // cloth: how free a vertex is to swing and flutter (0 = fixed to the body,
   // 1 = a loose hem), with the axis it hangs round — see the body material
   let loose = null
-  // what a vertex is made of — 0 skin, 1 fabric, 2 shoe, 3 hair — so the body
-  // material can give each its own surface (see bodyM)
-  let kind = 0
   const put = (list, geo, color, bone, matrix, blend) => {
     const g = geo.clone(); g.deleteAttribute('uv')
     g.applyMatrix4(matrix)
@@ -977,7 +968,6 @@ function makeToyHuman(p, idx, style = {}) {
     const ls = new Float32Array(n * 3)
     if (loose) for (let i = 0; i < n; i++) { ls[i * 3] = loose(g.attributes.position.getY(i)); ls[i * 3 + 1] = TOY_REST[TBI[bone]].x }
     g.setAttribute('loose', new THREE.BufferAttribute(ls, 3))
-    g.setAttribute('kind', new THREE.BufferAttribute(new Float32Array(n).fill(kind), 1))
     g.translate(TOY_REST[TBI[bone]].x, TOY_REST[TBI[bone]].y, 0)
     col.setHex(color)
     const c = new Float32Array(n * 3); for (let i = 0; i < n; i++) c.set([col.r, col.g, col.b], i * 3)
@@ -996,23 +986,19 @@ function makeToyHuman(p, idx, style = {}) {
   }
   const M = (x = 0, y = 0, z = 0, rot = null, scl = null) => new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(...(rot || [0, 0, 0]))), new THREE.Vector3(...(scl || [1, 1, 1])))
   const add = (geo, color, bone, x, y, z, rot, scl, blend) => put(outlined, geo, color, bone, M(x, y, z, rot, scl), blend)
-  const addK = (k, ...a) => { kind = k; add(...a); kind = 0 }
   // torso: a tank top turned on a lathe — a hem that falls a little loose
   // over the shorts, waist, chest, then in to the shoulders. The hem moves
   // with the hips (like the shorts under it, so they never cut through it),
   // the chest with the spine, the belly blends between the two.
-  const prof = [[0.0, -0.078], [0.101, -0.078], [0.1045, -0.0755], [0.1055, -0.07], [0.105, -0.063], [0.096, -0.02], [0.105, 0.06], [0.116, 0.13], [0.118, 0.17], [0.106, 0.226], [0.074, 0.258], [0.0, 0.263]].map(([r, y]) => new THREE.Vector2(r, y))
+  const prof = [[0.0, -0.078], [0.101, -0.078], [0.1045, -0.0755], [0.1055, -0.07], [0.105, -0.063], [0.1, -0.02], [0.108, 0.07], [0.112, 0.15], [0.1, 0.22], [0.07, 0.262], [0.0, 0.265]].map(([r, y]) => new THREE.Vector2(r, y))
   const smooth = (a, b, v) => { const h = Math.min(1, Math.max(0, (v - a) / (b - a))); return h * h * (3 - 2 * h) }
   loose = (y) => 1 - smooth(-0.078, 0.05, y)
-  kind = 1
   add(new THREE.LatheGeometry(prof, 40), pal.kit, 'spine', 0, 0, 0, null, [1, 1, 0.7], ['pelvis', (y) => 1 - smooth(0.4, 0.5, y)])
-  kind = 0
   loose = null
-  // the neck flares into the shoulders (trapezius) instead of a stub
-  add(new THREE.LatheGeometry([[0.07, -0.07], [0.056, -0.04], [0.049, -0.005], [0.047, 0.03], [0.047, 0.07]].map(([r, y]) => new THREE.Vector2(r, y)), 20), skinC, 'head', 0, 0, 0)
+  add(new THREE.CylinderGeometry(0.036, 0.04, 0.06, 10, 1, true), skinC, 'head', 0, 0.01, 0)
   // shorts: hip piece (its waistband under the vest's hem) plus a tube per
   // leg, white hem at the bottom
-  addK(1, new THREE.CylinderGeometry(0.09, 0.106, 0.085, 40), pal.kit, 'pelvis', 0, -0.0075, 0, null, [1, 1, 0.7])
+  add(new THREE.CylinderGeometry(0.09, 0.106, 0.085, 40), pal.kit, 'pelvis', 0, -0.0075, 0, null, [1, 1, 0.7])
   // trim on the jersey: round the neck, the arm holes and the hem
   add(new THREE.TorusGeometry(0.056, 0.0065, 6, 28).rotateX(Math.PI / 2), pal.trim, 'spine', 0, 0.262, 0, null, [1, 1, 0.8])
   loose = () => 1
@@ -1021,27 +1007,19 @@ function makeToyHuman(p, idx, style = {}) {
   for (const sd of [-1, 1]) add(new THREE.TorusGeometry(0.047, 0.0058, 6, 24).rotateY(Math.PI / 2), pal.trim, 'chest', sd * 0.1, 0.048, 0, null, [1, 1, 0.8])
   for (const S of ['L', 'R']) {
     loose = (y) => 1 - smooth(-0.116, -0.01, y)
-    kind = 1
     add(new THREE.CylinderGeometry(0.06, 0.063, 0.125, 14, 1, true), pal.kit, 'hip' + S, 0, -0.055, 0)
     loose = () => 1
     add(new THREE.TorusGeometry(0.0625, 0.0065, 4, 16), pal.trim, 'hip' + S, 0, -0.116, 0, [Math.PI / 2, 0, 0])
-    loose = null; kind = 0
+    loose = null
     add(new THREE.CapsuleGeometry(0.041, 0.13, 2, 10), skinC, 'hip' + S, 0, -0.085, 0)
     add(new THREE.SphereGeometry(0.0395, 20, 14), skinC, 'knee' + S)
     add(new THREE.CapsuleGeometry(0.036, 0.12, 2, 10), skinC, 'knee' + S, 0, -0.075, 0)
     // sock: its own tube, a touch wider than the shin, so the edge is a clean line
-    addK(2, new THREE.CylinderGeometry(0.0405, 0.039, 0.07, 12, 1, true), pal.sock, 'knee' + S, 0, -0.123, 0)
-    kind = 2
+    add(new THREE.CylinderGeometry(0.0405, 0.039, 0.07, 12, 1, true), pal.sock, 'knee' + S, 0, -0.123, 0)
     add(new THREE.CapsuleGeometry(0.039, 0.075, 3, 10), pal.shoe, 'ankle' + S, 0, -0.012, 0.022, [Math.PI / 2, 0, 0], [1.22, 1, 0.95])
     // a thick sole in the other colour, and a lace panel on top
     add(new THREE.CapsuleGeometry(0.04, 0.078, 3, 10), pal.sole, 'ankle' + S, 0, -0.04, 0.022, [Math.PI / 2, 0, 0], [1.27, 1.04, 0.3])
     add(new THREE.SphereGeometry(0.02, 12, 8), pal.sole, 'ankle' + S, 0, 0.019, 0.047, null, [1.15, 0.5, 1.5])
-    // the shoe in more detail: a toe cap, an accent stripe down each side, a heel tab, the laces
-    add(new THREE.SphereGeometry(0.034, 14, 10), pal.shoe, 'ankle' + S, 0, -0.026, 0.083, null, [1.12, 0.66, 1.1])
-    for (const sd of [-1, 1]) add(new THREE.BoxGeometry(0.004, 0.014, 0.068), pal.sole, 'ankle' + S, sd * 0.0475, -0.016, 0.02, [0.18, 0, 0])
-    add(new THREE.BoxGeometry(0.03, 0.026, 0.012), pal.sole, 'ankle' + S, 0, 0.0, -0.034, [0.3, 0, 0])
-    for (const lz of [0.034, 0.05, 0.066]) add(new THREE.BoxGeometry(0.044, 0.0035, 0.005), pal.sole, 'ankle' + S, 0, 0.0305 - (lz - 0.034) * 0.28, lz, [-0.28, 0, 0])
-    kind = 0
     // calf and thigh give the leg some shape
     add(new THREE.SphereGeometry(0.034, 14, 10), skinC, 'knee' + S, 0, -0.07, -0.012, null, [1, 1.5, 1.05])
     add(new THREE.SphereGeometry(0.043, 14, 10), skinC, 'hip' + S, 0, -0.05, 0.004, null, [1.04, 1.45, 1.05])
@@ -1054,11 +1032,10 @@ function makeToyHuman(p, idx, style = {}) {
     // Each joint is a finely rounded ball exactly as wide as the tube that
     // ends in it, riding on the limb that turns about it — so the tube's rim
     // always sits on the ball's surface and the outline stays one clean curve.
-    add(new THREE.SphereGeometry(0.0495, 28, 18), skinC, 'sh' + S, 0, 0.002, 0, null, [1.04, 1.06, 1])
-    // the upper arm swells into the biceps, then narrows to the elbow
-    add(new THREE.LatheGeometry([[0.0485, -0.094], [0.051, -0.065], [0.0515, -0.03], [0.0475, 0.015], [0.039, 0.06], [0.0335, 0.094]].map(([r, y]) => new THREE.Vector2(r, y)), 28), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
+    add(new THREE.SphereGeometry(0.0435, 28, 18), skinC, 'sh' + S)
+    add(new THREE.CylinderGeometry(0.0335, 0.0435, 0.188, 28, 1, true), skinC, 'sh' + S, side * 0.094, 0, 0, roll)
     add(new THREE.SphereGeometry(0.0345, 24, 16), skinC, 'el' + S)
-    add(new THREE.LatheGeometry([[0.0345, -0.075], [0.0385, -0.045], [0.0355, -0.005], [0.029, 0.04], [0.0255, 0.075]].map(([r, y]) => new THREE.Vector2(r, y)), 24), skinC, 'el' + S, side * 0.075, 0, 0, roll)
+    add(new THREE.CylinderGeometry(0.0255, 0.0345, 0.15, 24, 1, true), skinC, 'el' + S, side * 0.075, 0, 0, roll)
     add(new THREE.SphereGeometry(0.0258, 18, 12), skinC, 'el' + S, side * 0.15, 0, 0)
     // a hand: flat palm, fingers together, and a thumb
     add(new THREE.SphereGeometry(0.034, 12, 8), skinC, 'el' + S, side * 0.181, -0.002, 0, null, [1.12, 0.62, 0.92])
@@ -1071,8 +1048,6 @@ function makeToyHuman(p, idx, style = {}) {
   // head and hair
   const HC = 0.14; const HR = 0.14
   add(new THREE.SphereGeometry(HR, 32, 22), skinC, 'head', 0, HC, 0)
-  // a jaw and chin below the skull: the head is an egg, not a ball
-  add(new THREE.SphereGeometry(0.092, 32, 20), skinC, 'head', 0, HC - 0.066, 0.02, null, [0.9, 0.88, 0.86])
   for (const sd of [-1, 1]) add(new THREE.SphereGeometry(0.03, 12, 8), skinC, 'head', sd * 0.134, HC - 0.004, -0.004, null, [0.4, 1.05, 0.75])
   // Hair and headband lie on the skull: a thin layer round the head's own
   // centre, from polar angle `from` to `to` (about the layer's tilted axis),
@@ -1088,12 +1063,10 @@ function makeToyHuman(p, idx, style = {}) {
   // headband: a flat strip with rounded edges, a little higher at the back
   if (hair === 'band') add(skullLayer(1.0, 1.32, (u) => 0.0085 * Math.sqrt(Math.max(0, 1 - Math.pow(2 * u - 1, 4)))), pal.band, 'head', 0, HC, 0, [-0.16, 0, 0])
   // short hair: a cap tilted back, down to the hairline
-  kind = 3
   if (hair === 'short' || hair === 'bun') add(skullLayer(0, Math.PI * 0.42, (u) => 0.0062 * (1 - smooth(0.78, 1, u))), hairC, 'head', 0, HC, 0, [-0.32, 0, 0])
   if (hair === 'afro') add(new THREE.SphereGeometry(0.165, 28, 18), hairC, 'head', 0, HC + 0.03, -0.04)
   if (hair === 'buzz') add(skullLayer(0, Math.PI * 0.4, (u) => 0.0035 * (1 - smooth(0.75, 1, u))), hairC, 'head', 0, HC, 0, [-0.3, 0, 0])
   if (hair === 'bun') add(new THREE.SphereGeometry(0.045, 24, 16), hairC, 'head', 0, HC + HR + 0.022, -0.022)
-  kind = 0
   // face: eyes with pupils and a catch-light, brows, nose, mouth — set onto
   // the curve of the head. Attackers get relaxed brows and a smile,
   // defenders brows angled down to the middle.
@@ -1102,7 +1075,7 @@ function makeToyHuman(p, idx, style = {}) {
   // brow height / angle / weight, and the mouth all vary a little
   const v = idx % 3
   const FACE = {
-    eyeX: [0.027, 0.029, 0.026][v], eyeY: [0.03, 0.034, 0.025][v],
+    eyeX: [0.031, 0.033, 0.03][v], eyeY: [0.04, 0.046, 0.033][v],
     browUp: [0, 0.008, -0.004][v], browW: [0.008, 0.0068, 0.0105][v],
     browTilt: off ? [0.12, 0.28, -0.04][v] : [-0.38, -0.24, -0.52][v],
     mouthArc: off ? [0.8, 0.95, 0.6][v] : [0.55, 0.3, 0.45][v],
@@ -1131,9 +1104,6 @@ function makeToyHuman(p, idx, style = {}) {
     ;(parent >= 0 ? bones[parent] : rig).add(bones[i])
   })
   rig.updateMatrixWorld(true)
-  // a head in proportion: a little under nine tenths of the toy's (the face
-  // parts hang on this bone, so they scale with it)
-  bones[TBI.head].scale.setScalar(0.88)
   const skeleton = new THREE.Skeleton(bones)
   const bodyM = TOON ? new THREE.MeshToonMaterial({ color: 0xffffff, gradientMap: SOFT_RAMP, vertexColors: true }) : new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.65 })
   // a cool rim of light round the silhouette, from any camera angle — it
@@ -1143,39 +1113,17 @@ function makeToyHuman(p, idx, style = {}) {
   const cloth = { uLag: { value: new THREE.Vector3() }, uFl: { value: 0 }, uPh: { value: 0 } }
   bodyM.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, cloth)
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 loose; attribute float kind; varying float vKind; varying vec3 vPosO; uniform vec3 uLag; uniform float uFl; uniform float uPh;').replace('#include <begin_vertex>', `#include <begin_vertex>
-      vKind = kind; vPosO = position;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 loose; uniform vec3 uLag; uniform float uFl; uniform float uPh;').replace('#include <begin_vertex>', `#include <begin_vertex>
       { vec3 rad = vec3( position.x - loose.y, 0.0, position.z ); rad /= max( length( rad ), 1e-4 );
         transformed += loose.x * ( uLag + rad * ( sin( uPh * 2.0 + atan( rad.x, rad.z ) * 3.0 ) * uFl ) ); }`)
-    // surfaces: a fine sports-mesh weave on shirt and shorts (and a darker
-    // panel down each side of the shirt), grain on the shoes, strands in the
-    // hair — all fading out where they would only shimmer (far away)
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vKind; varying vec3 vPosO;').replace('#include <color_fragment>', `#include <color_fragment>
-      {
-        float fk = vKind;
-        if ( fk > 0.5 && fk < 1.5 ) {
-          vec2 q = vPosO.xy * 230.0 + vec2( vPosO.z * 37.0, 0.0 );
-          float aa = 1.0 - smoothstep( 0.3, 0.8, max( fwidth( q.x ), fwidth( q.y ) ) );
-          float cell = length( fract( q ) - 0.5 );
-          diffuseColor.rgb *= 1.0 - aa * 0.11 * smoothstep( 0.26, 0.44, cell );
-          diffuseColor.rgb *= 1.0 - 0.1 * smoothstep( 0.092, 0.108, abs( vPosO.x ) ) * ( 1.0 - smoothstep( 0.655, 0.675, vPosO.y ) ) * step( 0.36, vPosO.y );
-        } else if ( fk > 1.5 && fk < 2.5 ) {
-          vec2 q = vPosO.xz * 420.0 + vPosO.y * 90.0;
-          float aa = 1.0 - smoothstep( 0.3, 0.8, max( fwidth( q.x ), fwidth( q.y ) ) );
-          diffuseColor.rgb *= 1.0 + aa * 0.07 * ( fract( sin( dot( floor( q ), vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ) - 0.5 );
-        } else if ( fk > 2.5 ) {
-          float ph = vPosO.x * 520.0 + vPosO.y * 130.0 + sin( vPosO.z * 160.0 ) * 2.5;
-          float aa = 1.0 - smoothstep( 0.4, 1.0, fwidth( ph ) );
-          diffuseColor.rgb *= 1.0 + aa * 0.09 * sin( ph );
-        }
-      }`).replace('#include <opaque_fragment>', TOON ? fourSteps + `
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', TOON ? fourSteps + `
       #include <opaque_fragment>
       float rimD = 1.0 - max( dot( normalize( normal ), normalize( vViewPosition ) ), 0.0 );
       gl_FragColor.rgb += vec3( 0.9, 0.9, 0.95 ) * smoothstep( 0.62, 0.82, rimD ) * 0.11;` : `#include <opaque_fragment>
       float rimD = 1.0 - max( dot( normalize( normal ), normalize( vViewPosition ) ), 0.0 );
       gl_FragColor.rgb += vec3( 0.9, 0.9, 0.95 ) * smoothstep( 0.62, 0.82, rimD ) * 0.11;`)
   }
-  bodyM.customProgramCacheKey = () => 'figure-surfaces-soft4' + JSON.stringify(TOON_STEPS)
+  bodyM.customProgramCacheKey = () => 'figure-rim-4step' + JSON.stringify(TOON_STEPS)
   const body = new THREE.SkinnedMesh(mergeGeometries(outlined.concat(detail)), bodyM)
   body.castShadow = true; body.receiveShadow = true; body.frustumCulled = false
   rig.add(body); body.bind(skeleton)
@@ -1195,8 +1143,8 @@ function makeToyHuman(p, idx, style = {}) {
   rig.add(pre); pre.bind(skeleton)
   // number on the tank top, front and back — one mesh
   const decalM = new THREE.MeshStandardMaterial({ map: numberDecal(p.label, off ? '#101012' : '#ffffff'), transparent: true, roughness: 0.6 })
-  const fr = new THREE.PlaneGeometry(0.12, 0.094).translate(0, 0.1, 0.0845)
-  const bk = new THREE.PlaneGeometry(0.14, 0.11).rotateY(Math.PI).translate(0, 0.125, -0.0855)
+  const fr = new THREE.PlaneGeometry(0.12, 0.094).translate(0, 0.1, 0.0798)
+  const bk = new THREE.PlaneGeometry(0.14, 0.11).rotateY(Math.PI).translate(0, 0.13, -0.0798)
   const decal = new THREE.Mesh(mergeGeometries([fr, bk]), decalM)
   bones[TBI.spine].add(decal)
   const B = (n) => bones[TBI[n]]
@@ -1278,14 +1226,14 @@ function updateEyes(t) {
   EYE_FIGS.forEach((f, i) => {
     // where the ball is, seen from his head, steers both pupils
     const L = f.head.worldToLocal(ball.position.clone()).sub(new THREE.Vector3(0, TOY_HC, 0)).normalize()
-    const ox = Math.max(-1, Math.min(1, L.x * 1.4)) * 0.008; const oy = Math.max(-1, Math.min(1, L.y * 1.4)) * 0.0065
+    const ox = Math.max(-1, Math.min(1, L.x * 1.4)) * 0.011; const oy = Math.max(-1, Math.min(1, L.y * 1.4)) * 0.009
     // a blink every 3–5 seconds, each player on his own rhythm
     const period = 3 + ((i * 0.61) % 2); const at = (secs + i * 1.37) % period
     const b = at < 0.16 ? Math.sin((Math.PI * at) / 0.16) : 0
     ;[-1, 1].forEach((side, j) => {
       const n = i * 2 + j
-      pupils.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.068 + ox, -0.008 + oy, 0.004, 0, 0.0155, 0.019, 0.008)))
-      shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, 0.0 + oy, 0.011, 0, 0.0048, 0.0048, 0.003)))
+      pupils.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.068 + ox, -0.012 + oy, 0.004, 0, 0.019, 0.024, 0.008)))
+      shines.setMatrixAt(n, m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.062 + ox, -0.002 + oy, 0.011, 0, 0.006, 0.006, 0.003)))
       const ey = f.eyeY || 0.04
       lids.setMatrixAt(n, b > 0.02 ? m.multiplyMatrices(f.head.matrixWorld, faceMatrix(side * 0.072, -0.005 + (ey + 0.002) * (1 - b), 0.0, 0, 0.034, (ey + 0.003) * b + 0.001, 0.015)) : ZERO)
       // brow: lower and turned in when working hard or concentrating, up and
