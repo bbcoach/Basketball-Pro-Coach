@@ -18,7 +18,7 @@ function b64DecodeUtf8(str) {
 // duration), while `payload.kind` inside a play code says whether that
 // diagram is filed under Plays or Drills in the board library.
 export function encodePlayShare(play) {
-  const payload = { name: play.name, kind: play.kind, view: play.view, steps: play.steps, players: play.players, ball: play.ball }
+  const payload = { name: play.name, kind: play.kind, view: play.view, steps: play.steps, players: play.players, ball: play.ball, notes: play.notes && play.notes.length ? play.notes : undefined }
   return `${TAG}:play:${b64EncodeUtf8(JSON.stringify(payload))}`
 }
 
@@ -26,7 +26,7 @@ export function encodeDrillShare(drill, plays) {
   const linked = drill.playId && plays.find((p) => p.id === drill.playId)
   const payload = {
     name: drill.name, min: drill.min, desc: drill.desc, category: drill.category,
-    play: linked ? { name: linked.name, view: linked.view, steps: linked.steps, players: linked.players, ball: linked.ball } : null,
+    play: linked ? { name: linked.name, view: linked.view, steps: linked.steps, players: linked.players, ball: linked.ball, notes: linked.notes && linked.notes.length ? linked.notes : undefined } : null,
   }
   return `${TAG}:drill:${b64EncodeUtf8(JSON.stringify(payload))}`
 }

@@ -70,7 +70,7 @@ export default function Court3D() {
   }, [])
 
   // a different play, or edits to it (done in 2D, seen here next time)
-  useEffect(() => { if (view.current) view.current.setBoard(state) }, [state.players, state.ball, state.steps, state.autoDef, state.helpDef, state.defenseDelay]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (view.current) view.current.setBoard(state) }, [state.players, state.ball, state.notes, state.steps, state.autoDef, state.helpDef, state.defenseDelay]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (view.current) view.current.setCourtView(state.view) }, [state.view])
   useEffect(() => { if (view.current) view.current.setCamera(state.cam3d, state.povId) }, [state.cam3d, state.povId])
   useEffect(() => { if (view.current) view.current.setPaths(state.paths3d) }, [state.paths3d])

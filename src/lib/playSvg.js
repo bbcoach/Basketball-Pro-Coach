@@ -3,6 +3,7 @@ import {
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
+import { notesSvg } from './notes'
 
 function esc(v) {
   return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -94,6 +95,7 @@ function stepSvg(play, board, cmap, stepIndex) {
     ${routesSvg}
     ${caps.join('')}
     ${tokensSvg}
+    ${notesSvg(play.notes, stepIndex)}
   </svg>`
 }
 

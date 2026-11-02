@@ -42,5 +42,7 @@ export const HINTS = {
   addDef: 'Tap to add defenders — tool stays on',
   addCone: 'Tap to drop cones — tool stays on',
   addBall: 'Tap to add balls — tool stays on',
+  draw: 'Draw on the court — zones, arrows, lines. Stays in this step unless you pick all steps',
+  text: 'Tap the court to place a label, then type',
   erase: "Tap to remove this step's path, again to remove the player",
 }
