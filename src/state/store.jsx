@@ -1119,7 +1119,20 @@ export function AppProvider({ children }) {
       const onCourt = on ? x.onCourt.filter((y) => y !== p.id) : x.onCourt.concat([p.id])
       // whoever has ever been switched on played in the game (counts for GP)
       const played = on || (x.played || []).indexOf(p.id) >= 0 ? (x.played || []) : (x.played || []).concat([p.id])
-      return { ...x, onCourt, played }
+      // switching a player on again takes back an earlier "did not play"
+      return { ...x, onCourt, played, dnp: on ? x.dnp : (x.dnp || []).filter((y) => y !== p.id) }
+    }))
+  }
+  // The coach's own say in who played (the GP column): true = played,
+  // false = did not play. `ids` may be one id or a list.
+  const setPlayedFlag = (ids, value) => {
+    const s = stateRef.current
+    const list = [].concat(ids)
+    persistGames((gs) => gs.map((x) => {
+      if (x.id !== s.activeGameId) return x
+      const played = (x.played || []).filter((y) => list.indexOf(y) < 0)
+      const dnp = (x.dnp || []).filter((y) => list.indexOf(y) < 0)
+      return value ? { ...x, played: played.concat(list), dnp } : { ...x, played, dnp: dnp.concat(list) }
     }))
   }
   const askReset = () => set({ resetAsk: true })
@@ -1426,7 +1439,7 @@ export function AppProvider({ children }) {
     openSchedule, closeSchedule, goToSession, goToGame, openBackup, closeBackup, openSync, closeSync,
     askConfirm, closeConfirm, runConfirm, showToast,
     selectTeam, backToTeamsList, newTeam, renameTeam, askRemoveTeam, closeRemoveTeam, confirmRemoveTeam,
-    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, copyRosterPlayers, copyPlayerToTeam, unlinkPlayer, exportRosterCsv, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt,
+    addPlayer, editPlayer, cancelEditPlayer, removePlayer, importRosterPlayers, copyRosterPlayers, copyPlayerToTeam, unlinkPlayer, exportRosterCsv, updatePlayer, openPlayerDetail, closePlayerDetail, selectStatPlayer, logStat, logOppScore, undoStat, toggleCourt, setPlayedFlag,
     addCoach, editCoach, cancelEditCoach, removeCoach, updateCoach, openCoachDetail, closeCoachDetail,
     addScheduleItem, editEvent, cancelEditEvent, removeEvent, importIcsEvents, importScheduleGames,
     askReset, closeReset, resetGame, resetRoster,

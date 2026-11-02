@@ -89,12 +89,15 @@ export function teamTally(log) {
   return t
 }
 
-// Did this player take part in the game? Anyone who was ever switched on
-// court counts — scoring or not — and so does anyone with a stat in the log
-// (older games, from before the switch was remembered, also count whoever is
-// still on court). `played` is kept by toggleCourt: the on-court list alone
-// would forget a player the moment he is subbed off.
+// Did this player take part in the game? The coach has the last word: a
+// player marked "did not play" (dnp) never counts, one marked played does.
+// Without either, anyone who was ever switched on court counts — scoring or
+// not — and so does anyone with a stat in the log (older games, from before
+// the switch was remembered, also count whoever is still on court). `played`
+// is kept by toggleCourt: the on-court list alone would forget a player the
+// moment he is subbed off.
 export function playedIn(game, id) {
+  if ((game.dnp || []).indexOf(id) >= 0) return false
   return (game.played || []).indexOf(id) >= 0 || (game.onCourt || []).indexOf(id) >= 0 || (game.log || []).some((e) => e.p === id)
 }
 export const gamesPlayed = (games, id) => games.filter((g) => playedIn(g, id)).length
