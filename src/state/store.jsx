@@ -4,6 +4,7 @@ import {
   CONE_TEAM, isCone, BALL_TEAM, isBall, stepSecs,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
+import { DEFAULT_NOTE_STYLE, NOTE_MAX, finishPath, hitNote, moveNote, noteBBox, noteLength, normNotes, noteVisible, TEXT_MAX } from '../lib/notes'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
 import { kindOf } from '../lib/playKind'
@@ -55,6 +56,8 @@ function initialState() {
     // board
     view: 'half', tool: 'move', playing: false, t: 0, speed: 1, step: 1, steps: 1,
     players: s0.players, ball: s0.ball, sel: null, seq: 6,
+    // free drawing and text on the board (lib/notes.js); noteSel is the one being edited
+    notes: [], noteSel: null, noteStyle: { ...DEFAULT_NOTE_STYLE, ...loadJson('tb.noteStyle.v1', {}) },
     hint: 'Step 1 — drag players, pick a tool, draw the path',
     autoDef: false, helpDef: false, defenseDelay: 0, fullScreen: false,
     // the 3D view of the board (view only): always starts in 2D
@@ -225,7 +228,7 @@ export function AppProvider({ children }) {
 
   const snapshot = () => {
     const s = stateRef.current
-    history.current.push(JSON.stringify({ players: s.players, ball: s.ball, steps: s.steps, step: s.step }))
+    history.current.push(JSON.stringify({ players: s.players, ball: s.ball, steps: s.steps, step: s.step, notes: s.notes }))
     if (history.current.length > 40) history.current.shift()
   }
 
@@ -287,10 +290,58 @@ export function AppProvider({ children }) {
       }))
       return
     }
+    // Free drawing and labels (lib/notes.js). Draw starts a stroke that the
+    // pointer then extends; Text drops a still-empty label that the bar
+    // below fills in; both stay on, like the add tools.
+    if (tool === 'draw') {
+      if (s.notes.length >= NOTE_MAX) { showToast('That is a lot of notes on one play'); return }
+      snapshot()
+      const st = s.noteStyle
+      const id = 'n' + s.seq
+      const note = { id, step: st.all ? 0 : s.step, kind: st.shape, color: st.color, w: st.w, pts: st.shape === 'path' ? [p] : [p, p] }
+      drag.current = { noteDraw: id }
+      set((x) => ({ notes: x.notes.filter((n) => n.kind !== 'text' || n.text).concat([note]), noteSel: null, sel: null, seq: x.seq + 1, playing: false }))
+      return
+    }
+    if (tool === 'text') {
+      const hit = hitNote(s.notes.filter((n) => n.kind === 'text'), p, s.step)
+      if (hit) {
+        drag.current = { noteMove: hit, last: p, moved: false }
+        set((x) => ({ noteSel: hit, sel: null, playing: false, notes: x.notes.filter((n) => n.kind !== 'text' || n.text || n.id === hit) }))
+        return
+      }
+      if (s.notes.length >= NOTE_MAX) { showToast('That is a lot of notes on one play'); return }
+      const st = s.noteStyle
+      const id = 'n' + s.seq
+      snapshot()
+      set((x) => ({
+        notes: x.notes.filter((n) => n.kind !== 'text' || n.text).concat([{ id, step: st.all ? 0 : s.step, kind: 'text', color: st.color, size: st.size, pts: [p], text: '' }]),
+        noteSel: id, sel: null, seq: x.seq + 1, playing: false,
+      }))
+      return
+    }
+    // The ✕ at the corner of the selected note
+    if (tool === 'move' && s.noteSel) {
+      const cur = s.notes.find((n) => n.id === s.noteSel)
+      if (cur && noteVisible(cur, s.step)) {
+        const b = noteBBox(cur)
+        if (Math.hypot(p.x - b.x1, p.y - b.y0) < 54) {
+          snapshot()
+          set((x) => ({ notes: x.notes.filter((n) => n.id !== cur.id), noteSel: null }))
+          return
+        }
+      }
+    }
     const board = makeBoard(s)
     const id = board.hit(p, s.t)
     if (tool === 'erase') {
-      if (!id) return
+      if (!id) {
+        const nid = hitNote(s.notes, p, s.step)
+        if (!nid) return
+        snapshot()
+        set((x) => ({ notes: x.notes.filter((n) => n.id !== nid), noteSel: x.noteSel === nid ? null : x.noteSel }))
+        return
+      }
       snapshot()
       const k = s.step
       const strip = (e2) => {
@@ -304,10 +355,21 @@ export function AppProvider({ children }) {
       else set((st) => ({ players: st.players.filter((x) => x.id !== id) }))
       return
     }
-    if (!id) { set({ sel: null }); return }
+    if (!id) {
+      if (tool === 'move') {
+        const nid = hitNote(s.notes, p, s.step)
+        if (nid) {
+          drag.current = { noteMove: nid, last: p, moved: false }
+          set({ noteSel: nid, sel: null, playing: false })
+          return
+        }
+      }
+      set({ sel: null, noteSel: null })
+      return
+    }
     // The undo snapshot waits for the first actual move: a tap that only
     // selects a player changed nothing, and shouldn't cost an Undo press.
-    if (tool === 'move') { drag.current = { id, moved: false }; set({ sel: id, playing: false, t: 0, step: 1 }); return }
+    if (tool === 'move') { drag.current = { id, moved: false }; set({ sel: id, noteSel: null, playing: false, t: 0, step: 1 }); return }
     // Everything past here draws a route or moves the ball, and a cone does
     // neither — it has no legs to run a cut and no hands to pass with. Move
     // and Erase are the only tools that mean anything on one.
@@ -363,6 +425,24 @@ export function AppProvider({ children }) {
     if (!drag.current) return
     const p = pt(e)
     const d = drag.current
+    if (d.noteDraw) {
+      set((s) => ({
+        notes: s.notes.map((n) => {
+          if (n.id !== d.noteDraw) return n
+          if (n.kind !== 'path') return { ...n, pts: [n.pts[0], p] }
+          const l = n.pts[n.pts.length - 1]
+          return Math.hypot(l.x - p.x, l.y - p.y) < 10 ? n : { ...n, pts: n.pts.concat([p]) }
+        }),
+      }))
+      return
+    }
+    if (d.noteMove) {
+      const dx = p.x - d.last.x; const dy = p.y - d.last.y
+      if (!d.moved) { if (Math.hypot(dx, dy) < 6) return; snapshot(); d.moved = true }
+      d.last = p
+      set((s) => ({ notes: s.notes.map((n) => (n.id === d.noteMove ? moveNote(n, dx, dy) : n)) }))
+      return
+    }
     if (!d.draw) {
       if (!d.moved) { snapshot(); d.moved = true }
       if (d.id === 'ball') set((s) => ({ ball: { ...s.ball, x: p.x, y: p.y } }))
@@ -387,6 +467,18 @@ export function AppProvider({ children }) {
     const d = drag.current
     drag.current = null
     if (!d) return
+    if (d.noteDraw) {
+      const cur = stateRef.current.notes.find((n) => n.id === d.noteDraw)
+      // a tap, not a stroke: nothing was drawn, so it does not cost an Undo either
+      if (!cur || noteLength(cur) < (cur.kind === 'path' ? 24 : 44)) {
+        history.current.pop()
+        set((s) => ({ notes: s.notes.filter((n) => n.id !== d.noteDraw) }))
+      } else if (cur.kind === 'path') {
+        set((s) => ({ notes: s.notes.map((n) => (n.id === cur.id ? { ...n, pts: finishPath(n.pts) } : n)) }))
+      }
+      return
+    }
+    if (d.noteMove) return
     if (d.draw) {
       const s = stateRef.current
       const board = makeBoard(s)
@@ -429,6 +521,7 @@ export function AppProvider({ children }) {
   }
   const togglePlay = () => {
     const playing = !stateRef.current.playing
+    if (playing) set({ noteSel: null })
     if (!playing) set({ step: stepAtTime(stateRef.current.t, nSteps()), playing })
     else set({ playing })
     cancelAnimationFrame(rafRef.current)
@@ -441,7 +534,7 @@ export function AppProvider({ children }) {
 
   const addStep = () => {
     const n2 = nSteps() + 1
-    set({ steps: n2, step: n2, t: (n2 - 1) / n2, playing: false, hint: 'Step ' + n2 + ' starts where step ' + (n2 - 1) + ' ended' })
+    set({ noteSel: null, steps: n2, step: n2, t: (n2 - 1) / n2, playing: false, hint: 'Step ' + n2 + ' starts where step ' + (n2 - 1) + ' ended' })
   }
   const delStep = () => {
     const n = nSteps()
@@ -449,15 +542,15 @@ export function AppProvider({ children }) {
     snapshot()
     const drop = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).filter((a) => a.step !== n) })
     const n2 = n - 1
-    set((s) => ({ players: s.players.map(drop), ball: drop(s.ball), steps: n2, step: Math.min(s.step, n2), t: (Math.min(s.step, n2) - 1) / n2, playing: false }))
+    set((s) => ({ players: s.players.map(drop), ball: drop(s.ball), notes: s.notes.filter((x) => x.step !== n), noteSel: null, steps: n2, step: Math.min(s.step, n2), t: (Math.min(s.step, n2) - 1) / n2, playing: false }))
   }
-  const gotoStep = (nn) => set({ step: nn, t: (nn - 1) / nSteps(), playing: false, hint: 'Step ' + nn + ' — draw the actions of this step' })
+  const gotoStep = (nn) => set({ noteSel: null, step: nn, t: (nn - 1) / nSteps(), playing: false, hint: 'Step ' + nn + ' — draw the actions of this step' })
 
   const undo = () => {
     const prev = history.current.pop()
     if (!prev) return
     const o = JSON.parse(prev)
-    set({ players: o.players, ball: o.ball, steps: o.steps || 1, step: o.step || 1, t: 0, playing: false })
+    set({ players: o.players, ball: o.ball, notes: o.notes || [], noteSel: null, steps: o.steps || 1, step: o.step || 1, t: 0, playing: false })
   }
   const clearRoutes = () => {
     snapshot()
@@ -466,10 +559,37 @@ export function AppProvider({ children }) {
   const resetAll = () => {
     snapshot()
     const s0 = startState()
-    set({ players: s0.players, ball: s0.ball, t: 0, steps: 1, step: 1, playing: false, sel: null, currentId: null, playName: 'Untitled play' })
+    set({ players: s0.players, ball: s0.ball, notes: [], noteSel: null, t: 0, steps: 1, step: 1, playing: false, sel: null, currentId: null, playName: 'Untitled play' })
   }
 
-  const setTool = (id) => set({ tool: id, hint: HINTS[id] })
+  const setTool = (id) => set((s) => ({ tool: id, hint: HINTS[id], noteSel: null, notes: s.notes.some((n) => n.kind === 'text' && !n.text) ? s.notes.filter((n) => n.kind !== 'text' || n.text) : s.notes }))
+
+  // ── notes: the options bar under the court ──────────────────
+  // Style changes also reach the note being edited, so tapping a label and
+  // picking another colour just works.
+  const setNoteStyle = (patch) => set((s) => {
+    const noteStyle = { ...s.noteStyle, ...patch }
+    saveJson('tb.noteStyle.v1', noteStyle)
+    const cur = s.notes.find((n) => n.id === s.noteSel)
+    if (!cur) return { noteStyle }
+    const up = {}
+    if (patch.color) up.color = patch.color
+    if (patch.w && cur.kind !== 'text') up.w = patch.w
+    if (patch.size && cur.kind === 'text') up.size = patch.size
+    if ('all' in patch) up.step = patch.all ? 0 : s.step
+    return { noteStyle, notes: s.notes.map((n) => (n.id === cur.id ? { ...n, ...up } : n)) }
+  })
+  const setNoteText = (text) => set((s) => ({ notes: s.notes.map((n) => (n.id === s.noteSel && n.kind === 'text' ? { ...n, text: String(text).slice(0, TEXT_MAX) } : n)) }))
+  const deleteNote = () => {
+    snapshot()
+    set((s) => ({ notes: s.notes.filter((n) => n.id !== s.noteSel), noteSel: null }))
+  }
+  // Done: leave the tool, drop a label that never got a word
+  const doneNotes = () => set((s) => ({ tool: 'move', noteSel: null, hint: HINTS.move, notes: s.notes.filter((n) => n.kind !== 'text' || n.text) }))
+  const clearNotes = () => {
+    snapshot()
+    set({ notes: [], noteSel: null })
+  }
 
   const toggleHelpDef = () => set((s) => ({ helpDef: !s.helpDef, hint: s.helpDef ? 'Defenders mirror their man' : 'Defenders now help off the ball' }))
   const toggleAutoDef = () => set((s) => ({ autoDef: !s.autoDef, hint: s.autoDef ? 'Defenders stay put unless you draw their path' : 'Defenders now shadow their nearest attacker' }))
@@ -496,7 +616,7 @@ export function AppProvider({ children }) {
       return
     }
     const n = nSteps()
-    const snap = { view: s.view, steps: n, players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))) }
+    const snap = { view: s.view, steps: n, players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))), notes: s.notes.filter((x) => x.kind !== 'text' || x.text) }
     const existing = s.plays.find((p) => p.name.toLowerCase() === name.toLowerCase())
     const id = existing ? existing.id : 'pl' + Date.now()
     const entry = { id, name, kind, ts: Date.now(), ...snap }
@@ -510,7 +630,7 @@ export function AppProvider({ children }) {
     const d = JSON.parse(JSON.stringify(p))
     set((s) => ({
       screen: 'board', boardMenu: false, loadOpen: false,
-      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball),
+      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball), notes: normNotes(d.notes), noteSel: null,
       steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
       t: 0, playing: false, sel: null, tool: 'move',
     }))
@@ -520,7 +640,7 @@ export function AppProvider({ children }) {
     snapshot()
     const d = JSON.parse(JSON.stringify(p))
     set((s) => ({
-      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball),
+      view: d.view, ...withLoadedPlayers(d.players, s.seq), ball: normEnt(d.ball), notes: normNotes(d.notes), noteSel: null,
       steps: d.steps || maxStepOf(d.players.concat([d.ball])), step: 1, currentId: p.id, playName: p.name,
       sheetOpen: false, t: 0, playing: false, sel: null,
     }))
@@ -533,7 +653,7 @@ export function AppProvider({ children }) {
     const s0 = startState()
     history.current = []
     set({
-      screen: 'board', boardMenu: false, loadOpen: false, view: 'half', players: s0.players, ball: s0.ball,
+      screen: 'board', boardMenu: false, loadOpen: false, view: 'half', players: s0.players, ball: s0.ball, notes: [], noteSel: null,
       t: 0, steps: 1, step: 1, playing: false, sel: null, tool: 'move', currentId: null, playName: 'Untitled play',
     })
   }
@@ -556,7 +676,7 @@ export function AppProvider({ children }) {
     const saved = s.plays.find((p) => p.id === s.currentId)
     const name = s.playName || (saved && saved.name) || 'Play'
     set({ shareOpen: false })
-    sharePlay({ name, kind: saved ? saved.kind : 'play', view: s.view, steps: nSteps(), players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))) })
+    sharePlay({ name, kind: saved ? saved.kind : 'play', view: s.view, steps: nSteps(), players: JSON.parse(JSON.stringify(s.players.map(normEnt))), ball: JSON.parse(JSON.stringify(normEnt(s.ball))), notes: s.notes.filter((x) => x.kind !== 'text' || x.text) })
   }
   const shareDrill = (d) => openShareCode(d.name, encodeDrillShare(d, stateRef.current.plays))
 
@@ -573,15 +693,15 @@ export function AppProvider({ children }) {
       return
     }
     if (decoded.kind === 'play') {
-      const { name, kind, view, steps, players, ball } = decoded.payload
-      persistPlays((ps) => [{ id: 'pl' + Date.now(), name: name || 'Imported play', kind: kindOf({ kind }), ts: Date.now(), view, steps, players, ball }].concat(ps))
+      const { name, kind, view, steps, players, ball, notes } = decoded.payload
+      persistPlays((ps) => [{ id: 'pl' + Date.now(), name: name || 'Imported play', kind: kindOf({ kind }), ts: Date.now(), view, steps, players, ball, notes: normNotes(notes) }].concat(ps))
       showToast(kindOf({ kind }) === 'drill' ? 'Drill imported' : 'Play imported')
     } else {
       const { name, min, desc, category, play } = decoded.payload
       let playId = null
       if (play) {
         playId = 'pl' + Date.now()
-        persistPlays((ps) => [{ id: playId, name: play.name || name, ts: Date.now(), view: play.view, steps: play.steps, players: play.players, ball: play.ball }].concat(ps))
+        persistPlays((ps) => [{ id: playId, name: play.name || name, ts: Date.now(), view: play.view, steps: play.steps, players: play.players, ball: play.ball, notes: normNotes(play.notes) }].concat(ps))
       }
       persistDrills((ds) => ds.concat([{ id: 'dr' + Date.now(), name, min: min || 10, desc: desc || '', category: category || '', playId, fav: false }]))
       showToast('Drill imported')
@@ -594,7 +714,7 @@ export function AppProvider({ children }) {
   const closeShareModal = () => set({ shareOpen: false })
   const doExportSteps = () => {
     const s = stateRef.current
-    exportPlayStepsPdf({ name: s.playName, view: s.view, steps: nSteps(), players: s.players, ball: s.ball })
+    exportPlayStepsPdf({ name: s.playName, view: s.view, steps: nSteps(), players: s.players, ball: s.ball, notes: s.notes })
     set({ shareOpen: false, shareStatus: 'Opening PDF…' })
   }
   // Renders off-screen (no capture of the live, already-animating board —
@@ -608,7 +728,7 @@ export function AppProvider({ children }) {
   // every page load the way a top-of-file import would.
   const doExportVideo = async () => {
     const s = stateRef.current
-    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, notes: s.notes, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
     set({ videoExporting: true, shareStatus: 'Encoding video… 0%' })
     try {
       const { renderPlayVideo } = await import('../lib/videoExport')
@@ -637,7 +757,7 @@ export function AppProvider({ children }) {
   // frame is a 3D picture.
   const doExportVideo3d = async (wide = false) => {
     const s = stateRef.current
-    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
+    const play = { view: s.view, steps: nSteps(), players: s.players, ball: s.ball, notes: s.notes, autoDef: s.autoDef, helpDef: s.helpDef, defenseDelay: s.defenseDelay }
     set({ videoExporting: true, shareStatus: 'Encoding 3D video… 0%' })
     try {
       const { renderPlayVideo3d } = await import('../lib/videoExport')
@@ -1284,6 +1404,7 @@ export function AppProvider({ children }) {
     onDown, onMove, onUp,
     togglePlay, setView, addStep, delStep, gotoStep,
     undo, clearRoutes, resetAll, setTool, toggleAutoDef, toggleHelpDef,
+    setNoteStyle, setNoteText, deleteNote, doneNotes, clearNotes,
     openSave, closeSave, openSheet, closeSheet, renamePlay, savePlay,
     openPlayFromHome, loadPlayFromSheet, removePlay, startNewPlay, goHome, toggleBoardMenu, toggleLoad,
     openShare, closeShareModal, doExportSteps, doExportVideo, doExportVideo3d,

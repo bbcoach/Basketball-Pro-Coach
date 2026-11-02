@@ -12,6 +12,7 @@ import SaveModal from './modals/SaveModal'
 import PlaysSheet from './modals/PlaysSheet'
 import ShareModal from './modals/ShareModal'
 import ScrollX from '../ScrollX'
+import { NOTE_COLORS, NOTE_SHAPES, TEXT_MAX } from '../../lib/notes'
 
 // The ︎ (text variation selector) after each icon forces plain
 // glyph rendering instead of a platform color-emoji fallback — without it,
@@ -30,6 +31,8 @@ const TOOLS = [
   ['addDef', '✕︎', 'Defense'],
   ['addCone', '▲︎', 'Cone'],
   ['addBall', '●︎', 'Ball'],
+  ['draw', '✎︎', 'Draw'],
+  ['text', 'T︎', 'Text'],
   ['erase', '⌫︎', 'Erase'],
 ]
 // The normal toolbar shows the tools that draw a play; the ones that put
@@ -198,6 +201,89 @@ function ToolsRow() {
   )
 }
 
+// Under the court while drawing or typing a label: shape (or the label's
+// text), colour, thickness or size, and which steps it shows in. It also
+// opens for a note picked with the Move tool, to change or delete it.
+function NoteBar({ floating }) {
+  const { state, setTool, setNoteStyle, setNoteText, deleteNote, doneNotes } = useApp()
+  const landscape = useLandscape()
+  const { tool, notes, noteSel, noteStyle: st, step } = state
+  const cur = notes.find((n) => n.id === noteSel)
+  const text = tool === 'text' || (cur && cur.kind === 'text')
+  const color = cur ? cur.color : st.color
+  const w = cur && cur.kind !== 'text' ? cur.w : st.w
+  const size = cur && cur.kind === 'text' ? cur.size : st.size
+  const all = cur ? cur.step === 0 : st.all
+  const inputRef = useRef(null)
+  const curKind = cur ? cur.kind : null
+  // after the tap that placed the label has finished — the browser would
+  // otherwise move the focus away again as that tap ends
+  useEffect(() => {
+    if (!noteSel || curKind !== 'text') return undefined
+    const id = setTimeout(() => { if (inputRef.current) inputRef.current.focus() }, 80)
+    return () => clearTimeout(id)
+  }, [noteSel, curKind])
+  const chip = (on, extra) => ({ minWidth: 36, height: 38, padding: '0 9px', boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', flex: 'none', whiteSpace: 'nowrap', background: on ? ACCENT : 'rgba(255,255,255,.07)', color: on ? '#101012' : 'rgba(255,255,255,.85)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.1)'), ...extra })
+  const lbl = { fontSize: 10, fontWeight: 700, letterSpacing: '.6px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', flex: 'none' }
+  const row = { display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }
+  const done = <div onClick={doneNotes} style={chip(true, { padding: '0 14px', marginLeft: 'auto' })}>Done</div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: floating ? '10px 12px' : landscape ? '4px 4px 8px' : '4px 12px 8px', ...(floating ? { borderRadius: 16, background: 'rgba(14,14,16,.96)', border: '1px solid rgba(255,255,255,.14)', boxShadow: '0 12px 30px rgba(0,0,0,.6)' } : null) }}>
+      {text ? (
+        <div style={row}>
+          <input
+            ref={inputRef} value={cur && cur.kind === 'text' ? cur.text : ''} disabled={!cur || cur.kind !== 'text'} maxLength={TEXT_MAX}
+            onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+            placeholder={cur ? 'Type the label…' : 'Tap the court to place a label'}
+            style={{ flex: 1, minWidth: 0, height: 38, boxSizing: 'border-box', borderRadius: 12, border: '1px solid ' + (cur ? ACCENT : 'rgba(255,255,255,.12)'), background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 15, fontWeight: 600, padding: '0 12px', outline: 'none' }}
+          />
+          {tool === 'text' && !cur && <div onClick={() => setTool('draw')} style={chip(false)}>✎</div>}
+          {cur && <div onClick={deleteNote} aria-label="Delete note" style={chip(false, { color: '#e0806f' })}>⌫</div>}
+          {done}
+        </div>
+      ) : (
+        <div style={row}>
+          {cur ? (
+            <>
+              <span style={lbl}>Selected</span>
+              <div onClick={deleteNote} style={chip(false, { color: '#e0806f' })}>⌫ Delete</div>
+            </>
+          ) : (
+            <>
+              {NOTE_SHAPES.map(([id, ic, lb]) => (
+                <div key={id} onClick={() => setNoteStyle({ shape: id })} aria-label={lb} title={lb} style={chip(st.shape === id, { minWidth: 34, padding: '0 6px', fontSize: 16 })}>{ic}</div>
+              ))}
+              <div onClick={() => setTool('text')} aria-label="Text" title="Text" style={chip(false, { minWidth: 34, padding: '0 6px', fontSize: 16 })}>T</div>
+            </>
+          )}
+          {done}
+        </div>
+      )}
+      <div style={{ ...row, justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 6 }}>
+        <div style={row}>
+          {NOTE_COLORS.map((c) => (
+            <div key={c} onClick={() => setNoteStyle({ color: c })} aria-label={'Colour ' + c} style={{ width: 26, height: 26, borderRadius: 99, background: c, flex: 'none', cursor: 'pointer', boxSizing: 'border-box', border: color === c ? '3px solid #101012' : '2px solid rgba(255,255,255,.25)', boxShadow: color === c ? '0 0 0 2px #fff' : 'none' }} />
+          ))}
+        </div>
+        {text ? (
+          <div style={row}>
+            {[[1, 'S'], [2, 'M'], [3, 'Title']].map(([v, lb]) => <div key={v} onClick={() => setNoteStyle({ size: v })} style={chip(size === v, { minWidth: 32, padding: '0 8px', fontSize: 12.5 })}>{lb}</div>)}
+          </div>
+        ) : (
+          <div style={row}>
+            {[1, 2].map((v) => (
+              <div key={v} onClick={() => setNoteStyle({ w: v })} aria-label={v === 1 ? 'Thin' : 'Thick'} style={chip(w === v, { minWidth: 36, padding: '0 8px' })}>
+                <div style={{ width: 20, height: v === 1 ? 2 : 5, borderRadius: 3, background: w === v ? '#101012' : '#fff' }} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div onClick={() => setNoteStyle({ all: !all })} style={chip(all, { fontSize: 12, padding: '0 9px' })} title="Which steps show it">{all ? 'All steps' : 'Step ' + ((cur && cur.step) || step)}</div>
+      </div>
+    </div>
+  )
+}
+
 function FooterButtons() {
   const { undo, openSave, openShare } = useApp()
   const landscape = useLandscape()
@@ -218,9 +304,10 @@ function FooterButtons() {
 
 // Everything that isn't part of drawing or showing a play, in one place.
 function MoreSheet({ onClose }) {
-  const { state, set, setView, setView3d, setPaths3d, setQuality3d, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, resetAll, askConfirm } = useApp()
+  const { state, set, setView, setView3d, setPaths3d, setQuality3d, openSheet, enterFullScreen, toggleAutoDef, toggleHelpDef, delStep, nSteps, clearRoutes, clearNotes, resetAll, askConfirm } = useApp()
   const run = (fn) => () => { onClose(); fn() }
   const askClearRoutes = () => askConfirm({ title: 'Clear paths', message: 'Clear all drawn paths for this play? Player and ball positions stay put. This can\'t be undone.', onConfirm: clearRoutes })
+  const askClearNotes = () => askConfirm({ title: 'Clear drawings & labels', message: 'Remove all drawings and labels from this play? Players and paths stay. This can\'t be undone.', onConfirm: clearNotes })
   const askResetAll = () => askConfirm({ title: 'Reset board', message: 'Reset the board to its starting layout? This clears positions and paths and can\'t be undone.', onConfirm: resetAll })
   const row = { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 12px', borderRadius: 12, background: 'rgba(255,255,255,.05)', color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }
   const cap = { fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '10px 4px 2px' }
@@ -293,6 +380,7 @@ function MoreSheet({ onClose }) {
         <div style={cap}>Edit</div>
         {nSteps() > 1 && <div onClick={run(delStep)} style={row}><span style={{ width: 20, textAlign: 'center' }}>−</span>Delete last step</div>}
         <div onClick={run(askClearRoutes)} style={row}><span style={{ width: 20, textAlign: 'center' }}>⌫</span>Clear paths</div>
+        {state.notes.length > 0 && <div onClick={run(askClearNotes)} style={row}><span style={{ width: 20, textAlign: 'center' }}>✎</span>Clear drawings &amp; labels</div>}
         <div onClick={run(askResetAll)} style={{ ...row, color: '#e0806f' }}><span style={{ width: 20, textAlign: 'center' }}>↺</span>Reset board</div>
       </div>
     </div>
@@ -573,6 +661,8 @@ export default function Board() {
   const { state, exitFullScreen, togglePlay, setView3d } = useApp()
   const { fullScreen, playing, hint, boardNotice } = state
   const use3d = state.view3d && webgl3dSupported()
+  // the drawing / label options replace the tool row while one of those tools (or a picked note) is in use
+  const noteBarOn = !use3d && (state.tool === 'draw' || state.tool === 'text' || !!state.noteSel)
   // The hint used to hold a line of its own under the toolbar for good. Now
   // it shows over the court for a moment whenever it changes, then fades.
   const [hintOn, setHintOn] = useState(false)
@@ -596,6 +686,7 @@ export default function Board() {
           <div onClick={exitFullScreen} title="Exit full screen" aria-label="Exit full screen" role="button" style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top, 0px))', right: 14, zIndex: 60, width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,12,.62)', color: '#fff', cursor: 'pointer' }}><FsIcon exit size={20} /></div>
           <div onClick={() => setView3d(!state.view3d)} title="3D view" aria-label="3D view" role="button" aria-pressed={use3d} style={{ position: 'absolute', top: 'calc(14px + env(safe-area-inset-top, 0px))', right: 62, zIndex: 60, display: webgl3dSupported() ? 'flex' : 'none', width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', background: use3d ? ACCENT : 'rgba(10,10,12,.62)', color: use3d ? '#101012' : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>3D</div>
           {use3d ? <FullScreenCamera /> : <FullScreenTools />}
+          {noteBarOn && <div style={{ position: 'absolute', left: 12, right: 12, bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))', zIndex: 70, maxWidth: 520, margin: '0 auto' }}><NoteBar floating /></div>}
           <FullScreenControls />
           <div
             onClick={togglePlay}
@@ -641,7 +732,7 @@ export default function Board() {
         >
           {landscape && <Header compact />}
           <PlaybackBar />
-          {use3d ? <CameraRow /> : <ToolsRow />}
+          {use3d ? <CameraRow /> : noteBarOn ? <NoteBar /> : <ToolsRow />}
           <FooterButtons />
         </div>
       )}

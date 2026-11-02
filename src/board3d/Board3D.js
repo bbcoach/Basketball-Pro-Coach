@@ -9,6 +9,7 @@ import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
+import { noteElements, noteVisible } from '../lib/notes'
 import { ROUTE_COLORS } from './routeColors'
 
 // The 3D view of the tactics board: the same play, seen from the court.
@@ -2539,6 +2540,7 @@ function view(t) {
     look = look ? look.lerp(target, 0.06) : target
   }
   camera.lookAt(look)
+  updateNotes(t)
   Object.values(figures).forEach((f) => {
     const d = Math.hypot(f.root.position.x - camera.position.x, f.root.position.z - camera.position.z)
     // fades out from about 3.6 m in to 1.2 m, and down to only a hint of
@@ -2622,6 +2624,120 @@ dom.addEventListener('wheel', (e) => {
   free.dist = clampN(free.dist * Math.exp(e.deltaY * 0.001), 4, 24)
   redraw()
 }, { passive: false })
+// ── notes: drawings painted on the floor, labels that stand in the picture ──
+// The 2D board's free drawing and text (lib/notes.js). Shapes are painted once
+// per step onto one transparent plane laid over the floor, in board
+// coordinates, so players walk across them. A label becomes a tag on a thin
+// stalk above its spot: constant size on screen, nudged back into the picture
+// at the edges, always facing the lens. A "title" label is not in the world at
+// all but pinned to the corner of the picture. All of it is part of the 3D
+// scene, so the video export carries it too.
+let notesList = []; let notesVer = 0; let notesFonts = false
+const noteFloor = { mesh: null, canvas: null, tex: null, h: 0, key: '' }
+let noteTags = []
+function setNotes(list) {
+  notesList = Array.isArray(list) ? list : []
+  notesVer++
+  if (!notesFonts && typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+    notesFonts = true
+    document.fonts.ready.then(() => { notesVer++; dirty = true; schedule() }).catch(() => {})
+  }
+}
+function paintEl(g, e) {
+  g.lineCap = 'round'; g.lineJoin = 'round'
+  g.setLineDash(e.dash ? e.dash.split(' ').map(Number) : [])
+  g.lineWidth = e.sw; g.strokeStyle = e.stroke
+  if (e.t === 'path') { g.stroke(new Path2D(e.d)); return }
+  if (e.t === 'poly') { const p = new Path2D(e.d); g.fillStyle = e.fill; g.fill(p); g.stroke(p); return }
+  g.beginPath()
+  if (e.t === 'ellipse') g.ellipse(e.cx, e.cy, e.rx, e.ry, 0, 0, Math.PI * 2)
+  else g.roundRect(e.x, e.y, e.w, e.h, e.rx)
+  if (e.fill) { g.fillStyle = e.fill; g.fill() }
+  g.stroke()
+}
+function paintNoteFloor(step) {
+  const els = []
+  notesList.forEach((n) => { if (n.kind !== 'text' && noteVisible(n, step)) noteElements(n).forEach((e) => els.push(e)) })
+  if (!els.length) { if (noteFloor.mesh) noteFloor.mesh.visible = false; return }
+  const full = courtView === 'full'
+  const H = full ? 2800 : 1400
+  const sc = full ? 0.9 : 1.5
+  if (!noteFloor.mesh || noteFloor.h !== H) {
+    if (noteFloor.mesh) { scene.remove(noteFloor.mesh); noteFloor.mesh.geometry.dispose(); noteFloor.mesh.material.dispose(); noteFloor.tex.dispose() }
+    const c = document.createElement('canvas'); c.width = Math.round(1500 * sc); c.height = Math.round(H * sc)
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(15, H / 100), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }))
+    mesh.rotation.x = -Math.PI / 2; mesh.position.set(0, 0.012, H / 200); mesh.renderOrder = 5
+    scene.add(mesh)
+    Object.assign(noteFloor, { mesh, canvas: c, tex, h: H })
+  }
+  const g = noteFloor.canvas.getContext('2d')
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, noteFloor.canvas.width, noteFloor.canvas.height)
+  g.setTransform(sc, 0, 0, sc, 0, 0)
+  els.forEach((e) => paintEl(g, e))
+  noteFloor.tex.needsUpdate = true; noteFloor.mesh.visible = true
+}
+const TAG_SCALE = [0, 0.85, 1, 1.5]
+function makeTag(n) {
+  const FS = 74; const padX = 44; const padY = 30
+  const m = document.createElement('canvas').getContext('2d'); m.font = `800 ${FS}px 'Barlow Condensed', Impact, sans-serif`
+  const W = Math.ceil(m.measureText(n.text).width + padX * 2 + 24); const Hh = FS + padY * 2 + 4
+  const k = document.createElement('canvas'); k.width = W + 8; k.height = Hh + 8 + 44; const q = k.getContext('2d')
+  q.shadowColor = 'rgba(0,0,0,.55)'; q.shadowBlur = 14; q.shadowOffsetY = 5
+  q.fillStyle = 'rgba(14,14,18,.94)'; q.beginPath(); q.roundRect(4, 4, W, Hh, 24); q.fill()
+  if (n.size < 3) { q.beginPath(); q.moveTo(k.width / 2 - 26, Hh + 3); q.lineTo(k.width / 2, Hh + 40); q.lineTo(k.width / 2 + 26, Hh + 3); q.closePath(); q.fill() }
+  q.shadowColor = 'transparent'
+  q.fillStyle = n.color; q.beginPath(); q.roundRect(4, 4, 18, Hh, [24, 0, 0, 24]); q.fill()
+  q.fillStyle = '#fff'; q.font = `800 ${FS}px 'Barlow Condensed', Impact, sans-serif`; q.textBaseline = 'middle'; q.fillText(n.text, padX + 14, 4 + Hh / 2 + 3)
+  const tex = new THREE.CanvasTexture(k); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false, sizeAttenuation: false }))
+  const hs = 0.066 * (k.height / 230) * TAG_SCALE[n.size || 2]
+  sp.scale.set(hs * k.width / k.height, hs, 1); sp.userData = { w: sp.scale.x, h: sp.scale.y }
+  sp.center.set(n.size === 3 ? 0 : 0.5, n.size === 3 ? 1 : 0); sp.renderOrder = 20
+  return sp
+}
+function paintNoteTags(step) {
+  noteTags.forEach((t) => { scene.remove(t.grp); t.grp.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose() } }) })
+  noteTags = []
+  let title = 0
+  notesList.forEach((n) => {
+    if (n.kind !== 'text' || !n.text || !noteVisible(n, step)) return
+    const grp = new THREE.Group(); const sp = makeTag(n); grp.add(sp)
+    const x = (n.pts[0].x - 750) / 100; const z = n.pts[0].y / 100; const h = n.size === 1 ? 1.6 : 1.85
+    if (n.size < 3) {
+      sp.position.set(x, h, z)
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, 0.03, z), new THREE.Vector3(x, h, z)]), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })))
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.17, 28), new THREE.MeshBasicMaterial({ color: n.color, toneMapped: false, side: THREE.DoubleSide }))
+      ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.03, z); grp.add(ring)
+    }
+    scene.add(grp); noteTags.push({ grp, sp, title: n.size === 3 ? title++ : -1 })
+  })
+}
+const _nv = new THREE.Vector3()
+function updateNotes(t) {
+  const step = stepAtTime(t, N)
+  const key = notesVer + '|' + step + '|' + courtView
+  if (key !== noteFloor.key) { noteFloor.key = key; paintNoteFloor(step); paintNoteTags(step) }
+  if (!noteTags.length) return
+  camera.updateMatrixWorld()
+  const k = Math.tan((camera.fov * Math.PI) / 360) / Math.tan((50 * Math.PI) / 360)
+  noteTags.forEach(({ sp, title }) => {
+    const { w, h } = sp.userData
+    sp.scale.set(w * k, h * k, 1)
+    if (title >= 0) {
+      // pinned to the top-left of the picture, one under the other
+      _nv.set(-0.94, 0.94 - title * 0.16 * Math.max(0.6, k), 0.5).unproject(camera)
+      sp.position.copy(_nv); sp.visible = true
+      return
+    }
+    // behind the lens: nothing to show; near an edge: slide the tag back in
+    _nv.copy(sp.position).project(camera)
+    sp.visible = _nv.z < 1
+    const f = sp.scale.x / (2 * Math.tan((camera.fov * Math.PI) / 360) * camera.aspect)
+    const want = Math.min(0.97 - f, Math.max(-0.97 + f, _nv.x))
+    sp.center.x = 0.5 - (want - _nv.x) / (2 * f)
+  })
+}
 const frame = (t) => { applyBaked(t); view(t) }
 
 // ── paths on the floor ────────────────────────────────────────────────
@@ -2967,6 +3083,7 @@ return {
     const key = people.map((p) => p.id + ':' + p.team + ':' + p.label).join('|')
     if (key !== figKey) { buildFigures(people); figKey = key }
     buildExtras(s.players)
+    setNotes(s.notes)
     FIGS = Object.values(figures)
     bake()
     buildRoutes()

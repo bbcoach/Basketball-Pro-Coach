@@ -3,12 +3,24 @@ import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, isBall, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
+import { noteBBox, noteElements, noteVisible } from '../../lib/notes'
+
+const GOLD = '#f5b82e'
+
+// One drawn piece of a note (see noteElements in lib/notes.js)
+function NoteEl({ e }) {
+  const dash = e.dash || undefined
+  if (e.t === 'path') return <path d={e.d} fill="none" stroke={e.stroke} strokeWidth={e.sw} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={dash} />
+  if (e.t === 'poly') return <path d={e.d} fill={e.fill} stroke={e.stroke} strokeWidth={e.sw} strokeLinejoin="round" />
+  if (e.t === 'ellipse') return <ellipse cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={e.fill || 'none'} stroke={e.stroke} strokeWidth={e.sw} strokeDasharray={dash} />
+  return <rect x={e.x} y={e.y} width={e.w} height={e.h} rx={e.rx} fill={e.fill || 'none'} stroke={e.stroke} strokeWidth={e.sw} strokeDasharray={dash} />
+}
 
 const COURT_W = 1500
 
 export default function Court() {
   const { state, svgRef, contentRef, onDown, onMove, onUp } = useApp()
-  const { players, ball, t, step, playing, sel, view, boardNotice } = state
+  const { players, ball, t, step, playing, sel, view, boardNotice, notes, noteSel } = state
   const focusId = boardNotice && boardNotice.focusId
   const landscape = useLandscape()
 
@@ -97,6 +109,17 @@ export default function Court() {
     return { tokens: tks, routes: rts, caps: cps, badges: bdg }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, ball, t, step, playing, sel, nSteps])
+
+  // Free drawing and labels: only those of the step on screen (or of every
+  // step). A label still being typed shows up even while it is empty.
+  const shownStep = playing ? stepAtTime(t, nSteps) : step
+  const { shapes, tags, selBox } = useMemo(() => {
+    const vis = (notes || []).filter((n) => noteVisible(n, shownStep) && (n.kind !== 'text' || n.text || n.id === noteSel))
+    const sh = vis.filter((n) => n.kind !== 'text').map((n) => ({ id: n.id, els: noteElements(n) }))
+    const tg = vis.filter((n) => n.kind === 'text').map((n) => ({ id: n.id, empty: !n.text, els: noteElements(n.text ? n : { ...n, text: '…' }) }))
+    const cur = vis.find((n) => n.id === noteSel)
+    return { shapes: sh, tags: tg, selBox: cur && !playing ? noteBBox(cur.text || cur.kind !== 'text' ? cur : { ...cur, text: '…' }) : null }
+  }, [notes, shownStep, noteSel, playing])
 
   const courtH = view === 'half' ? 1400 : 2800
   // In landscape the <g> below carries a 90° rotation so the (portrait-authored)
@@ -221,6 +244,10 @@ export default function Court() {
             bottom edge of the half-court line (y 1400 + half its 9 stroke). */}
         {view === 'half' && !landscape && <rect x="0" y="1404.5" width="1500" height="1395.5" fill="url(#backfade)" pointerEvents="none" />}
 
+        {/* drawings lie on the floor, under the routes and the players */}
+        <g pointerEvents="none">
+          {shapes.map((n) => <g key={n.id}>{n.els.map((e, i) => <NoteEl key={i} e={e} />)}</g>)}
+        </g>
         {routes.map((r) => (
           <path key={r.key} d={r.d} fill="none" stroke="#ffffff" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} markerEnd={r.marker} opacity={r.op} />
         ))}
@@ -267,6 +294,25 @@ export default function Court() {
           {tokens.map((tk) => (tk.label ? (
             <text key={tk.key} x={tk.x} y={tk.y} dominantBaseline="central" transform={labelRotate(tk.x, tk.y)} fill={tk.tc} fontSize={tk.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif" textAnchor="middle">{tk.label}</text>
           ) : null))}
+        </g>
+        {/* labels stand above the players, so nobody hides one */}
+        <g pointerEvents="none">
+          {tags.map((n) => n.els.map((e) => (
+            <g key={n.id} transform={labelRotate(e.cx, e.cy)} opacity={n.empty ? 0.7 : 1}>
+              <rect x={e.x} y={e.y} width={e.w} height={e.h} rx={e.h * 0.22} fill="rgba(12,12,14,.92)" stroke="rgba(0,0,0,.45)" strokeWidth="3" />
+              <rect x={e.x} y={e.y} width={e.fs * 0.2} height={e.h} rx={e.fs * 0.1} fill={e.color} />
+              <text x={e.x + e.fs * 0.55} y={e.y + e.h / 2} dominantBaseline="central" fill="#fff" fontSize={e.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif">{e.text}</text>
+            </g>
+          )))}
+          {selBox && (
+            <g>
+              <rect x={selBox.x0 - 6} y={selBox.y0 - 6} width={selBox.x1 - selBox.x0 + 12} height={selBox.y1 - selBox.y0 + 12} rx="16" fill="none" stroke={GOLD} strokeWidth="4" strokeDasharray="14 10" />
+              <g transform={labelRotate(selBox.x1, selBox.y0)}>
+                <circle cx={selBox.x1} cy={selBox.y0} r="30" fill="#17171b" stroke={GOLD} strokeWidth="4" />
+                <text x={selBox.x1} y={selBox.y0} dominantBaseline="central" textAnchor="middle" fill={GOLD} fontSize="34" fontWeight="800" fontFamily="'Barlow Condensed', sans-serif">✕</text>
+              </g>
+            </g>
+          )}
         </g>
         {/* The player a "not allowed" notice points at, pulsing on top of
             everything. A CSS animation rather than SMIL: an <animate> added
