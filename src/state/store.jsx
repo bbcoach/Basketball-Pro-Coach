@@ -1115,8 +1115,11 @@ export function AppProvider({ children }) {
     const s = stateRef.current
     persistGames((gs) => gs.map((x) => {
       if (x.id !== s.activeGameId) return x
-      const onCourt = x.onCourt.indexOf(p.id) >= 0 ? x.onCourt.filter((y) => y !== p.id) : x.onCourt.concat([p.id])
-      return { ...x, onCourt }
+      const on = x.onCourt.indexOf(p.id) >= 0
+      const onCourt = on ? x.onCourt.filter((y) => y !== p.id) : x.onCourt.concat([p.id])
+      // whoever has ever been switched on played in the game (counts for GP)
+      const played = on || (x.played || []).indexOf(p.id) >= 0 ? (x.played || []) : (x.played || []).concat([p.id])
+      return { ...x, onCourt, played }
     }))
   }
   const askReset = () => set({ resetAsk: true })

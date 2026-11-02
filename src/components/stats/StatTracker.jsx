@@ -5,7 +5,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
-import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
+import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord, gamesPlayed } from '../../lib/stats'
 import { COND, raised, keycap, chipSurface, field, centred } from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
@@ -575,7 +575,7 @@ function SeasonTab() {
   const rows = roster
     .map((p) => {
       const t = tallyFor(log, p.id)
-      const gp = games.filter((g) => g.log.some((e) => e.p === p.id)).length
+      const gp = gamesPlayed(games, p.id)
       return { p, t, gp }
     })
     .sort((a, b) => b.t.pts - a.t.pts)
