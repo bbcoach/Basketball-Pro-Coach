@@ -2678,17 +2678,22 @@ function paintNoteFloor(step) {
   noteFloor.tex.needsUpdate = true; noteFloor.mesh.visible = true
 }
 const TAG_SCALE = [0, 0.85, 1, 1.5]
-function makeTag(n) {
-  const FS = 74; const padX = 44; const padY = 30
+function makeTag(n, el) {
+  const FS = 74; const lineH = FS * 1.2; const padY = 22; const padL = 44; const padR = 28 + (el.chev ? 66 : 0)
   const m = document.createElement('canvas').getContext('2d'); m.font = `800 ${FS}px 'Barlow Condensed', Impact, sans-serif`
-  const W = Math.ceil(m.measureText(n.text).width + padX * 2 + 24); const Hh = FS + padY * 2 + 4
+  const W = Math.ceil(Math.max(...el.lines.map((l) => m.measureText(l).width)) + padL + padR); const Hh = Math.ceil(el.lines.length * lineH + padY * 2)
   const k = document.createElement('canvas'); k.width = W + 8; k.height = Hh + 8 + 44; const q = k.getContext('2d')
   q.shadowColor = 'rgba(0,0,0,.55)'; q.shadowBlur = 14; q.shadowOffsetY = 5
   q.fillStyle = 'rgba(14,14,18,.94)'; q.beginPath(); q.roundRect(4, 4, W, Hh, 24); q.fill()
   if (n.size < 3) { q.beginPath(); q.moveTo(k.width / 2 - 26, Hh + 3); q.lineTo(k.width / 2, Hh + 40); q.lineTo(k.width / 2 + 26, Hh + 3); q.closePath(); q.fill() }
   q.shadowColor = 'transparent'
   q.fillStyle = n.color; q.beginPath(); q.roundRect(4, 4, 18, Hh, [24, 0, 0, 24]); q.fill()
-  q.fillStyle = '#fff'; q.font = `800 ${FS}px 'Barlow Condensed', Impact, sans-serif`; q.textBaseline = 'middle'; q.fillText(n.text, padX + 14, 4 + Hh / 2 + 3)
+  q.fillStyle = '#fff'; q.font = `800 ${FS}px 'Barlow Condensed', Impact, sans-serif`; q.textBaseline = 'middle'
+  el.lines.forEach((l, i) => q.fillText(l, 4 + padL - 4, 4 + padY + lineH * (i + 0.5) + 3))
+  if (el.chev) {
+    const cx = 4 + W - 44; const cy = 4 + padY + lineH / 2; const d = el.chev === 'up' ? -1 : 1
+    q.fillStyle = n.color; q.beginPath(); q.moveTo(cx - 20, cy - d * 11); q.lineTo(cx + 20, cy - d * 11); q.lineTo(cx, cy + d * 15); q.closePath(); q.fill()
+  }
   const tex = new THREE.CanvasTexture(k); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, toneMapped: false, sizeAttenuation: false }))
   const hs = 0.066 * (k.height / 230) * TAG_SCALE[n.size || 2]
@@ -2702,7 +2707,7 @@ function paintNoteTags(step) {
   let title = 0
   notesList.forEach((n) => {
     if (n.kind !== 'text' || !n.text || !noteVisible(n, step)) return
-    const grp = new THREE.Group(); const sp = makeTag(n); grp.add(sp)
+    const grp = new THREE.Group(); const sp = makeTag(n, noteElements(n)[0]); grp.add(sp)
     const x = (n.pts[0].x - 750) / 100; const z = n.pts[0].y / 100; const h = n.size === 1 ? 1.6 : 1.85
     if (n.size < 3) {
       sp.position.set(x, h, z)
@@ -2721,13 +2726,15 @@ function updateNotes(t) {
   if (!noteTags.length) return
   camera.updateMatrixWorld()
   const k = Math.tan((camera.fov * Math.PI) / 360) / Math.tan((50 * Math.PI) / 360)
+  let hudY = 0.94
   noteTags.forEach(({ sp, title }) => {
     const { w, h } = sp.userData
     sp.scale.set(w * k, h * k, 1)
     if (title >= 0) {
       // pinned to the top-left of the picture, one under the other
-      _nv.set(-0.94, 0.94 - title * 0.16 * Math.max(0.6, k), 0.5).unproject(camera)
+      _nv.set(-0.94, hudY, 0.5).unproject(camera)
       sp.position.copy(_nv); sp.visible = true
+      hudY -= sp.scale.y / Math.tan((camera.fov * Math.PI) / 360) + 0.03
       return
     }
     // behind the lens: nothing to show; near an edge: slide the tag back in

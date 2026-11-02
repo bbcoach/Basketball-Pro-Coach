@@ -3,7 +3,7 @@ import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, isBall, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
-import { noteBBox, noteElements, noteVisible } from '../../lib/notes'
+import { chevPath, noteBBox, noteElements, noteVisible } from '../../lib/notes'
 
 const GOLD = '#f5b82e'
 
@@ -115,10 +115,10 @@ export default function Court() {
   const shownStep = playing ? stepAtTime(t, nSteps) : step
   const { shapes, tags, selBox } = useMemo(() => {
     const vis = (notes || []).filter((n) => noteVisible(n, shownStep) && (n.kind !== 'text' || n.text || n.id === noteSel))
-    const sh = vis.filter((n) => n.kind !== 'text').map((n) => ({ id: n.id, els: noteElements(n) }))
-    const tg = vis.filter((n) => n.kind === 'text').map((n) => ({ id: n.id, empty: !n.text, els: noteElements(n.text ? n : { ...n, text: '…' }) }))
+    const sh = vis.filter((n) => n.kind !== 'text').map((n) => ({ id: n.id, els: noteElements(n, noteSel) }))
+    const tg = vis.filter((n) => n.kind === 'text').map((n) => ({ id: n.id, empty: !n.text, els: noteElements(n.text ? n : { ...n, text: '…' }, noteSel) }))
     const cur = vis.find((n) => n.id === noteSel)
-    return { shapes: sh, tags: tg, selBox: cur && !playing ? noteBBox(cur.text || cur.kind !== 'text' ? cur : { ...cur, text: '…' }) : null }
+    return { shapes: sh, tags: tg, selBox: cur && !playing ? noteBBox(cur.text || cur.kind !== 'text' ? cur : { ...cur, text: '…' }, noteSel) : null }
   }, [notes, shownStep, noteSel, playing])
 
   const courtH = view === 'half' ? 1400 : 2800
@@ -299,9 +299,12 @@ export default function Court() {
         <g pointerEvents="none">
           {tags.map((n) => n.els.map((e) => (
             <g key={n.id} transform={labelRotate(e.cx, e.cy)} opacity={n.empty ? 0.7 : 1}>
-              <rect x={e.x} y={e.y} width={e.w} height={e.h} rx={e.h * 0.22} fill="rgba(12,12,14,.92)" stroke="rgba(0,0,0,.45)" strokeWidth="3" />
+              <rect x={e.x} y={e.y} width={e.w} height={e.h} rx={e.fs * 0.3} fill="rgba(12,12,14,.92)" stroke="rgba(0,0,0,.45)" strokeWidth="3" />
               <rect x={e.x} y={e.y} width={e.fs * 0.2} height={e.h} rx={e.fs * 0.1} fill={e.color} />
-              <text x={e.x + e.fs * 0.55} y={e.y + e.h / 2} dominantBaseline="central" fill="#fff" fontSize={e.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif">{e.text}</text>
+              {e.lines.map((l, i) => (
+                <text key={i} x={e.x + e.padL} y={e.y + e.padY + e.lineH * (i + 0.5)} dominantBaseline="central" fill="#fff" fontSize={e.fs} fontWeight={700} fontFamily="'Barlow Condensed', sans-serif">{l}</text>
+              ))}
+              {e.chev && <path d={chevPath(e)} fill={e.color} />}
             </g>
           )))}
           {selBox && (

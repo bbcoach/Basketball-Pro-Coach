@@ -231,11 +231,11 @@ function NoteBar({ floating }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: floating ? '10px 12px' : landscape ? '4px 4px 8px' : '4px 12px 8px', ...(floating ? { borderRadius: 16, background: 'rgba(14,14,16,.96)', border: '1px solid rgba(255,255,255,.14)', boxShadow: '0 12px 30px rgba(0,0,0,.6)' } : null) }}>
       {text ? (
         <div style={row}>
-          <input
-            ref={inputRef} value={cur && cur.kind === 'text' ? cur.text : ''} disabled={!cur || cur.kind !== 'text'} maxLength={TEXT_MAX}
-            onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+          <textarea
+            ref={inputRef} rows={2} value={cur && cur.kind === 'text' ? cur.text : ''} disabled={!cur || cur.kind !== 'text'} maxLength={TEXT_MAX}
+            onChange={(e) => setNoteText(e.target.value)}
             placeholder={cur ? 'Type the label…' : 'Tap the court to place a label'}
-            style={{ flex: 1, minWidth: 0, height: 38, boxSizing: 'border-box', borderRadius: 12, border: '1px solid ' + (cur ? ACCENT : 'rgba(255,255,255,.12)'), background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 15, fontWeight: 600, padding: '0 12px', outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, height: 54, boxSizing: 'border-box', resize: 'none', borderRadius: 12, border: '1px solid ' + (cur ? ACCENT : 'rgba(255,255,255,.12)'), background: 'rgba(255,255,255,.06)', color: '#fff', fontSize: 15, fontWeight: 600, lineHeight: '19px', padding: '8px 12px', outline: 'none', fontFamily: 'inherit' }}
           />
           {tool === 'text' && !cur && <div onClick={() => setTool('draw')} style={chip(false)}>✎</div>}
           {cur && <div onClick={deleteNote} aria-label="Delete note" style={chip(false, { color: '#e0806f' })}>⌫</div>}

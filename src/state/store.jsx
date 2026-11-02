@@ -4,7 +4,7 @@ import {
   CONE_TEAM, isCone, BALL_TEAM, isBall, stepSecs,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
-import { DEFAULT_NOTE_STYLE, NOTE_MAX, finishPath, hitNote, moveNote, noteBBox, noteLength, normNotes, noteVisible, TEXT_MAX } from '../lib/notes'
+import { DEFAULT_NOTE_STYLE, NOTE_MAX, chevHit, finishPath, hitNote, moveNote, noteBBox, noteLength, normNotes, noteVisible, TEXT_MAX } from '../lib/notes'
 import { encodePlayShare, encodeDrillShare, decodeShare } from '../lib/share'
 import { exportPlayStepsPdf } from '../lib/reports'
 import { kindOf } from '../lib/playKind'
@@ -303,8 +303,16 @@ export function AppProvider({ children }) {
       set((x) => ({ notes: x.notes.filter((n) => n.kind !== 'text' || n.text).concat([note]), noteSel: null, sel: null, seq: x.seq + 1, playing: false }))
       return
     }
+    // the chevron of a long label unfolds / folds it
+    if (tool === 'move' || tool === 'text') {
+      const ch = s.notes.find((n) => n.kind === 'text' && n.text && noteVisible(n, s.step) && chevHit(n, p, s.noteSel))
+      if (ch) {
+        set((x) => ({ notes: x.notes.map((n) => (n.id !== ch.id ? n : n.open ? { ...n, open: false } : { ...n, open: true })) }))
+        return
+      }
+    }
     if (tool === 'text') {
-      const hit = hitNote(s.notes.filter((n) => n.kind === 'text'), p, s.step)
+      const hit = hitNote(s.notes.filter((n) => n.kind === 'text'), p, s.step, s.noteSel)
       if (hit) {
         drag.current = { noteMove: hit, last: p, moved: false }
         set((x) => ({ noteSel: hit, sel: null, playing: false, notes: x.notes.filter((n) => n.kind !== 'text' || n.text || n.id === hit) }))
@@ -324,7 +332,7 @@ export function AppProvider({ children }) {
     if (tool === 'move' && s.noteSel) {
       const cur = s.notes.find((n) => n.id === s.noteSel)
       if (cur && noteVisible(cur, s.step)) {
-        const b = noteBBox(cur)
+        const b = noteBBox(cur, s.noteSel)
         if (Math.hypot(p.x - b.x1, p.y - b.y0) < 54) {
           snapshot()
           set((x) => ({ notes: x.notes.filter((n) => n.id !== cur.id), noteSel: null }))
@@ -336,7 +344,7 @@ export function AppProvider({ children }) {
     const id = board.hit(p, s.t)
     if (tool === 'erase') {
       if (!id) {
-        const nid = hitNote(s.notes, p, s.step)
+        const nid = hitNote(s.notes, p, s.step, s.noteSel)
         if (!nid) return
         snapshot()
         set((x) => ({ notes: x.notes.filter((n) => n.id !== nid), noteSel: x.noteSel === nid ? null : x.noteSel }))
@@ -357,7 +365,7 @@ export function AppProvider({ children }) {
     }
     if (!id) {
       if (tool === 'move') {
-        const nid = hitNote(s.notes, p, s.step)
+        const nid = hitNote(s.notes, p, s.step, s.noteSel)
         if (nid) {
           drag.current = { noteMove: nid, last: p, moved: false }
           set({ noteSel: nid, sel: null, playing: false })
