@@ -1,4 +1,4 @@
-import { tallyFor, gameScore, seasonRecord } from './stats'
+import { tallyFor, gameScore, seasonRecord, gamesPlayed } from './stats'
 import { personAttendance, markMeta, personLabel } from './attendance'
 import { download } from './download'
 import { ACCENT } from '../state/config'
@@ -247,7 +247,7 @@ export function exportSeasonPdf(roster, allGames, teamName) {
   const rows = roster
     .map((p) => {
       const t = tallyFor(log, p.id)
-      const gp = games.filter((g) => g.log.some((e) => e.p === p.id)).length
+      const gp = gamesPlayed(games, p.id)
       return { p, t, gp }
     })
     .sort((a, b) => b.t.pts - a.t.pts)

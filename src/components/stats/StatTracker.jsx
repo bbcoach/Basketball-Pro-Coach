@@ -5,7 +5,7 @@ import ScreenHeader from '../ScreenHeader'
 import Tabs from '../Tabs'
 import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
-import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord } from '../../lib/stats'
+import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord, gamesPlayed, playedIn } from '../../lib/stats'
 import { COND, raised, keycap, chipSurface, field, centred } from '../../theme'
 import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
@@ -445,16 +445,18 @@ function LiveTab({ game }) {
 
 const BOX_HEAD = ['PTS', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
 
-function BoxTable({ players, log, title }) {
+function BoxTable({ players, log, title, game, setPlayedFlag }) {
   return (
-    <div style={{ minWidth: 150 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3, marginBottom: title ? 14 : 0 }}>
+    <div style={{ minWidth: 38 + 150 + BOX_HEAD.length * 46, display: 'flex', flexDirection: 'column', gap: 3, marginBottom: title ? 14 : 0 }}>
       {title && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)', padding: '0 6px 4px' }}>{title}</div>}
       <div style={{ display: 'flex', padding: '0 6px 6px', fontSize: 10, fontWeight: 700, letterSpacing: '.7px', textTransform: 'uppercase', color: 'rgba(255,255,255,.4)' }}>
+        <div style={{ width: 38, flex: 'none' }}>GP</div>
         <div style={{ width: 150, flex: 'none' }}>Player</div>
         {BOX_HEAD.map((h) => <div key={h} style={{ width: 46, flex: 'none', textAlign: 'center' }}>{h}</div>)}
       </div>
       {players.map((p) => {
         const t = tallyFor(log, p.id)
+        const played = playedIn(game, p.id)
         const cells = [
           String(t.pts), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a),
           t.ftm + '/' + (t.ftm + t.fta), String(t.reb), String(t.ast),
@@ -464,7 +466,14 @@ function BoxTable({ players, log, title }) {
           ? { width: 46, flex: 'none', textAlign: 'center', color: ACCENT, fontWeight: 700 }
           : { width: 46, flex: 'none', textAlign: 'center', color: 'rgba(255,255,255,.85)', fontWeight: 500 })
         return (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff' }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '9px 6px', borderRadius: 12, background: 'rgba(255,255,255,.05)', fontSize: 12, color: '#fff', opacity: played ? 1 : 0.55 }}>
+            {/* played / did not play: what the Season tab counts as a game played */}
+            <div
+              onClick={() => setPlayedFlag(p.id, !played)} role="checkbox" aria-checked={played} aria-label={'Played: ' + p.name}
+              style={{ width: 38, flex: 'none', display: 'flex', alignItems: 'center', cursor: 'pointer', alignSelf: 'stretch' }}
+            >
+              <div style={{ width: 22, height: 22, borderRadius: 7, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', background: played ? ACCENT : 'transparent', border: '2px solid ' + (played ? ACCENT : 'rgba(255,255,255,.3)'), color: '#101012', fontSize: 13, fontWeight: 800 }}>{played ? '✓' : ''}</div>
+            </div>
             <div style={{ width: 150, flex: 'none', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
               <div style={{ fontWeight: 700, color: 'rgba(255,255,255,.5)', width: 20, flex: 'none' }}>{p.num || '–'}</div>
               <div style={{ flex: 1, minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
@@ -479,10 +488,12 @@ function BoxTable({ players, log, title }) {
 }
 
 function BoxTab({ game }) {
-  const { state, set, askReset, showToast } = useApp()
+  const { state, set, askReset, showToast, setPlayedFlag } = useApp()
   const { roster } = state
   const { log } = game
   const players = gamePlayers(roster, game)
+  const nPlayed = players.filter((p) => playedIn(game, p.id)).length
+  const allPlayed = nPlayed === players.length
   const teamAName = game.teamAName || 'Team A'
   const teamBName = game.teamBName || 'Team B'
 
@@ -491,15 +502,22 @@ function BoxTab({ game }) {
       {game.twoTeam && (
         <ScoreBar teamAName={teamAName} teamBName={teamBName} ptsA={sidePts(players, log, 'A')} ptsB={sidePts(players, log, 'B')} style={{ padding: '0 0 10px' }} />
       )}
+      {players.length > 0 && (
+        // who counts as having played: the GP boxes below, also all at once
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 2px 8px', fontSize: 12, color: 'rgba(255,255,255,.6)', fontWeight: 600 }}>
+          <span style={{ flex: 1 }}>{nPlayed} of {players.length} played — tick who counts as a game played</span>
+          <div onClick={() => setPlayedFlag(players.map((p) => p.id), !allPlayed)} style={{ padding: '6px 10px', borderRadius: 10, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>{allPlayed ? 'None' : 'All'}</div>
+        </div>
+      )}
       {players.length ? (
         <ScrollX style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           {game.twoTeam ? (
             <>
-              <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} />
-              <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} />
+              <BoxTable players={players.filter((p) => p.side === 'A')} log={log} title={teamAName} game={game} setPlayedFlag={setPlayedFlag} />
+              <BoxTable players={players.filter((p) => p.side === 'B')} log={log} title={teamBName} game={game} setPlayedFlag={setPlayedFlag} />
             </>
           ) : (
-            <BoxTable players={players} log={log} />
+            <BoxTable players={players} log={log} game={game} setPlayedFlag={setPlayedFlag} />
           )}
         </ScrollX>
       ) : (
@@ -575,7 +593,7 @@ function SeasonTab() {
   const rows = roster
     .map((p) => {
       const t = tallyFor(log, p.id)
-      const gp = games.filter((g) => g.log.some((e) => e.p === p.id)).length
+      const gp = gamesPlayed(games, p.id)
       return { p, t, gp }
     })
     .sort((a, b) => b.t.pts - a.t.pts)
