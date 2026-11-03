@@ -235,28 +235,54 @@ export function exportBoxPdf(players, log, teamName, game) {
   openReportWindow(html, gameSlug(game) + '.html')
 }
 
-// Free play games are just practice reps, not part of the season record —
-// excluded here so a coach's per-game averages aren't diluted by scrimmages.
-export function exportSeasonPdf(roster, allGames, teamName) {
+// The columns of the season sheet, in order. `cell` builds one value from a
+// player's tally (t) and games played (gp); `has` says whether a tally holds
+// anything for it, which is how a coach sees what was actually tracked.
+const avg = (v, gp) => (gp ? (v / gp).toFixed(1) : '0.0')
+export const SEASON_COLS = [
+  { id: 'gp', label: 'GP', cell: (t, gp) => gp, has: (t, gp) => gp > 0 },
+  { id: 'pts', label: 'PTS', cell: (t) => t.pts, has: (t) => t.pts > 0 },
+  { id: 'ppg', label: 'PPG', cell: (t, gp) => avg(t.pts, gp), has: (t) => t.pts > 0 },
+  { id: 'fg', label: 'FG', cell: (t) => t.fgm + '/' + t.fga, has: (t) => t.fga > 0 },
+  { id: 'fg3', label: '3P', cell: (t) => t.fg3m + '/' + (t.fg3m + t.fg3a), has: (t) => t.fg3m + t.fg3a > 0 },
+  { id: 'ft', label: 'FT', cell: (t) => t.ftm + '/' + (t.ftm + t.fta), has: (t) => t.ftm + t.fta > 0 },
+  { id: 'reb', label: 'REB', cell: (t, gp) => avg(t.reb, gp), has: (t) => t.reb > 0 },
+  { id: 'ast', label: 'AST', cell: (t, gp) => avg(t.ast, gp), has: (t) => t.ast > 0 },
+  { id: 'stl', label: 'STL', cell: (t, gp) => avg(t.stl, gp), has: (t) => t.stl > 0 },
+  { id: 'blk', label: 'BLK', cell: (t, gp) => avg(t.blk, gp), has: (t) => t.blk > 0 },
+  { id: 'tov', label: 'TO', cell: (t, gp) => avg(t.tov, gp), has: (t) => t.tov > 0 },
+  { id: 'pf', label: 'PF', cell: (t, gp) => avg(t.pf, gp), has: (t) => t.pf > 0 },
+]
+
+function seasonRows(roster, allGames) {
   const games = allGames.filter((g) => g.type !== 'practice')
   const log = games.flatMap((g) => g.log)
-  const head = ['#', 'Player', 'GP', 'PTS', 'PPG', 'FG', '3P', 'FT', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PF']
-  const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
-  const avg = (v, gp) => (gp ? (v / gp).toFixed(1) : '0.0')
-
   const rows = roster
-    .map((p) => {
-      const t = tallyFor(log, p.id)
-      const gp = gamesPlayed(games, p.id)
-      return { p, t, gp }
-    })
+    .map((p) => ({ p, t: tallyFor(log, p.id), gp: gamesPlayed(games, p.id) }))
     .sort((a, b) => b.t.pts - a.t.pts)
+  return { games, rows }
+}
 
-  const body = rows.map(({ p, t, gp }, i) => tr([
-    i + 1, p.name, gp,
-    t.pts, avg(t.pts, gp), t.fgm + '/' + t.fga, t.fg3m + '/' + (t.fg3m + t.fg3a), t.ftm + '/' + (t.ftm + t.fta),
-    avg(t.reb, gp), avg(t.ast, gp), avg(t.stl, gp), avg(t.blk, gp), avg(t.tov, gp), avg(t.pf, gp),
-  ], 'td')).join('')
+// Which columns have anything in them for this roster and these games
+export function seasonColsWithData(roster, allGames) {
+  const { rows } = seasonRows(roster, allGames)
+  return SEASON_COLS.filter((c) => rows.some(({ t, gp }) => c.has(t, gp))).map((c) => c.id)
+}
+
+// Free play games are just practice reps, not part of the season record —
+// excluded here so a coach's per-game averages aren't diluted by scrimmages.
+// `colIds` picks the stat columns (all of them when left out), because a
+// sheet full of zeros for what was never tracked looks empty.
+export function exportSeasonPdf(roster, allGames, teamName, colIds) {
+  const { games, rows } = seasonRows(roster, allGames)
+  const cols = SEASON_COLS.filter((c) => !colIds || colIds.indexOf(c.id) >= 0)
+  const head = ['#', 'Player'].concat(cols.map((c) => c.label))
+  const tr = (cells, tag, cls) => "<tr class='" + (cls || '') + "'>" + cells.map((c) => '<' + tag + '>' + esc(c) + '</' + tag + '>').join('') + '</tr>'
+
+  const body = rows.map(({ p, t, gp }, i) => tr([i + 1, p.name].concat(cols.map((c) => c.cell(t, gp))), 'td')).join('')
+  const note = cols.some((c) => ['ppg', 'reb', 'ast', 'stl', 'blk', 'tov', 'pf'].indexOf(c.id) >= 0)
+    ? 'PTS totals the season, the rest average per game played'
+    : 'Season totals'
 
   const generatedDate = longDate(new Date())
 
@@ -266,8 +292,8 @@ export function exportSeasonPdf(roster, allGames, teamName) {
       th,td{text-align:center}
       th:nth-child(2),td:nth-child(2){text-align:left}
     </style></head><body>
-    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked' + recordText(games), 'PTS totals the season, the rest average per game played'] })}
-    <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="14" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
+    ${reportHeader({ title: teamName || 'Basketball Pro Coach', subtitle: 'Season stats', metaLines: [generatedDate, games.length + ' game' + (games.length === 1 ? '' : 's') + ' tracked' + recordText(games), note] })}
+    <table><thead>${tr(head, 'th')}</thead><tbody>${body || '<tr><td colspan="' + head.length + '" style="color:#aaa;padding:10px 8px">No games tracked yet.</td></tr>'}</tbody></table>
     ${reportFooter()}
     </body></html>`
 
