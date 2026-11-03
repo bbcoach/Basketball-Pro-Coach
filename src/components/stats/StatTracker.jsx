@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useApp } from '../../state/store'
 import ScrollX from '../ScrollX'
 import { ACCENT } from '../../state/config'
@@ -7,7 +8,7 @@ import RosterEditor from '../RosterEditor'
 import ActionHint from '../ActionHint'
 import { STAT_DEFS, STAT_LABEL, tallyFor, teamTally, OPP_ID, OPP_DEFS, oppPts, gameScore, seasonRecord, gamesPlayed, playedIn } from '../../lib/stats'
 import { COND, raised, keycap, chipSurface, field, centred } from '../../theme'
-import { exportBoxCsv, exportBoxPdf, exportSeasonPdf } from '../../lib/reports'
+import { exportBoxCsv, exportBoxPdf, exportSeasonPdf, SEASON_COLS, seasonColsWithData } from '../../lib/reports'
 import { TEAM_NAME } from '../../state/config'
 import { useLandscape } from '../../lib/useLandscape'
 import { useWakeLock } from '../../lib/useWakeLock'
@@ -582,9 +583,45 @@ function SeasonTable({ rows }) {
   )
 }
 
+// Which stats go on the season PDF: a sheet full of zeros for what was never
+// tracked looks empty, so the choice starts out as what has numbers in it.
+function SeasonPdfPicker({ withData, picked, setPicked, onCreate, onClose }) {
+  const toggle = (id) => setPicked((cur) => (cur.indexOf(id) >= 0 ? cur.filter((x) => x !== id) : cur.concat([id])))
+  const quick = { padding: '7px 11px', borderRadius: 10, background: 'rgba(255,255,255,.08)', color: '#fff', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }
+  return (
+    <div onClick={onClose} style={{ position: 'absolute', inset: 0, zIndex: 99, background: 'rgba(6,6,8,.76)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 22 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 340, background: '#141417', border: '1px solid rgba(255,255,255,.11)', borderRadius: 18, padding: 18 }}>
+        <div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontStyle: 'italic', fontWeight: 800, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: '.4px' }}>Season PDF</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', margin: '6px 0 12px', lineHeight: 1.5 }}>Choose the stats on the sheet. Ones nobody has numbers for are left out to start with.</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {SEASON_COLS.map((c) => {
+            const on = picked.indexOf(c.id) >= 0
+            const empty = withData.indexOf(c.id) < 0
+            return (
+              <div key={c.id} onClick={() => toggle(c.id)} role="checkbox" aria-checked={on} style={{ minWidth: 58, padding: '8px 10px', boxSizing: 'border-box', textAlign: 'center', borderRadius: 11, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: on ? ACCENT : 'rgba(255,255,255,.06)', color: on ? '#101012' : empty ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.85)', border: '1px solid ' + (on ? ACCENT : 'rgba(255,255,255,.1)') }}>
+                {c.label}
+                {empty && <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.8, marginTop: 1 }}>no data</div>}
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 6, margin: '12px 0' }}>
+          <div onClick={() => setPicked(withData)} style={quick}>Tracked only</div>
+          <div onClick={() => setPicked(SEASON_COLS.map((c) => c.id))} style={quick}>All</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div onClick={onClose} style={{ flex: 1, padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.8)', fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>Cancel</div>
+          <div onClick={picked.length ? onCreate : undefined} style={{ flex: 1.4, padding: 11, borderRadius: 12, background: picked.length ? ACCENT : 'rgba(255,255,255,.06)', color: picked.length ? '#101012' : 'rgba(255,255,255,.3)', fontSize: 13, fontWeight: 700, cursor: picked.length ? 'pointer' : 'default', textAlign: 'center' }}>Create PDF</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SeasonTab() {
   const { state, set, showToast } = useApp()
   const { roster } = state
+  const [pdfPick, setPdfPick] = useState(null) // the chosen column ids while the picker is open
   // Free play games are just practice reps, not part of the season record —
   // excluded here so a coach's per-game averages aren't diluted by scrimmages.
   const games = state.games.filter((g) => g.type !== 'practice')
@@ -617,8 +654,14 @@ function SeasonTab() {
         <ActionHint text="No players yet." actionLabel="Add roster" onAction={() => set({ statsTab: 'roster' })} />
       )}
       <div style={{ display: 'flex', gap: 6, paddingTop: 12 }}>
-        <div onClick={() => { exportSeasonPdf(roster, games, TEAM_NAME); showToast('Opening PDF…') }} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
+        <div onClick={() => setPdfPick(seasonColsWithData(roster, games))} style={{ flex: 1, textAlign: 'center', padding: 11, borderRadius: 12, background: 'rgba(255,255,255,.09)', color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>PDF</div>
       </div>
+      {pdfPick && (
+        <SeasonPdfPicker
+          withData={seasonColsWithData(roster, games)} picked={pdfPick} setPicked={setPdfPick} onClose={() => setPdfPick(null)}
+          onCreate={() => { exportSeasonPdf(roster, games, TEAM_NAME, pdfPick); setPdfPick(null); showToast('Opening PDF…') }}
+        />
+      )}
     </div>
   )
 }
