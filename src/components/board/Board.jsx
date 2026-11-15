@@ -27,6 +27,8 @@ const TOOLS = [
   ['pass', '⇢︎', 'Pass'],
   ['handoff', '⇄︎', 'Handoff'],
   ['shot', '◎︎', 'Shot'],
+  ['layup', '⤴︎', 'Layup'],
+  ['rebound', '⤵︎', 'Rebound'],
   ['addOff', '＋︎', 'Offense'],
   ['addDef', '✕︎', 'Defense'],
   ['addCone', '▲︎', 'Cone'],
@@ -179,7 +181,7 @@ function ToolsRow() {
   return (
     <div style={{ position: 'relative', padding: landscape ? '2px 4px 8px' : '2px 12px 8px' }}>
       {open && (
-        <div style={{ position: 'absolute', left: landscape ? 4 : 12, right: landscape ? 4 : 12, bottom: '100%', marginBottom: 4, zIndex: 20, ...rowStyle, gap: 6, padding: 8, borderRadius: 16, background: '#17171b', border: '1px solid rgba(255,255,255,.12)', boxShadow: '0 12px 30px rgba(0,0,0,.6)' }}>
+        <div style={{ position: 'absolute', left: landscape ? 4 : 12, right: landscape ? 4 : 12, bottom: '100%', marginBottom: 4, zIndex: 20, ...(landscape ? rowStyle : { display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }), gap: 6, padding: 8, borderRadius: 16, background: '#17171b', border: '1px solid rgba(255,255,255,.12)', boxShadow: '0 12px 30px rgba(0,0,0,.6)' }}>
           {PLAYER_TOOLS.map(([id, ic, lb]) => (
             <div key={id} onClick={() => { setTool(id); setOpen(false) }} style={tile(state.tool === id)}>
               <div style={icon}>{ic}</div><div style={label}>{lb}</div>

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useApp } from '../../state/store'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
-import { actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, stepAtTime, wavy, isCone, isBall, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
+import { actsOf, ballSeams, baseAt, dist, makeBoard, routeExtras, smoothPoly, stepAtTime, wavy, isCone, isBall, conePath, CONE_COLOR, BALL_SPHERE, BALL_SPHERE_CENTER } from '../../lib/board-geometry'
 import { useLandscape } from '../../lib/useLandscape'
 import { chevPath, noteBBox, noteElements, noteVisible } from '../../lib/notes'
 
@@ -88,11 +88,16 @@ export default function Court() {
         if (act.step !== editStep) return
         const ty = act.type
         const op = act.step === editStep ? 0.97 : 0.5
+        // a layup's shot is drawn with its run; a rebound ends in a ring
+        const ex = routeExtras(all, ent, act, pts)
+        if (ex.skip) return
         rts.push({
           key: ent.id + '-' + act.step, d: ty === 'dribble' ? wavy(pts) : smoothPoly(pts),
           dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : ty === 'handoff' ? '2 12 22 12' : 'none',
-          marker: ty === 'screen' ? 'none' : 'url(#arw)', op,
+          marker: ty === 'screen' || ex.ring ? 'none' : 'url(#arw)', op,
         })
+        if (ex.extra) ex.extra.forEach((x, i) => rts.push({ key: ent.id + '-' + act.step + '-x' + i, d: x.d, dash: x.dash, marker: 'url(#arw)', op }))
+        if (ex.ring) cps.push({ key: ent.id + '-' + act.step + '-ring', d: ex.ring, op })
         const a = pts[pts.length - 2]
         const b = pts[pts.length - 1]
         const len = dist(a, b) || 1

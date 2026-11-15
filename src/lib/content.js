@@ -38,6 +38,8 @@ export const HINTS = {
   pass: 'Drag from the ball to a team-mate — he then carries it',
   handoff: 'Drag from whoever moves, carrier or receiver — the ball changes hands',
   shot: 'Drag from the ball to the rim — the shot releases the ball',
+  layup: 'Drag from the ball carrier towards the basket — he drives and lays it up',
+  rebound: 'Drag from a player to where the ball comes down — he takes it',
   addOff: 'Tap to add offense — tool stays on',
   addDef: 'Tap to add defenders — tool stays on',
   addCone: 'Tap to drop cones — tool stays on',
