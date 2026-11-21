@@ -14,7 +14,8 @@ export const ROUTE_COLORS = {
   handoff: 0x7cc4ff,
   screen: 0xf4f4f4,
   shot: 0xb9bcc6,
+  rebound: 0xe4e6ec,
 }
-export const ROUTE_ORDER = ['pass', 'dribble', 'cut', 'handoff', 'screen', 'shot']
-export const ROUTE_LABELS = { cut: 'Cut', dribble: 'Dribble', pass: 'Pass', handoff: 'Handoff', screen: 'Screen', shot: 'Shot' }
+export const ROUTE_ORDER = ['pass', 'dribble', 'cut', 'handoff', 'screen', 'shot', 'rebound']
+export const ROUTE_LABELS = { cut: 'Cut', dribble: 'Dribble', pass: 'Pass', handoff: 'Handoff', screen: 'Screen', shot: 'Shot', rebound: 'Rebound' }
 export const routeCss = (type) => '#' + (ROUTE_COLORS[type] ?? 0xffffff).toString(16).padStart(6, '0')

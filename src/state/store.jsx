@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  actsOf, baseAt, carrierMap, cleanFreehandPath, makeBoard, maxStepOf, normEnt, setAct, startState, stepAtTime,
+  actsOf, baseAt, carrierMap, cleanFreehandPath, dist, layupStop, makeBoard, maxStepOf, nearestHoop, normEnt, pruneLay, setAct, startState, stepAtTime,
   CONE_TEAM, isCone, BALL_TEAM, isBall, stepSecs,
 } from '../lib/board-geometry'
 import { HINTS } from '../lib/content'
@@ -357,10 +357,12 @@ export function AppProvider({ children }) {
         const cur = e3.acts.filter((a) => a.step === k)
         return { ...e3, acts: cur.length ? e3.acts.filter((a) => a.step !== k) : e3.acts.slice(0, -1) }
       }
-      if (id === 'ball') { set((st) => ({ ball: strip(st.ball) })); return }
+      if (id === 'ball') { set((st) => ({ ball: strip(st.ball) })); set((st) => pruneLay(st.players, st.ball)); return }
       const ent = board.entity(id)
       if (ent && actsOf(ent).length) set((st) => ({ players: st.players.map((x) => (x.id === id ? strip(x) : x)) }))
       else set((st) => ({ players: st.players.filter((x) => x.id !== id) }))
+      // erasing half of a layup (the run or the shot) takes the other half too
+      set((st) => pruneLay(st.players, st.ball))
       return
     }
     if (!id) {
@@ -385,7 +387,7 @@ export function AppProvider({ children }) {
     const k = s.step
     const tappedBall = id === 'ball' || isBall(board.entity(id))
     // A ball can be dribbled, passed or shot, but it doesn't cut or screen.
-    if (tappedBall && !['dribble', 'pass', 'shot'].includes(tool)) return
+    if (tappedBall && !['dribble', 'pass', 'shot', 'layup'].includes(tool)) return
     const t0 = (k - 1) / nSteps()
     // Dribble, pass and shot belong to whoever has the ball at the start of
     // this step. Pass and shot used to start from the ball no matter which
@@ -396,7 +398,7 @@ export function AppProvider({ children }) {
     // With several balls on the court, each has its own holder: a player
     // holding any of them may dribble, and a pass or shot starts from the
     // ball that player (or the tapped ball) actually is.
-    const BALL_VERB = { dribble: 'dribble', pass: 'pass', shot: 'shoot' }
+    const BALL_VERB = { dribble: 'dribble', pass: 'pass', shot: 'shoot', layup: 'lay it up' }
     let who = id
     let ballId = null
     if (BALL_VERB[tool]) {
@@ -404,8 +406,9 @@ export function AppProvider({ children }) {
       const holders = [{ id: 'ball', ent: s.ball }].concat(s.players.filter(isBall).map((b) => ({ id: b.id, ent: b })))
         .map((h) => ({ ...h, holder: carrierMap(s.players, h.ent, nn)[k] || null }))
       const mine = tappedBall ? holders.find((h) => h.id === id) : holders.find((h) => h.holder && h.holder.id === id)
-      if (tool === 'dribble' && tappedBall && mine && mine.holder) who = mine.holder.id
-      const ok = tool === 'dribble' ? !!(mine && mine.holder && who === mine.holder.id) : !!mine
+      const runs = tool === 'dribble' || tool === 'layup' // drawn on whoever has the ball
+      if (runs && tappedBall && mine && mine.holder) who = mine.holder.id
+      const ok = runs ? !!(mine && mine.holder && who === mine.holder.id) : !!mine
       // Said on the court, where the coach is looking, rather than as a
       // toast at the bottom edge — that sat right on top of the very tools
       // it was about. Whoever does have a ball gets a pulse.
@@ -415,6 +418,20 @@ export function AppProvider({ children }) {
         return
       }
       ballId = mine.id
+    }
+    if (tool === 'layup') {
+      // the carrier's run (a dribble) and the ball's shot at the rim, one pair
+      // that every renderer draws as a layup (see pruneLay in board-geometry)
+      snapshot()
+      const hoop = nearestHoop(p)
+      drag.current = { id: who, draw: 'layup', step: k, ballId }
+      const run = (e2) => setAct(e2, k, 'dribble', p, { lay: ballId })
+      const shot = (e2) => setAct(e2, k, 'shot', hoop, { lay: true })
+      set((st) => ({
+        players: st.players.map((x) => (x.id === who ? run(x) : x.id === ballId ? shot(x) : x)),
+        ball: ballId === 'ball' ? shot(st.ball) : st.ball, sel: who, playing: false, t: t0,
+      }))
+      return
     }
     if (tool === 'pass' || tool === 'shot') {
       snapshot()
@@ -500,6 +517,18 @@ export function AppProvider({ children }) {
           const strip = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).filter((z) => z.step !== d.step) })
           if (d.id === 'ball') set((st) => ({ ball: strip(st.ball) }))
           else set((st) => ({ players: st.players.map((x) => (x.id === d.id ? strip(x) : x)) }))
+          // a layup whose run came to nothing takes its shot with it
+          if (d.draw === 'layup') set((st) => pruneLay(st.players, st.ball))
+        } else if (d.draw === 'layup') {
+          // the run ends close under the rim: a stroke that ends near it is
+          // taken up to it, one that stops short is carried on to it
+          const sm = cleanFreehandPath(a.pts)
+          const end = sm[sm.length - 1]
+          const hoop = nearestHoop(end)
+          const stop = layupStop(end, hoop)
+          const pts = dist(end, hoop) <= 420 ? sm.slice(0, -1).concat([stop]) : sm.concat([stop])
+          const fix = (e2) => ({ ...normEnt(e2), acts: actsOf(e2).map((z) => (z.step === d.step && z.lay === d.ballId ? { ...z, pts } : z.step === d.step && z.type === 'shot' && z.lay ? { ...z, pts: [hoop] } : z)) })
+          set((st) => ({ players: st.players.map((x) => (x.id === d.id || x.id === d.ballId ? fix(x) : x)), ball: d.ballId === 'ball' ? fix(st.ball) : st.ball, steps: Math.max(st.steps, d.step) }))
         } else {
           // A finger drawing a route naturally wobbles a little — smooth
           // that out once the stroke is finished rather than while it's

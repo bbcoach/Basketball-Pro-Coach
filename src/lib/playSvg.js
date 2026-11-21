@@ -1,5 +1,5 @@
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, smoothPoly, wavy, isCone, isBall, conePath, CONE_COLOR,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, routeExtras, smoothPoly, wavy, isCone, isBall, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from './board-geometry'
 import { ACCENT, SHOW_NUMBERS } from '../state/config'
@@ -67,11 +67,15 @@ function stepSvg(play, board, cmap, stepIndex) {
       const pts = [start].concat(act.pts)
       if (pts.length < 2) return
       const ty = act.type
+      const ex = routeExtras(all, ent, act, pts)
+      if (ex.skip) return
       routes.push({
         d: ty === 'dribble' ? wavy(pts) : smoothPoly(pts),
         dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : ty === 'handoff' ? '2 12 22 12' : 'none',
-        marker: ty === 'screen' ? 'none' : 'url(#step-arw)',
+        marker: ty === 'screen' || ex.ring ? 'none' : 'url(#step-arw)',
       })
+      if (ex.extra) ex.extra.forEach((x) => routes.push({ d: x.d, dash: x.dash, marker: 'url(#step-arw)' }))
+      if (ex.ring) caps.push(`<path d="${ex.ring}" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" />`)
       if (ty === 'screen') {
         const a = pts[pts.length - 2]
         const b = pts[pts.length - 1]

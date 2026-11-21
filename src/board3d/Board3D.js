@@ -7,7 +7,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
-import { makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
+import { routeExtras, makeBoard, stepAtTime, stepSecs, actsOf, baseAt, isCone, isBall, STEP_SECS } from '../lib/board-geometry'
 import { COND } from '../theme'
 import { noteElements, noteVisible } from '../lib/notes'
 import { ROUTE_COLORS } from './routeColors'
@@ -1784,6 +1784,15 @@ function simulate(t, dt) {
   const shooter = act && act.type === 'shot' && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const plan = shooter ? planShot(shooter, k, act) : { kind: 'jump' }
   const lay = plan.kind === 'layup' ? plan.lay : null
+  // the one who takes the ball at the end of this step with a rebound path: off the rim after a shot
+  // in this step (a miss), or off the floor when it lies loose
+  const rebP = CARRIERS[k + 1] && CARRIERS[k + 1] !== CARRIERS[k] && actsOf(CARRIERS[k + 1]).some((a) => a.step === k && a.type === 'rebound' && a.pts.length) ? CARRIERS[k + 1] : null
+  const rebF = rebP && figures[rebP.id] && ((act && act.type === 'shot') || (!act && !CARRIERS[k])) ? figures[rebP.id] : null
+  // a missed shot: when it comes off the rim, and when he has it. A layup is let go late
+  // in its step, so its miss is quicker.
+  const missAt = !(rebF && act) ? null : lay
+    ? (() => { const hit = lay.rel + 0.6 * (0.97 - lay.rel); return { hit, fc: hit + (0.985 - hit) * 0.8 } })()
+    : (() => { const hit = 0.22 + 0.74 * 0.78; return { hit, fc: hit + (1 - hit) * 0.55 } })()
   // on the run in to a layup he still carries (dribbles) the ball, up to the gather
   const carrier = (!act || (lay && fr < lay.gather)) && CARRIERS[k] ? figures[CARRIERS[k].id] : null
   const dribbling = carrier && actsOf(carrier.p).some((a) => a.step === k && a.type === 'dribble' && a.pts.length)
@@ -2001,6 +2010,13 @@ function simulate(t, dt) {
       dip = Math.max(landing(uShot - 0.42), fr < G_SHOT ? Math.sin((Math.PI / 2) * (fr / G_SHOT)) : uShot < 0.08 ? 1 - uShot / 0.08 : 0) * (plan.kind === 'free' ? 0.65 : 1)
       lift = (uShot > 0 && uShot < 0.42 ? 0.3 * Math.sin((Math.PI * uShot) / 0.42) : 0) * calm
     }
+    if (f === rebF && act && missAt) {
+      // up for a rebound: a crouch, then off both feet, the ball taken at the top
+      const js = missAt.fc - 0.13
+      const ur = (fr - js) / (1 - js)
+      dip = fr > js - 0.1 && fr < js ? Math.sin((Math.PI / 2) * ((fr - (js - 0.1)) / 0.1)) : 0
+      lift = ur > 0 && ur < 1 ? 0.5 * Math.sin(Math.PI * ur) : 0
+    }
     if (f === contester) { const uc = uShot - 0.06; dip = Math.max(landing(uc - 0.4), uShot > -0.3 && uc < 0.05 ? 0.7 : 0); lift = uc > 0 && uc < 0.4 ? 0.2 * Math.sin((Math.PI * uc) / 0.4) : 0 }
     if (dip) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.hp.rotation.x -= 0.55 * dip; L.kn.rotation.x += 1.05 * dip; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) }
     if (lift) for (const sd of [-1, 1]) { const L = f.legs[sd]; L.kn.rotation.x *= 0.4; L.ft.rotation.x = -(L.hp.rotation.x + L.kn.rotation.x) + 0.5 } // legs straighten, toes point
@@ -2210,6 +2226,18 @@ function simulate(t, dt) {
         // follow-through: arms stay up after the release
         if (passer && u < 0.5) reaches.push([passer, shotPoint(passer), 'shotFollow', u])
       }
+      if (rebF) {
+        // a miss: off the rim, and up to the one going for it
+        const { hit, fc } = missAt
+        if (fr > hit) {
+          const top = headCentre(rebF).add(new THREE.Vector3(0, 0.36, 0))
+          if (fr < fc) {
+            const e = easeInOut((fr - hit) / (fc - hit))
+            ball.position.copy(rimP.clone().lerp(top, e)); ball.position.y += 1.1 * 2 * e * (1 - e)
+          } else ball.position.copy(top)
+          if (fr > fc - 0.14) reaches.push([rebF, ball.position.clone(), 'catch'])
+        }
+      }
       if (contester && uShot > -0.4 && uShot < 0.5) {
         // hand up towards the ball, on the side it's on
         const toB0 = ball.position.clone().sub(contester.chest.getWorldPosition(new THREE.Vector3()))
@@ -2300,6 +2328,13 @@ function simulate(t, dt) {
     }
   } else {
     ball.position.set(ballXZ.x, BALL_R, ballXZ.z)
+    if (rebF && fr > 0.7) {
+      // picked up off the floor: the hands go down to it and bring it up
+      const e = easeInOut(Math.min(1, (fr - 0.7) / 0.3))
+      const to = chestPoint(rebF, fwdOf(rebF))
+      ball.position.y = BALL_R + (to.y - BALL_R) * e
+      reaches.push([rebF, ball.position.clone(), 'catch'])
+    }
   }
   Object.values(figures).forEach((o) => { o.dribOn = o._dribNow })
   reaches.forEach(([f, p, kind, u]) => {
@@ -2935,11 +2970,17 @@ function buildRoutes() {
     const infos = []
     curRid = 0
     all.forEach((ent) => {
-      actsOf(ent).forEach((act) => {
-        if (act.step !== k || !act.pts.length) return
+      actsOf(ent).forEach((act0) => {
+        if (act0.step !== k || !act0.pts.length) return
         const start = ent.id === 'ball' ? board.ballStart(k, cmap) : isBall(ent) ? board.ballStart(k, null, ent) : baseAt(ent, k)
-        const pts = [start].concat(act.pts)
-        if (pts.length < 2) return
+        const pts0 = [start].concat(act0.pts)
+        if (pts0.length < 2) return
+        // a layup is drawn as its run plus a dotted last stretch to the rim (its shot is not drawn
+        // by itself); a rebound has no arrow ring here, just its path
+        const ex = routeExtras(all, ent, act0, pts0)
+        if (ex.skip) return
+        const parts = [{ act: act0, pts: pts0 }].concat((ex.extra || []).map((x) => ({ act: { type: 'shot' }, pts: x.pts })))
+        parts.forEach(({ act, pts }) => {
         const ty = act.type in ROUTE_COLORS ? act.type : 'pass'
         const inkA = ink[ty] || (ink[ty] = newArr()); const glowA = glow[ty] || (glow[ty] = newArr())
         let line = toLine(ty === 'dribble' ? waveSample(pts) : curveSample(pts))
@@ -2962,6 +3003,7 @@ function buildRoutes() {
           const bar = toLine([{ x: b.x - nx * 46, y: b.y - ny * 46 }, { x: b.x + nx * 46, y: b.y + ny * 46 }])
           addTube(glowA, bar, ROUTE_R + EDGE + GLOW, total + 0.1, true, true); addTube(edge, bar, ROUTE_R + EDGE, total + 0.1, true, true); addTube(inkA, bar, ROUTE_R, total + 0.1, true, true)
         }
+        })
       })
     })
     const g = new THREE.Group()

@@ -60,9 +60,87 @@ export function baseAt(ent, step) {
     .forEach((a) => { pos = a.pts[a.pts.length - 1] })
   return pos
 }
-export function setAct(ent, step, type, p) {
+export function setAct(ent, step, type, p, extra) {
   const e = normEnt(ent)
-  return Object.assign({}, e, { acts: e.acts.filter((a) => a.step !== step).concat([{ type, step, pts: [p] }]) })
+  return Object.assign({}, e, { acts: e.acts.filter((a) => a.step !== step).concat([Object.assign({ type, step, pts: [p] }, extra)]) })
+}
+
+// ── layup and rebound ──────────────────────────────────────────────────
+// A layup is two acts in one step that belong together: the carrier's
+// dribble run to the basket, flagged `lay: <ball id>`, and that ball's shot at
+// the rim, flagged `lay: true`. The shot is what releases the ball (so
+// carriers, the 3D layup and everything else work as they always did); the
+// flags are what lets every renderer draw the pair as one layup, and what
+// lets an erase take both away.
+//
+// A rebound is a path (type 'rebound') of a player to where the ball comes
+// down. If it is drawn in the step of a shot, the shot is a miss and he
+// takes the ball off the rim at the end of the step; in a later step he
+// picks up a ball lying loose. Either way he holds it from the next step.
+export const HOOPS = [{ x: 750, y: 157.5 }, { x: 750, y: 2642.5 }]
+export function nearestHoop(p) {
+  return dist(p, HOOPS[0]) <= dist(p, HOOPS[1]) ? HOOPS[0] : HOOPS[1]
+}
+// Where a layup run stops: close under the rim, on the side he came from.
+export function layupStop(from, hoop) {
+  const d = dist(from, hoop) || 1
+  return { x: hoop.x + ((from.x - hoop.x) / d) * 100, y: hoop.y + ((from.y - hoop.y) / d) * 100 }
+}
+// Layup acts that lost their other half (one of them was erased) go too.
+export function pruneLay(players, ball) {
+  const key = (b) => (b === ball ? 'ball' : b.id)
+  const balls = [ball].concat(players.filter(isBall))
+  const hasShot = (k, id) => { const b = balls.find((x) => key(x) === id); return !!b && actsOf(b).some((a) => a.step === k && a.type === 'shot' && a.lay) }
+  const hasRun = (k, id) => players.some((p) => actsOf(p).some((a) => a.step === k && a.lay === id))
+  let changed = false
+  const strip = (ent) => {
+    const acts = actsOf(ent).filter((a) => {
+      if (!a.lay) return true
+      const keep = a.type === 'shot' ? hasRun(a.step, key(ent)) : hasShot(a.step, a.lay)
+      if (!keep) changed = true
+      return keep
+    })
+    return acts.length === actsOf(ent).length ? ent : Object.assign({}, ent, { acts })
+  }
+  const np = players.map(strip)
+  const nb = strip(ball)
+  return changed ? { players: np, ball: nb } : { players, ball }
+}
+
+// Who takes a ball that comes down around `spot` in step k: a player whose
+// rebound path in that step ends nearby (the nearest one, if several do).
+function reboundTaker(players, k, spot, exceptId) {
+  let best = null
+  let bd = 300
+  players.forEach((p) => {
+    if (p.id === exceptId) return
+    const a = actsOf(p).find((z) => z.step === k && z.type === 'rebound' && z.pts.length)
+    if (!a) return
+    const d = dist(a.pts[a.pts.length - 1], spot)
+    if (d < bd) { bd = d; best = p }
+  })
+  return best
+}
+
+// The extras a renderer needs around one drawn act, shared so the board, the
+// preview, the handout and the video draw a layup and a rebound the same way:
+//   skip   — don't draw this act at all (the shot half of a layup)
+//   extra  — more lines to draw: [{ d, dash }] (the layup's last stretch to the rim)
+//   ring   — a ring path at the end of a rebound, and no arrow head
+export function routeExtras(all, ent, act, pts) {
+  if (act.type === 'shot' && act.lay) return { skip: true }
+  if (act.lay) {
+    const b = all.find((e) => e.id === act.lay)
+    const sh = b && actsOf(b).find((a) => a.step === act.step && a.type === 'shot' && a.lay && a.pts.length)
+    const last = pts[pts.length - 1]
+    if (sh) return { extra: [{ d: poly([last, sh.pts[sh.pts.length - 1]]), dash: '6 26', pts: [last, sh.pts[sh.pts.length - 1]] }] }
+  }
+  if (act.type === 'rebound') {
+    const c = pts[pts.length - 1]
+    const r = 34
+    return { ring: 'M' + (c.x - r).toFixed(1) + ' ' + c.y.toFixed(1) + ' a' + r + ' ' + r + ' 0 1 0 ' + 2 * r + ' 0 a' + r + ' ' + r + ' 0 1 0 ' + -2 * r + ' 0' }
+  }
+  return {}
 }
 
 // Cones share the players array — that is what gets them dragging, erasing,
@@ -150,10 +228,13 @@ export function carrierMap(allPlayers, ball, n) {
     out[k] = c
     const act = actsOf(ball).find((a) => a.step === k && a.pts.length)
     if (act) {
-      c = act.type === 'shot' ? null : nearestPlayer(players, act.pts[act.pts.length - 1], k + 1, 300)
+      // a shot lets the ball go — unless somebody's rebound path ends at the
+      // rim in the same step: then it was a miss, and he has it from the next
+      c = act.type === 'shot' ? reboundTaker(players, k, act.pts[act.pts.length - 1], c && c.id) : nearestPlayer(players, act.pts[act.pts.length - 1], k + 1, 300)
       continue
     }
-    if (!c) continue
+    // a loose ball: whoever's rebound path in this step ends at it picks it up
+    if (!c) { c = reboundTaker(players, k, baseAt(ball, k), null); continue }
     // A handoff is drawn on a player, not the ball, and works in either
     // direction — whoever moves is the one it's drawn on.
     //
@@ -184,6 +265,8 @@ export function carrierMap(allPlayers, ball, n) {
     })
     if (taker) c = taker
   }
+  // who has it when the play is over (a rebound in the last step ends with him holding it)
+  out[n + 1] = c
   return out
 }
 
@@ -483,13 +566,33 @@ export function makeBoard(state) {
     const cmap = carriersOf(b)
     const fr = Math.max(0, Math.min(0.999999, t)) * n - (k - 1)
     const act = actsOf(b).find((a) => a.step === k && a.pts.length)
+    const heldAt = (c, u) => { const p = posAtTime(c, u, n); return { x: p.x + BOFF.x, y: p.y + BOFF.y } }
     if (act) {
-      const e = easeInOut(fr)
-      return ptAt([ballStart(k, cmap, b)].concat(act.pts), e)
+      // a shot someone takes off the rim goes on to him
+      const taker = act.type === 'shot' && cmap[k + 1] && cmap[k + 1] !== cmap[k] ? cmap[k + 1] : null
+      const tail = taker ? [heldAt(taker, k / n)] : []
+      if (act.type === 'shot' && act.lay && cmap[k]) {
+        // a layup: the ball goes along with the run, and is let go close to the rim
+        const T = 0.72
+        const carried = heldAt(cmap[k], (k - 1 + Math.min(fr, T)) / n)
+        if (fr <= T) return carried
+        return ptAt([carried].concat(act.pts, tail), easeInOut((fr - T) / (1 - T)))
+      }
+      return ptAt([ballStart(k, cmap, b)].concat(act.pts, tail), easeInOut(fr))
     }
     const c = cmap[k]
-    if (c) { const p = posAtTime(c, t, n); return { x: p.x + BOFF.x, y: p.y + BOFF.y } }
-    return baseAt(b, k)
+    if (c) return heldAt(c, t)
+    // lying loose: the one who picks it up gets to it at the end of the step
+    const base = baseAt(b, k)
+    const rt = reboundTaker(state.players, k, base, null)
+    if (rt && cmap[k + 1] === rt) {
+      const G = 0.72
+      if (fr < G) return base
+      const q = heldAt(rt, t)
+      const u = easeInOut((fr - G) / (1 - G))
+      return { x: base.x + (q.x - base.x) * u, y: base.y + (q.y - base.y) * u }
+    }
+    return base
   }
   const ballPos = (t) => ballPosOf(state.ball, t)
 

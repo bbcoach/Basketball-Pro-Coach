@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ACCENT, SHOW_NUMBERS } from '../../state/config'
 import {
-  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, normEnt, poly, wavy, isCone, isBall, conePath, CONE_COLOR,
+  HALF, FULL, actsOf, ballSeams, baseAt, dist, makeBoard, normEnt, poly, routeExtras, wavy, isCone, isBall, conePath, CONE_COLOR,
   BALL_SPHERE, BALL_SPHERE_CENTER,
 } from '../../lib/board-geometry'
 
@@ -54,11 +54,15 @@ export default function PlayPreview({ play }) {
         const pts = [start].concat(act.pts)
         if (pts.length < 2) return
         const ty = act.type
+        const ex = routeExtras(all, ent, act, pts)
+        if (ex.skip) return
         rts.push({
           key: ent.id + '-' + act.step, d: ty === 'dribble' ? wavy(pts) : poly(pts),
           dash: ty === 'pass' ? '34 26' : ty === 'shot' ? '6 26' : ty === 'handoff' ? '2 12 22 12' : 'none',
-          marker: ty === 'screen' ? 'none' : 'url(#pv-arw)',
+          marker: ty === 'screen' || ex.ring ? 'none' : 'url(#pv-arw)',
         })
+        if (ex.extra) ex.extra.forEach((x, i) => rts.push({ key: ent.id + '-' + act.step + '-x' + i, d: x.d, dash: x.dash, marker: 'url(#pv-arw)' }))
+        if (ex.ring) cps.push({ key: ent.id + '-' + act.step + '-ring', d: ex.ring })
         if (ty === 'screen') {
           const a = pts[pts.length - 2]
           const b = pts[pts.length - 1]
