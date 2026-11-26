@@ -71,6 +71,7 @@
     <div class="looks" id="looks"></div>
     <div class="row"><button id="refBtn">+ Eigenes Referenzbild</button></div>
     <div class="note" id="refInfo">Look wählen oder ein Referenzbild laden. Das Tool überträgt Tonwerte und Farbverlauf des Referenzbilds auf dein Foto. <span id="refName"></span></div>
+    <div class="note" id="analysis"></div>
 
     <div id="controls"></div>
     <p class="note">Doppeltippen auf einen Regler setzt ihn zurück. Die Vorschau ist verkleinert, mit „100 %“ siehst du das Korn so, wie es im Export aussieht.</p>
@@ -89,6 +90,8 @@ const PARAMS = [
   {g:'Look-Übertrag',k:'lookTint',l:'Farbstimmung',min:0,max:1.5,def:0,step:.01,open:1},
   {g:'Look-Übertrag',k:'lookSat',l:'Sättigung',min:0,max:1,def:0,step:.01,open:1},
   {g:'Look-Übertrag',k:'lookHue',l:'Farbtöne',min:0,max:1.5,def:0,step:.01,open:1},
+  {g:'Look-Übertrag',k:'adaptAmt',l:'Anpassung ans Bild',min:0,max:1,def:1,step:.01,open:1},
+  {g:'Look-Übertrag',k:'skinProtect',l:'Hautton-Schutz',min:0,max:1,def:.7,step:.01,open:1},
 
   {g:'Licht',k:'exposure',l:'Belichtung',min:-2,max:2,def:0,step:.01,open:1},
   {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01,open:1},
@@ -134,6 +137,7 @@ const HSL_COLORS=['#e5342b','#f08a24','#e8d23a','#3fb34f','#2fc4c0','#3a6fe0','#
 const HSL_KEYS=['hH','hS','hL'];
 const DEFAULTS = Object.fromEntries(PARAMS.map(p=>[p.k,p.def]));
 for(const k of HSL_KEYS) for(let i=0;i<8;i++) DEFAULTS[k+i]=0;
+DEFAULTS.bwR=.2126; DEFAULTS.bwG=.7152; DEFAULTS.bwB=.0722;
 
 /* =====================================================================
    Referenz-Statistiken (aus den Referenzfotos gemessen, keine Bilddaten)
@@ -142,18 +146,45 @@ for(const k of HSL_KEYS) for(let i=0;i<8;i++) DEFAULTS[k+i]=0;
    ===================================================================== */
 const LOOKSTATS = /*LOOKSTATS*/{"stadium":{"hb":{"f":[0.076,0.085,0.02,0.145,0.417,0,0,0.001],"s":[0.809,0.451,0.289,0.631,0.619,0.368,0.27,0.309],"v":[0.654,0.746,0.453,0.31,0.281,0.317,0.102,0.144],"d":[2.156,1.142,3.361,18.906,-11.657,-25.841,6.25,6.751],"gs":0.613,"gv":0.382},"q":[0,0.058,0.065,0.07,0.075,0.079,0.084,0.089,0.093,0.098,0.104,0.11,0.117,0.125,0.133,0.142,0.151,0.161,0.17,0.18,0.189,0.197,0.207,0.216,0.225,0.234,0.244,0.256,0.269,0.285,0.3,0.317,0.334,0.352,0.372,0.389,0.407,0.426,0.446,0.466,0.487,0.508,0.528,0.549,0.567,0.588,0.607,0.627,0.648,0.668,0.689,0.711,0.729,0.747,0.764,0.782,0.796,0.813,0.83,0.847,0.864,0.878,0.894,0.915,0.98],"c":[-0.012,0.002,0.013,-0.055,0.016,0.005,-0.068,0.02,-0.002,-0.046,0.014,-0.008,-0.035,0.012,-0.017,-0.035,0.012,-0.021,-0.036,0.013,-0.026,-0.041,0.015,-0.031,-0.048,0.018,-0.033,-0.052,0.019,-0.033,-0.062,0.022,-0.03,-0.06,0.021,-0.03,-0.069,0.023,-0.03,-0.062,0.021,-0.031,-0.056,0.019,-0.028,-0.046,0.016,-0.027,-0.039,0.014,-0.024,-0.029,0.011,-0.021,-0.021,0.008,-0.015,-0.012,0.004,-0.008,-0.003,0.001,0.001,0.006,-0.001,-0.005,0.013,-0.003,-0.012,0.01,-0.002,-0.006],"w":[0.047,0.916,0.507,0.24,0.194,0.149,0.109,0.084,0.067,0.073,0.064,0.073,0.089,0.125,0.179,0.238,0.294,0.429,0.593,0.609,0.596,0.457,0.192,0.102],"sm":[0.038,0.071,0.104,0.153,0.209,0.271,0.21,0.169,0.162,0.157,0.161,0.175,0.166,0.138,0.114,0.098,0.088,0.075,0.064,0.061,0.07,0.067,0.027,0.013],"n":[0.065,2.278,2.622,1.731,1.684,1.618,1.102,0.921,0.846,0.866,0.774,0.755,0.787,0.79,0.788,0.759,0.733,0.853,0.975,0.908,0.987,0.821,0.234,0.106],"sat":0.15},"blitz":{"hb":{"f":[0.002,0.126,0.067,0.013,0.397,0,0,0],"s":[0.702,0.613,0.361,0.237,0.39,0.386,0,0.172],"v":[0.346,0.481,0.157,0.137,0.58,0.317,0,0.114],"d":[9.451,-0.529,1.286,0.673,17.063,-27.659,0,9],"gs":0.431,"gv":0.501},"q":[0,0.026,0.033,0.039,0.045,0.052,0.058,0.066,0.073,0.081,0.091,0.102,0.114,0.127,0.143,0.16,0.18,0.2,0.222,0.242,0.263,0.283,0.303,0.325,0.347,0.369,0.39,0.411,0.43,0.449,0.465,0.48,0.492,0.504,0.513,0.524,0.533,0.542,0.549,0.558,0.566,0.574,0.582,0.591,0.6,0.608,0.617,0.626,0.635,0.645,0.654,0.663,0.673,0.682,0.692,0.701,0.71,0.72,0.73,0.742,0.752,0.764,0.776,0.792,0.933],"c":[0.001,0.001,-0.018,-0.002,0.003,-0.023,-0.005,0.004,-0.024,-0.01,0.005,-0.021,-0.011,0.005,-0.023,-0.014,0.006,-0.019,-0.018,0.007,-0.014,-0.015,0.006,-0.015,-0.019,0.007,-0.011,-0.018,0.006,-0.007,-0.021,0.007,-0.003,-0.02,0.006,0,-0.026,0.007,0.008,-0.029,0.007,0.014,-0.039,0.009,0.023,-0.039,0.009,0.022,-0.038,0.009,0.019,-0.037,0.009,0.017,-0.036,0.009,0.014,-0.028,0.008,0.006,-0.013,0.005,-0.011,-0.004,0.003,-0.023,-0.008,0.005,-0.025,0,0,0],"w":[1.296,1.651,0.875,0.51,0.353,0.296,0.259,0.217,0.193,0.185,0.146,0.139,0.124,0.168,0.242,0.49,0.802,0.853,0.737,0.191,0.033,0.017,0.002,0],"sm":[0.021,0.033,0.047,0.059,0.076,0.098,0.133,0.153,0.187,0.193,0.21,0.211,0.201,0.172,0.139,0.099,0.068,0.056,0.051,0.048,0.045,0.042,0.043,0],"n":[1.43,2.103,1.335,0.911,0.76,0.756,0.784,0.722,0.711,0.763,0.861,1.172,1.667,1.923,1.771,1.656,1.672,1.49,1.161,0.28,0.046,0.023,0.003,0],"sat":0.128},"highkey":{"hb":{"f":[0.019,0.087,0.24,0.013,0.171,0.076,0.002,0.002],"s":[0.369,0.663,0.766,0.515,0.417,0.198,0.189,0.197],"v":[0.627,0.592,0.787,0.443,0.49,0.803,0.663,0.609],"d":[4.261,-1.086,1.14,-5.031,17.011,-21.478,0.407,8.624],"gs":0.562,"gv":0.665},"q":[0,0.086,0.123,0.158,0.194,0.228,0.264,0.297,0.326,0.355,0.384,0.411,0.441,0.467,0.493,0.517,0.541,0.558,0.576,0.592,0.608,0.623,0.636,0.649,0.663,0.676,0.688,0.7,0.71,0.72,0.729,0.738,0.746,0.754,0.761,0.769,0.777,0.784,0.791,0.799,0.805,0.811,0.817,0.822,0.826,0.831,0.834,0.838,0.842,0.846,0.85,0.855,0.859,0.863,0.867,0.872,0.878,0.883,0.888,0.894,0.899,0.906,0.916,0.929,0.988],"c":[-0.008,0.003,-0.008,-0.021,0.006,-0.001,-0.024,0.007,-0.003,-0.009,0.004,-0.014,-0.015,0.005,-0.006,-0.029,0.007,0.011,-0.027,0.007,0.011,-0.041,0.01,0.024,-0.024,0.005,0.023,-0.028,0.006,0.024,-0.032,0.006,0.031,-0.025,0.005,0.023,-0.017,0.002,0.032,-0.015,0.001,0.034,-0.028,0.004,0.046,-0.016,0.001,0.04,-0.007,-0.002,0.041,-0.013,-0.001,0.044,-0.012,-0.001,0.044,-0.014,-0.001,0.052,-0.017,-0.001,0.061,-0.015,-0.001,0.05,-0.011,0,0.028,-0.003,0.001,-0.005],"w":[0.003,0.295,0.241,0.14,0.079,0.061,0.049,0.038,0.027,0.028,0.022,0.03,0.032,0.045,0.057,0.082,0.115,0.174,0.294,0.612,1.009,0.857,0.18,0.233],"sm":[0.013,0.031,0.054,0.083,0.115,0.13,0.147,0.178,0.204,0.231,0.242,0.266,0.282,0.301,0.303,0.294,0.289,0.309,0.273,0.185,0.134,0.27,0.274,0.019],"n":[0.003,0.367,0.425,0.429,0.465,0.441,0.45,0.535,0.536,0.573,0.555,0.602,0.686,0.899,1.026,1.186,1.341,1.761,2.093,2.977,3.581,2.416,0.398,0.256],"sat":0.222},"gold":{"hb":{"f":[0.039,0.059,0.005,0,0.673,0.048,0.005,0.008],"s":[0.546,0.663,0.619,0.364,0.602,0.356,0.304,0.343],"v":[0.279,0.588,0.818,0.255,0.824,0.449,0.118,0.132],"d":[-1.797,-3.542,-9.489,-12.544,20.849,-18.848,3.021,4.538],"gs":0.585,"gv":0.75},"q":[0,0.039,0.042,0.045,0.047,0.05,0.053,0.058,0.069,0.09,0.109,0.158,0.223,0.286,0.377,0.396,0.407,0.417,0.426,0.435,0.444,0.453,0.462,0.472,0.482,0.491,0.501,0.51,0.52,0.53,0.54,0.551,0.559,0.569,0.579,0.589,0.599,0.61,0.62,0.632,0.644,0.655,0.667,0.679,0.689,0.699,0.709,0.718,0.728,0.736,0.744,0.752,0.759,0.766,0.772,0.778,0.784,0.791,0.797,0.803,0.81,0.817,0.825,0.836,0.937],"c":[-0.005,-0.001,0.02,-0.004,-0.001,0.022,0.033,-0.01,0.006,0.034,-0.01,-0.005,0.043,-0.011,-0.013,0.029,-0.008,-0.007,0.033,-0.008,-0.015,0.022,-0.006,-0.007,0.031,-0.006,-0.029,0.029,-0.008,-0.008,0.011,-0.003,-0.006,0.01,-0.002,-0.009,0.018,-0.003,-0.027,0.017,-0.004,-0.007,0.028,-0.008,0,0,-0.001,0.013,0,-0.005,0.046,-0.039,0.005,0.063,-0.068,0.011,0.086,-0.047,0.007,0.067,-0.031,0.004,0.049,0.04,-0.006,-0.058,0.018,-0.001,-0.049,0,0,0],"w":[0.817,2.038,0.316,0.074,0.036,0.016,0.014,0.007,0.005,0.003,0.006,0.008,0.011,0.009,0.007,0.005,0.005,0.006,0.073,0.354,0.145,0.001,0.001,0],"sm":[0.021,0.027,0.062,0.098,0.142,0.193,0.22,0.237,0.341,0.501,0.507,0.493,0.459,0.433,0.389,0.336,0.271,0.208,0.149,0.109,0.092,0.19,0.112,0],"n":[0.901,2.399,0.637,0.24,0.236,0.264,0.235,0.172,0.166,1.183,1.732,1.631,1.579,1.618,1.474,1.337,1.517,1.823,2.393,2.066,0.382,0.011,0.005,0],"sat":0.318},"flare":{"hb":{"f":[0.036,0.441,0.036,0.035,0.24,0,0,0],"s":[0.838,0.707,0.629,0.358,0.653,0,0,0],"v":[0.563,0.549,0.43,0.383,0.566,0,0,0],"d":[11.521,-2.896,-1.817,9.139,-10.276,0,0,0],"gs":0.677,"gv":0.542},"q":[0,0.042,0.065,0.078,0.088,0.101,0.115,0.128,0.146,0.161,0.176,0.193,0.209,0.226,0.242,0.256,0.27,0.284,0.298,0.31,0.321,0.333,0.345,0.356,0.368,0.378,0.389,0.399,0.409,0.421,0.432,0.443,0.453,0.464,0.474,0.485,0.496,0.509,0.522,0.536,0.552,0.567,0.582,0.597,0.612,0.63,0.648,0.669,0.69,0.71,0.727,0.741,0.755,0.771,0.789,0.807,0.828,0.851,0.87,0.887,0.902,0.915,0.931,0.949,0.988],"c":[0.022,-0.004,-0.019,0.011,0.001,-0.045,0.011,0.002,-0.05,-0.014,0.008,-0.044,-0.031,0.014,-0.046,-0.048,0.019,-0.047,-0.056,0.021,-0.046,-0.052,0.021,-0.051,-0.034,0.017,-0.067,-0.038,0.019,-0.074,-0.048,0.022,-0.073,-0.038,0.019,-0.073,-0.051,0.023,-0.074,-0.045,0.019,-0.055,-0.047,0.02,-0.056,-0.028,0.013,-0.047,-0.027,0.011,-0.034,-0.027,0.01,-0.019,-0.006,0.004,-0.018,0.012,-0.002,-0.018,0.014,-0.003,-0.011,0.001,-0.001,0.003,-0.001,0,0.007,-0.002,0,0.007],"w":[0.308,0.552,0.319,0.107,0.049,0.02,0.011,0.006,0.005,0.004,0.005,0.005,0.003,0.006,0.008,0.021,0.047,0.123,0.22,0.339,0.505,0.941,0.816,0.164],"sm":[0.033,0.056,0.096,0.148,0.204,0.235,0.269,0.303,0.305,0.326,0.342,0.355,0.336,0.335,0.298,0.232,0.201,0.203,0.169,0.077,0.047,0.023,0.015,0.008],"n":[0.39,1.017,1.192,0.977,0.947,0.977,1.131,1.309,1.405,1.446,1.462,1.43,1.115,1.019,0.99,0.801,0.778,1.044,0.939,0.766,0.744,1.087,0.868,0.166],"sat":0.257}}/*END*/;
 
+const Z8=[0,0,0,0,0,0,0,0];
 const LOOKS = {
+  // ---- Referenz-Looks: Tonwerte, Farbstimmung und Farbton-Wiedergabe aus deinen Beispielbildern
   // Korn: Regler × 0,073 = Standardabweichung (am Referenzbild gemessen: Stadion 0,009 ≈ 0,12)
-  'Urban Moody':  {ref:'stadium',lookTone:.85,lookTint:1,lookSat:1,lookHue:.6, contrast:.1,clarity:.25,
+  'Urban Moody':  {group:'ref',ref:'stadium',lookTone:.85,lookTint:1,lookSat:1,lookHue:.45, contrast:.1,clarity:.25,
                    halation:.3,glowThr:.82,mist:.06,vignette:.12,grain:.12,grainSize:1.2,grainColor:.2},
-  'Blitz & Blau': {ref:'blitz',  lookTone:.85,lookTint:1,lookSat:1,lookHue:.6, contrast:.1,clarity:.3,
+  'Cool Flash':   {group:'ref',ref:'blitz',  lookTone:.85,lookTint:1,lookSat:1,lookHue:.45, contrast:.1,clarity:.3,
                    halation:.1,mist:.04,grain:.33,grainSize:1.3,grainColor:.3},
-  'High-Key Glow':{ref:'highkey',lookTone:.85,lookTint:1,lookSat:1,lookHue:.6, clarity:.1,
+  'High-Key Glow':{group:'ref',ref:'highkey',lookTone:.85,lookTint:1,lookSat:1,lookHue:.45, clarity:.1,
                    halation:.15,bloom:.25,mist:.3,glowRadius:3,glowThr:.6,grain:.06,grainSize:1.2},
-  'Gold 200':     {ref:'gold',   lookTone:.85,lookTint:.9,lookSat:1,lookHue:.6, clarity:.15,
+  'Golden Clear': {group:'ref',ref:'gold',   lookTone:.85,lookTint:.9,lookSat:1,lookHue:.45, clarity:.15,
                    halation:.05,mist:.04,vignette:.08,grain:.15,grainSize:1.2,grainColor:.3},
-  'Warmer Flare': {ref:'flare',  lookTone:.85,lookTint:1,lookSat:1,lookHue:.6, clarity:.2,
+  'Warm Flare':   {group:'ref',ref:'flare',  lookTone:.85,lookTint:1,lookSat:1,lookHue:.45, clarity:.2,
                    halation:.25,bloom:.1,mist:.1,leak:.55,leakHue:25,leakAngle:165,grain:.15,grainSize:1.3,grainColor:.3},
+
+  // ---- Film-Looks: nur eine Beschreibung des Ziels. Wie stark was wirkt, bestimmt das jeweilige Foto.
+  'Portra 400':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.1,bloom:.04,mist:.1,glowThr:.8,vignette:.08,grain:.16,grainSize:1.1,grainColor:.3,clarity:-.05,
+    spec:{black:.04,white:.965,range:.5,key:.5,push:.45,contrast:.3,sat:.92,awb:.8,
+      tint:{sh:[-.012,.004,.008],mid:[.012,.004,-.012],hi:[.018,.007,-.018]},
+      hue:{S:[.05,.08,0,-.12,-.08,-.12,-.1,0],H:[0,0,0,-.25,0,0,0,0],V:[0,.05,0,-.05,0,.05,0,0]}}},
+  'Cinestill Night':{group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.6,bloom:.15,mist:.12,glowThr:.78,glowRadius:2.8,vignette:.15,grain:.22,grainSize:1.3,grainColor:.35,clarity:.15,aberration:.15,
+    spec:{black:.03,white:.985,range:.35,key:.34,push:.35,contrast:.35,sat:1.12,awb:.4,
+      tint:{sh:[-.03,.012,.024],mid:[-.008,.003,.008],hi:[.016,-.002,-.02]},
+      hue:{S:[.1,.1,0,-.05,.1,.1,0,0],H:[0,0,0,0,-.1,0,0,0],V:[0,0,0,-.1,0,-.1,0,0]}}},
+  'Ektar Punch':  {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.03,vignette:.06,grain:.07,grainSize:.9,grainColor:.2,clarity:.25,
+    spec:{black:.02,white:.985,range:.6,key:.5,push:.3,contrast:.4,sat:1.28,awb:.7,
+      tint:{sh:[0,0,.004],mid:[.004,.001,-.004],hi:[.008,.003,-.008]},
+      hue:{S:[.15,.12,.05,.1,.05,.18,0,0],H:[0,0,0,0,0,-.05,0,0],V:[0,0,0,-.05,-.05,-.12,0,0]}}},
+  'Kodak Gold':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.06,mist:.08,glowThr:.8,vignette:.1,grain:.2,grainSize:1.2,grainColor:.35,clarity:.05,
+    spec:{black:.05,white:.96,range:.4,key:.52,push:.4,contrast:.2,sat:1.08,awb:.6,
+      tint:{sh:[.006,0,-.012],mid:[.022,.008,-.026],hi:[.032,.013,-.034]},
+      hue:{S:[.05,.1,.1,-.05,-.1,0,-.1,0],H:[0,0,.1,-.2,0,0,0,0],V:[0,.04,.05,0,0,-.05,0,0]}}},
+  'Fuji Verde':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.12,bloom:.04,mist:.06,vignette:.1,grain:.18,grainSize:1.2,grainColor:.4,clarity:.12,
+    spec:{black:.04,white:.97,range:.45,key:.46,push:.4,contrast:.28,sat:1.1,awb:.6,
+      tint:{sh:[-.02,.014,.008],mid:[-.008,.01,0],hi:[0,.004,-.006]},
+      hue:{S:[0,-.03,0,.1,.1,.05,0,-.1],H:[0,0,-.1,.25,.15,0,0,0],V:[0,0,0,-.1,-.05,-.05,0,0]}}},
+  'Tri-X Street': {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.2,grain:.3,grainSize:1.5,grainColor:0,clarity:.3,
+    spec:{black:.025,white:.985,range:.8,key:.45,push:.3,contrast:.5,sat:1,awb:1,
+      tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
 };
 
 /* =====================================================================
@@ -178,8 +209,8 @@ const HSL_DECL = HSL_KEYS.map(p=>'uniform float '+[...Array(8).keys()].map(i=>p+
 const HSL_ARR = HSL_KEYS.map(p=>`float ${p}[8]=float[8](${[...Array(8).keys()].map(i=>p+i).join(',')});`).join('\n  ');
 
 const FS_GRADE = HEAD + `
-uniform sampler2D uImg,uLook;
-uniform float lookOn,lookTone,lookTint,lookSat,lookHue;
+uniform sampler2D uImg,uLook,uLoc;
+uniform float lookOn,lookTone,lookTint,lookSat,lookHue,skinProtect,bwR,bwG,bwB;
 uniform float lkS[8],lkH[8],lkV[8];
 uniform float exposure,contrast,highlights,shadows,crush,fade,temp,tint,saturation,vibrance,bw,shHue,shAmt,mdHue,mdAmt,hiHue,hiAmt;
 ${HSL_DECL}
@@ -201,6 +232,11 @@ vec3 roll(vec3 x){ vec3 ov=max(x-.8,0.); return min(x,vec3(.8))+.2*(1.-exp(-ov/.
 void main(){
   ${HSL_ARR}
   vec3 x = texture(uImg,v).rgb;
+  // Hauttöne im Originalbild erkennen, damit Farb-Looks sie nicht verfärben
+  vec3 hs0 = rgb2hsv(x); float hdeg = hs0.x*360.;
+  float sk = smoothstep(2.,12.,hdeg)*(1.-smoothstep(38.,52.,hdeg))*smoothstep(.12,.25,hs0.y)*(1.-smoothstep(.6,.75,hs0.y))*smoothstep(.18,.35,hs0.z)*skinProtect;
+  float skm = 1.-.85*sk;
+  float ll = dot(texture(uLoc,v).rgb,LW);                 // lokale Helligkeit (weich), für bildabhängige Masken
 
   // 1) Look-Übertrag aus Referenz (Tonkurve + Farbstimmung je Helligkeit)
   if(lookOn>.5){
@@ -211,7 +247,7 @@ void main(){
     float Yn = mix(Y, L.r, lookTone);
     float k = clamp(Yn/max(Y,.05), .75, 1.35);
     vec3 ch = (x-Y)*mix(1.,k,lookTone)*mix(1.,Sr,lookSat);
-    ch += (L.gba-.5)*.6*lookTint;
+    ch += (L.gba-.5)*.6*lookTint*skm;
     x = vec3(Yn)+ch;
     float mn = min(x.r,min(x.g,x.b)), mx = max(x.r,max(x.g,x.b));
     if(mn<0.)  x = vec3(Yn)+(x-vec3(Yn))*(Yn/max(Yn-mn,1e-4));
@@ -228,7 +264,8 @@ void main(){
 
   // 3) Tonwerte
   float l = dot(x,LW);
-  float sm = 1.-smoothstep(0.,.55,l), hm = smoothstep(.45,1.,l);
+  float lm = mix(l,ll,.5);
+  float sm = 1.-smoothstep(0.,.55,lm), hm = smoothstep(.45,1.,lm);
   x += shadows*.3*sm + highlights*.3*hm;
   x = clamp(x,0.,1.);
   if(contrast>=0.) x = mix(x, x*x*(3.-2.*x), contrast);
@@ -241,8 +278,8 @@ void main(){
   for(int i=0;i<8;i++){
     float d = abs(mod(h-HC[i]+180.,360.)-180.);
     float w = max(0.,1.-d/HW[i]); w = w*w*(3.-2.*w);
-    w *= smoothstep(0.,.2,hsv.y);
-    dh += w*(hH[i]+lookHue*lookOn*lkH[i]); ds += w*(hS[i]+lookHue*lookOn*lkS[i]); dl += w*(hL[i]+lookHue*lookOn*lkV[i]);
+    w *= smoothstep(.04,.3,hsv.y);            // Fast-Graues nicht verfärben, sonst entstehen Flecken im Rauschen
+    dh += w*(hH[i]+lookHue*lookOn*lkH[i]*skm); ds += w*(hS[i]+lookHue*lookOn*lkS[i]*skm); dl += w*(hL[i]+lookHue*lookOn*lkV[i]*skm);
   }
   hsv.x = fract(hsv.x + dh*30./360.);
   hsv.y = clamp(hsv.y*(1.+ds), 0., 1.);
@@ -255,14 +292,15 @@ void main(){
   x = mix(vec3(l), x, 1.+saturation+vibrance*(1.-cs));
 
   // 6) Farbräder (Tiefen / Mitten / Lichter)
-  l = dot(x,LW);
+  l = mix(dot(x,LW),ll,.5);
   float sw = 1.-smoothstep(0.,.5,l), hw = smoothstep(.5,1.,l), mw = exp(-pow((l-.5)/.28,2.));
-  x += (hue(shHue/360.)-.5)*shAmt*.4*sw;
-  x += (hue(mdHue/360.)-.5)*mdAmt*.3*mw;
-  x += (hue(hiHue/360.)-.5)*hiAmt*.4*hw;
+  float wk = 1.-.7*sk;
+  x += (hue(shHue/360.)-.5)*shAmt*.4*sw*wk;
+  x += (hue(mdHue/360.)-.5)*mdAmt*.3*mw*wk;
+  x += (hue(hiHue/360.)-.5)*hiAmt*.4*hw*wk;
   x = clamp(x,0.,1.);
 
-  x = mix(x, vec3(dot(x,LW)), bw);
+  x = mix(x, vec3(dot(x,vec3(bwR,bwG,bwB))), bw);
   x = max(x-crush*.12,0.)/(1.-crush*.12);
   x = mix(vec3(fade*.4), vec3(1.-fade*.15), x);
   o = vec4(clamp(x,0.,1.),1.);
@@ -465,33 +503,20 @@ function satAt(st,y){
   }
   return sw<1e-3?null:{v:a/sw,conf:Math.min(1,sw/.35)};
 }
-function buildLook(src,ref){
-  const T=new Float32Array(256);
-  // Die Helligkeit des Fotos bleibt zu 70 % erhalten: Kontrastform, Schwarz- und Weißpunkt kommen aus der Referenz
-  const ms=Math.min(.95,Math.max(.03,src.q[32])), mr=Math.min(.95,Math.max(.03,ref.q[32]));
-  const g=Math.min(2.5,Math.max(.4,Math.log(ms)/Math.log(mr))), ge=Math.exp(.7*Math.log(g));
-  for(let i=0;i<256;i++) T[i]=Math.pow(qAt(ref.q,cdfAt(src.q,i/255)),ge);
+function finishCurve(T){
   const Ts=new Float32Array(256);
   for(let i=0;i<256;i++){ let s=0,n=0; for(let j=-7;j<=7;j++){ s+=T[Math.min(255,Math.max(0,i+j))]; n++; } Ts[i]=s/n; }
   // Steigung begrenzen, sonst werden Verläufe (Himmel) stufig; Endpunkte bleiben erhalten
   const T2=new Float32Array(256); let tot=0; const dl=new Float32Array(255);
-  for(let i=0;i<255;i++){ dl[i]=Math.min(2.6/255,Math.max(.3/255,Ts[i+1]-Ts[i])); tot+=dl[i]; }
+  for(let i=0;i<255;i++){ dl[i]=Math.min(2.0/255,Math.max(.35/255,Ts[i+1]-Ts[i])); tot+=dl[i]; }
   const span=Ts[255]-Ts[0], sc=tot>0?span/tot:1; T2[0]=Ts[0];
   for(let i=0;i<255;i++) T2[i+1]=T2[i]+dl[i]*sc;
-  const out=new Float32Array(256*4*2);
-  for(let i=0;i<256;i++){
-    const y=i/255, cs=chromaAt(src,y), cr=chromaAt(ref,T2[i]);
-    let d=[0,0,0];
-    if(cs&&cr){ const f=cs.conf*cr.conf; d=[(cr.v[0]-cs.v[0])*f,(cr.v[1]-cs.v[1])*f,(cr.v[2]-cs.v[2])*f]; }
-    out[i*4]=Math.min(1,Math.max(0,T2[i]));
-    for(let k=0;k<3;k++) out[i*4+1+k]=Math.min(1,Math.max(0,d[k]/.6+.5));
-    const ss=satAt(src,y), sr=satAt(ref,T2[i]);
-    let ratio=1; if(ss&&sr&&ss.v>.01){ ratio=1+(Math.min(1.7,Math.max(.6,sr.v/ss.v))-1)*ss.conf*sr.conf; }
-    out[1024+i*4]=Math.min(1,ratio/2); out[1024+i*4+3]=1;
-  }
-  // Farbtöne: nur Bänder, die in beiden Bildern vorkommen. Gemessen wird relativ zum Gesamtbild,
+  return T2;
+}
+function hueBands(src,ref){
+  // Farbtöne: nur Bänder, die in beiden Bildern vorkommen. Relativ zum Gesamtbild gemessen,
   // damit Tonwerte und Gesamtsättigung (oben schon übertragen) nicht doppelt zählen.
-  const S=new Float32Array(8), Hh=new Float32Array(8), V=new Float32Array(8);
+  const S=new Float32Array(8), H=new Float32Array(8), V=new Float32Array(8);
   if(src.hb&&ref.hb){
     for(let k=0;k<8;k++){
       const conf=Math.min(1,Math.min(src.hb.f[k],ref.hb.f[k])/.04);
@@ -500,17 +525,130 @@ function buildLook(src,ref){
       const rv=(ref.hb.v[k]/ref.hb.gv)/Math.max(.05,src.hb.v[k]/src.hb.gv);
       S[k]=(Math.min(1.6,Math.max(.6,rs))-1)*conf;
       V[k]=((Math.min(1.6,Math.max(.6,rv))-1)/.6)*conf;
-      Hh[k]=(Math.min(25,Math.max(-25,ref.hb.d[k]-src.hb.d[k]))/30)*conf;
+      H[k]=(Math.min(18,Math.max(-18,ref.hb.d[k]-src.hb.d[k]))/30)*conf;
     }
   }
-  return {tex:out,S,H:Hh,V};
+  return {S,H,V};
 }
-const statsOf=(src)=>{
+function satAt(st,y){
+  const sig=.07; let sw=0, a=0;
+  for(let i=0;i<NB;i++){
+    const yc=(i+.5)/NB, k=Math.exp(-((y-yc)*(y-yc))/(2*sig*sig))*st.n[i];
+    sw+=k; a+=k*st.sm[i];
+  }
+  return sw<1e-3?null:{v:a/sw,conf:Math.min(1,sw/.35)};
+}
+function pack(T2,tintAt,satRatioAt){
+  const out=new Float32Array(256*4*2);
+  for(let i=0;i<256;i++){
+    const d=tintAt(i/255,T2[i]);
+    out[i*4]=Math.min(1,Math.max(0,T2[i]));
+    for(let k=0;k<3;k++) out[i*4+1+k]=Math.min(1,Math.max(0,d[k]/.6+.5));
+    out[1024+i*4]=Math.min(1,satRatioAt(i/255,T2[i])/2); out[1024+i*4+3]=1;
+  }
+  return out;
+}
+// Je stärker die Anpassung, desto mehr bleibt die vorhandene Lichtstimmung des Fotos erhalten
+function adaptKeep(){ return state.adaptAmt; }
+// Variante A: Look aus einem Referenzbild
+function buildLook(src,ref){
+  const T=new Float32Array(256);
+  // Die Helligkeit des Fotos bleibt zu 70 % erhalten: Kontrastform, Schwarz- und Weißpunkt kommen aus der Referenz
+  const ms=Math.min(.95,Math.max(.03,src.q[32])), mr=Math.min(.95,Math.max(.03,ref.q[32]));
+  const g=Math.min(2.5,Math.max(.4,Math.log(ms)/Math.log(mr))), ge=Math.exp(.7*Math.log(g));
+  for(let i=0;i<256;i++) T[i]=Math.pow(qAt(ref.q,cdfAt(src.q,i/255)),ge);
+  const T2=finishCurve(T);
+  const tex=pack(T2,
+    (y,yo)=>{ const cs=chromaAt(src,y), cr=chromaAt(ref,yo); if(!(cs&&cr)) return [0,0,0]; const f=cs.conf*cr.conf, kp=.7*adaptKeep(); return [(cr.v[0]-cs.v[0]*(1-kp))*f,(cr.v[1]-cs.v[1]*(1-kp))*f,(cr.v[2]-cs.v[2]*(1-kp))*f]; },
+    (y,yo)=>{ const ss=satAt(src,y), sr=satAt(ref,yo); if(!(ss&&sr&&ss.v>.01)) return 1; return 1+(Math.min(1.7,Math.max(.6,sr.v/ss.v))-1)*ss.conf*sr.conf; });
+  return Object.assign({tex},hueBands(src,ref));
+}
+// Variante B: Film-Look aus einer Beschreibung. Alles wird an die Messwerte DIESES Fotos angepasst:
+// Tonumfang, Mitte der Belichtung, vorhandener Farbstich, Sättigung, vorkommende Farben.
+function buildSynth(src,spec,ad){
+  const lo=src.q[2], hi=src.q[62], span=Math.max(.2,hi-lo);
+  const m0=src.q[32];
+  const med=Math.min(.95,Math.max(.03,m0+(((m0-lo)/span)-m0)*spec.range*ad));      // Mitte nach dem Strecken
+  const keyT=Math.min(.95,Math.max(.05,med+(spec.key-med)*spec.push*ad));          // gewünschte Mitte, nur teilweise
+  const gam=Math.min(2.2,Math.max(.5,Math.log(keyT)/Math.log(med)));
+  const adc=1+(Math.min(1.3,Math.max(.5,1.3-span*.7))-1)*ad;           // schon kontrastreiche Fotos bekommen weniger Kontrast
+  const k=6, sig=y=>1/(1+Math.exp(-k*(y-keyT)));
+  const s0=sig(0), s1=sig(1);
+  const T=new Float32Array(256);
+  for(let i=0;i<256;i++){
+    const y=i/255;
+    let yn=Math.min(1,Math.max(0,(y-lo)/span)); yn=y+(yn-y)*spec.range*ad;           // Tonumfang strecken
+    yn=Math.pow(Math.min(1,Math.max(0,yn)),gam);                                       // Mitte verschieben
+    const sc=(sig(yn)-s0)/(s1-s0);
+    const y3=yn+(sc-yn)*spec.contrast*adc;
+    T[i]=spec.black+(spec.white-spec.black)*y3;
+  }
+  const T2=finishCurve(T);
+  const ti=spec.tint, mixv=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t), sm=t=>t*t*(3-2*t);
+  const tgt=y=>y<.5?mixv(ti.sh,ti.mid,sm(y/.5)):mixv(ti.mid,ti.hi,sm((y-.5)/.5));
+  const awb=spec.awb*ad;
+  const satEff=1+(spec.sat-1)*(1+(Math.min(1.1,Math.max(.35,1.4-src.sat*3.5))-1)*ad);   // schon kräftige Farben werden weniger angehoben
+  const tex=pack(T2,
+    (y)=>{ const t=tgt(y), cs=chromaAt(src,y); if(!cs) return t; const f=cs.conf*awb; return [t[0]-cs.v[0]*f,t[1]-cs.v[1]*f,t[2]-cs.v[2]*f]; },
+    ()=>satEff);
+  const S=new Float32Array(8), H=new Float32Array(8), V=new Float32Array(8);
+  for(let b=0;b<8;b++){
+    const conf=src.hb?(1+(Math.min(1,src.hb.f[b]/.03)-1)*ad):1;                        // nur Farben, die im Foto vorkommen
+    S[b]=(spec.hue.S[b]||0)*conf; H[b]=(spec.hue.H[b]||0)*conf; V[b]=((spec.hue.V[b]||0)/.6)*conf;
+  }
+  return {tex,S,H,V};
+}
+
+const statsOf=(src,wantLayout)=>{
   const w0=src.width,h0=src.height,s=192/Math.max(w0,h0);
   const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w0*s)); c.height=Math.max(1,Math.round(h0*s));
   const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(src,0,0,c.width,c.height);
-  return lookStats(g.getImageData(0,0,c.width,c.height).data);
+  const data=g.getImageData(0,0,c.width,c.height).data;
+  const st=lookStats(data);
+  if(wantLayout){                                           // Helligkeit von Mitte, Ecken und Rändern
+    const W=c.width,H=c.height, Y=(x,y)=>{const i=(y*W+x)*4; return (.2126*data[i]+.7152*data[i+1]+.0722*data[i+2])/255;};
+    const avg=(x0,y0,x1,y1)=>{let a=0,n=0; for(let y=Math.floor(y0*H);y<Math.ceil(y1*H);y++) for(let x=Math.floor(x0*W);x<Math.ceil(x1*W);x++){a+=Y(x,y);n++;} return n?a/n:0;};
+    const center=avg(.3,.3,.7,.7);
+    const corner=(avg(0,0,.2,.2)+avg(.8,0,1,.2)+avg(0,.8,.2,1)+avg(.8,.8,1,1))/4;
+    st.lay={cornerRatio:Math.min(1.5,corner/Math.max(.02,center)), edge:[avg(.88,.1,1,.9),avg(.1,0,.9,.12),avg(0,.1,.12,.9),avg(.1,.88,.9,1)]};   // rechts, oben, links, unten
+  }
+  return st;
 };
+function analyze(st){
+  const q=st.q, cdf=y=>cdfAt(q,y), f=st.hb.f;
+  const A={med:q[32],lo:q[2],hi:q[62],q95:q[61],spread:q[62]-q[2],bright:1-cdf(.82),clip:1-cdf(.97),shadow:cdf(.12),sat:st.sat,
+           blue:f[4]+f[5],green:f[3],warm:f[0]+f[1],lay:st.lay};
+  const e=st.lay.edge, mi=e.indexOf(Math.max(...e)); A.edgeAngle=[0,90,180,270][mi];
+  return A;
+}
+function describe(A){
+  const exp=A.med<.28?'dunkel':A.med>.55?'hell':'normal';
+  const con=A.spread<.5?'niedrig':A.spread>.8?'hoch':'mittel';
+  const dom=A.green>.15&&A.green>A.blue?'Grün':A.blue>.15?'Blau':A.warm>.12?'Warmtöne':'wenig Farbe';
+  const lights=A.bright>.2?'viel helle Fläche':A.bright>.015&&A.med<.4?'einzelne Lichtquellen':'kaum Lichter';
+  return `Analyse: Belichtung ${exp}, Kontrast ${con}, ${dom}, ${lights}`;
+}
+// Effekte je Foto anpassen: Glow nur wo Lichter sind, Vignette nur wo die Ecken nicht schon dunkel sind usw.
+function adaptEffects(base){
+  const A=analysis, ad=state.adaptAmt; if(!A) return {};
+  const cl=(v,a,b)=>Math.min(b,Math.max(a,v)), mv=(a,b)=>a+(b-a)*ad, o={};
+  const presence=cl(Math.sqrt(A.bright/.012),.12,1);                    // gibt es überhaupt helle Stellen?
+  const light=presence*cl(1.2-A.bright*4,.3,1)*cl(1.3-A.med*1.3,.35,1);
+  if(base.halation!=null) o.halation=base.halation*mv(1,light);
+  if(base.bloom!=null) o.bloom=base.bloom*mv(1,light);
+  if(base.mist!=null) o.mist=base.mist*mv(1,cl(.7+(1-A.med)*.6,.6,1.2));
+  o.glowThr=cl((base.glowThr!=null?base.glowThr:.7)+(A.q95-.88)*.8*ad,.5,.93);
+  if(base.vignette!=null) o.vignette=base.vignette*mv(1,cl(1.2-(1-A.lay.cornerRatio)*2.2,.2,1.2));
+  if(base.grain!=null) o.grain=base.grain*mv(1,cl(1.35-A.med,.8,1.3));
+  if(base.leak) o.leakAngle=ad>=.5?A.edgeAngle:(base.leakAngle!=null?base.leakAngle:160);
+  if(base.bwAdapt){                                              // S/W: Farbfilter nach dominanter Farbe wählen
+    let w=[.30,.59,.11];
+    if(A.blue>.22) w=[.55,.40,.05]; else if(A.green>.25) w=[.32,.56,.12]; else if(A.warm>.2) w=[.24,.50,.26];
+    const n=[.2126,.7152,.0722];
+    o.bwR=n[0]+(w[0]-n[0])*ad; o.bwG=n[1]+(w[1]-n[1])*ad; o.bwB=n[2]+(w[2]-n[2])*ad;
+  }
+  return o;
+}
 
 /* =====================================================================
    Zustand
@@ -519,7 +657,7 @@ const state = {...DEFAULTS};
 let seed=17.3, comparing=false;
 let img=null, srcStats=null;
 let gradeF,blurA,blurB,blurC,blurD;
-let lookTex=null, activeRef=null, lookBands=null;
+let lookTex=null, activeRef=null, activeSpec=null, lookBands=null, locA=null, locB=null, analysis=null, curLook=null, curBase={};
 
 function setU(p,name,val){
   const loc=gl.getUniformLocation(p,name); if(loc===null) return;
@@ -532,8 +670,9 @@ function bindTex(unit,tex,p,name){
 }
 
 function rebuildLook(){
-  if(!img||!srcStats||!activeRef) return;
-  const built=buildLook(srcStats,activeRef); const data=built.tex; lookBands=built;
+  if(!img||!srcStats||!(activeRef||activeSpec)){ lookBands=null; return; }
+  const built=activeRef?buildLook(srcStats,activeRef):buildSynth(srcStats,activeSpec,state.adaptAmt);
+  lookBands=built;
   if(lookTex) gl.deleteTexture(lookTex);
   lookTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,lookTex);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
@@ -541,7 +680,7 @@ function rebuildLook(){
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,256,2,0,gl.RGBA,gl.FLOAT,data);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA16F,256,2,0,gl.RGBA,gl.FLOAT,built.tex);
 }
 
 /* =====================================================================
@@ -554,7 +693,7 @@ function render(){
   if(!img) return;
   const {w,h}=img;
   gl.disable(gl.BLEND);
-  const useLook = !!(activeRef&&lookTex);
+  const useLook = !!(lookTex&&(activeRef||activeSpec));
   // 1) Grading
   gl.bindFramebuffer(gl.FRAMEBUFFER,gradeF.fb); gl.viewport(0,0,w,h);
   gl.useProgram(P.grade); setParams(P.grade);
@@ -566,7 +705,7 @@ function render(){
     gl.uniform1fv(gl.getUniformLocation(P.grade,'lkH'),lookBands.H);
     gl.uniform1fv(gl.getUniformLocation(P.grade,'lkV'),lookBands.V);
   }
-  bindTex(0,img.tex,P.grade,'uImg');
+  bindTex(0,img.tex,P.grade,'uImg'); bindTex(2,locB.tex,P.grade,'uLoc');
   if(useLook) bindTex(1,lookTex,P.grade,'uLook');
   gl.drawArrays(gl.TRIANGLES,0,3);
   // 2) Glow (hell, 1/4 Auflösung) und Diffusion (gesamtes Bild, weiter)
@@ -604,6 +743,15 @@ async function toBitmap(file){
   try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }
   catch(e){ return await createImageBitmap(file); }
 }
+function computeLoc(){
+  // weich gezeichnete Kopie des Fotos: liefert die lokale Helligkeit für bildabhängige Masken
+  const w=Math.max(2,Math.round(img.w/8)), h=Math.max(2,Math.round(img.h/8));
+  locA=makeFbo(w,h); locB=makeFbo(w,h);
+  gl.useProgram(P.blur); setU(P.blur,'uThr',0); gl.disable(gl.BLEND);
+  const lp=(tex,dst,dir)=>{ gl.bindFramebuffer(gl.FRAMEBUFFER,dst.fb); gl.viewport(0,0,dst.w,dst.h);
+    bindTex(0,tex,P.blur,'uT'); setU(P.blur,'uDir',dir); setU(P.blur,'uUseThr',0); gl.drawArrays(gl.TRIANGLES,0,3); };
+  lp(img.tex,locA,[3/w,0]); lp(locA.tex,locB,[0,3/h]); lp(locB.tex,locA,[6/w,0]); lp(locA.tex,locB,[0,6/h]);
+}
 async function loadFile(file){
   if(!file||!file.type.startsWith('image/')) return;
   const bmp=await toBitmap(file);
@@ -613,11 +761,13 @@ async function loadFile(file){
   c.getContext('2d').drawImage(bmp,0,0,w,h);
   cv.width=w; cv.height=h;
   img={tex:makeTex(w,h,c),w,h};
-  srcStats=statsOf(c);
+  srcStats=statsOf(c,true); analysis=analyze(srcStats);
+  document.getElementById('analysis').textContent=describe(analysis);
   gradeF=makeFbo(w,h);
   const qw=Math.max(2,Math.round(w/4)), qh=Math.max(2,Math.round(h/4));
   blurA=makeFbo(qw,qh); blurB=makeFbo(qw,qh); blurC=makeFbo(qw,qh); blurD=makeFbo(qw,qh);
-  rebuildLook();
+  computeLoc();
+  if(curLook) applyPreset(curLook); else reapplyAdaptive();
   document.getElementById('drop').style.display='none';
   cv.style.display='block';
   applyZoom();
@@ -652,7 +802,7 @@ function makeSlider(parent,label,min,max,step,val,onInput,onReset,fmtFn){
     }
     if(p.open) groups[p.g].open=true;
     inputs[p.k]=makeSlider(groups[p.g],p.l,p.min,p.max,p.step,p.def,
-      v=>{ state[p.k]=v; }, ()=>{ state[p.k]=p.def; return p.def; }, v=>fmt(p,v));
+      v=>{ state[p.k]=v; if(p.k==='adaptAmt') reapplyAdaptive(); }, ()=>{ state[p.k]=p.def; if(p.k==='adaptAmt') reapplyAdaptive(); return p.def; }, v=>fmt(p,v));
   }
   // Farbmixer
   const d=document.createElement('details'); d.innerHTML='<summary>Farbmixer</summary>';
@@ -677,9 +827,13 @@ function makeSlider(parent,label,min,max,step,val,onInput,onReset,fmtFn){
   refresh();
 
   const lk=document.getElementById('looks');
-  const mk=(name)=>{ const b=document.createElement('button'); b.textContent=name; b.onclick=()=>applyPreset(name); lk.appendChild(b); };
-  mk('Original');
-  for(const name in LOOKS) mk(name);
+  const mk=(name,parent)=>{ const b=document.createElement('button'); b.textContent=name; b.onclick=()=>applyPreset(name); parent.appendChild(b); };
+  mk('Original',lk);
+  for(const [grp,label] of [['film','Film-Looks (passen sich dem Foto an)'],['ref','Referenz-Looks']]){
+    const h=document.createElement('div'); h.className='sec'; h.textContent=label; lk.appendChild(h);
+    const row=document.createElement('div'); row.className='looks'; lk.appendChild(row);
+    for(const name in LOOKS) if(LOOKS[name].group===grp) mk(name,row);
+  }
 })();
 
 function syncInputs(){
@@ -687,15 +841,25 @@ function syncInputs(){
   inputs.__hsl.refresh();
 }
 function setActiveRef(st,label){
-  activeRef=st; document.getElementById('refName').textContent=label?('Aktiv: '+label+'.'):'';
+  activeRef=st; activeSpec=null; document.getElementById('refName').textContent=label?('Aktiv: '+label+'.'):'';
   rebuildLook();
 }
+function reapplyAdaptive(){
+  Object.assign(state,adaptEffects(curBase));
+  rebuildLook(); schedule();
+}
 function applyPreset(name){
-  Object.assign(state,DEFAULTS);
-  const pre=LOOKS[name]||{};
-  for(const k in pre){ if(k!=='ref') state[k]=pre[k]; }
-  if(pre.ref&&LOOKSTATS[pre.ref]) setActiveRef(LOOKSTATS[pre.ref],name); else setActiveRef(null,'');
-  syncInputs(); schedule();
+  const keep={adaptAmt:state.adaptAmt,skinProtect:state.skinProtect};
+  curLook=name==='Original'?null:name;
+  const pre=LOOKS[name]||{}, base={};
+  for(const k in pre){ if(k!=='ref'&&k!=='spec'&&k!=='group') base[k]=pre[k]; }
+  curBase=base;
+  Object.assign(state,DEFAULTS,base,keep);
+  activeRef=pre.ref&&LOOKSTATS[pre.ref]?LOOKSTATS[pre.ref]:null;
+  activeSpec=pre.spec||null;
+  document.getElementById('refName').textContent=curLook?('Aktiv: '+name+'.'):'';
+  Object.assign(state,adaptEffects(base));
+  rebuildLook(); syncInputs(); schedule();
 }
 
 document.getElementById('reset').onclick=()=>applyPreset('Original');
@@ -708,7 +872,7 @@ document.getElementById('refBtn').onclick=()=>refIn.click();
 refIn.onchange=async()=>{
   const f=refIn.files[0]; if(!f) return;
   const bmp=await toBitmap(f);
-  Object.assign(state,{lookTone:.8,lookTint:1,lookSat:1,lookHue:.8});
+  curLook=null; curBase={}; Object.assign(state,{lookTone:.8,lookTint:1,lookSat:1,lookHue:.45});
   setActiveRef(statsOf(bmp),'eigene Referenz');
   syncInputs(); schedule();
 };
