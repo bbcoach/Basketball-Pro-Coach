@@ -11,13 +11,15 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;height:100dvh;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-  .app{display:grid;grid-template-columns:1fr 340px;height:100%}
+  .app{display:grid;grid-template-columns:1fr 360px;height:100%}
   .stage{position:relative;display:flex;align-items:center;justify-content:center;padding:16px;min-width:0;min-height:0}
+  .stage.zoom{overflow:auto;align-items:flex-start;justify-content:flex-start}
   canvas#gl{max-width:100%;max-height:100%;box-shadow:0 10px 50px #000a;display:none;touch-action:none}
+  canvas#gl.zoom{max-width:none;max-height:none;touch-action:auto}
   .drop{border:1.5px dashed var(--line);border-radius:14px;padding:48px 36px;text-align:center;color:var(--dim);cursor:pointer;max-width:420px}
   .drop b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
   .drop.over{border-color:var(--accent);color:var(--text)}
-  .panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:14px 14px 40px}
+  .panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:14px 14px 60px}
   h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin:2px 0 12px;font-weight:600}
   h1 span{color:var(--accent)}
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -25,19 +27,22 @@
   button:hover{border-color:#555}
   button.primary{background:var(--accent);color:#1a1000;border-color:var(--accent);font-weight:600}
   button.on{border-color:var(--accent);color:var(--accent)}
-  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
-  .presets button{padding:6px 10px;font-size:12.5px}
+  .looks{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .looks button{padding:6px 10px;font-size:12.5px;min-height:34px}
+  .sec{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:14px 0 6px}
   details{border-top:1px solid var(--line);padding:8px 0}
   summary{cursor:pointer;font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:4px 0}
   details[open] summary{color:var(--text)}
-  .ctl{display:grid;grid-template-columns:104px 1fr 38px;align-items:center;gap:8px;margin:6px 0;font-size:12.5px;color:#c9c6c1}
+  .ctl{display:grid;grid-template-columns:112px 1fr 40px;align-items:center;gap:8px;margin:6px 0;font-size:12.5px;color:#c9c6c1}
   .ctl output{color:var(--dim);text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px}
-  input[type=range]{width:100%;touch-action:pan-y;accent-color:var(--accent);margin:0}
-  input[type=text]{background:#111;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;font:inherit}
-  label.chk{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:13px}
-  .hint{color:var(--dim);font-size:12px;margin-top:10px}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0;touch-action:pan-y}
+  .bands{display:flex;gap:8px;margin:6px 0 4px}
+  .bands button{width:30px;height:30px;min-height:0;padding:0;border-radius:50%;border:2px solid transparent}
+  .bands button.sel{border-color:#fff}
+  .note{color:var(--dim);font-size:12px;margin:6px 0}
+  #refName{color:var(--accent)}
   @media (max-width:820px){
-    .app{grid-template-columns:1fr;grid-template-rows:52% 48%}
+    .app{grid-template-columns:1fr;grid-template-rows:50% 50%}
     .panel{border-left:0;border-top:1px solid var(--line)}
     .stage{padding:8px}
   }
@@ -54,85 +59,104 @@
     <div class="row">
       <button id="open">Foto öffnen</button>
       <button id="cmp" title="Gedrückt halten für Vorher/Nachher">Vorher (halten)</button>
+      <button id="zoom" title="100 %-Ansicht, um Korn zu beurteilen">100 %</button>
     </div>
     <div class="row">
       <button class="primary" id="png">Export PNG</button>
       <button id="jpg">Export JPG</button>
       <button id="reset">Reset</button>
     </div>
-    <div class="presets" id="presets"></div>
+
+    <div class="sec">Looks</div>
+    <div class="looks" id="looks"></div>
+    <div class="row"><button id="refBtn">+ Eigenes Referenzbild</button></div>
+    <div class="note" id="refInfo">Look wählen oder ein Referenzbild laden. Das Tool überträgt Tonwerte und Farbverlauf des Referenzbilds auf dein Foto. <span id="refName"></span></div>
+
     <div id="controls"></div>
-    <details>
-      <summary>Datumsstempel</summary>
-      <label class="chk"><input type="checkbox" id="dateOn"> Aktiv</label>
-      <input type="text" id="dateText">
-    </details>
-    <details open>
-      <summary>Zufall</summary>
-      <div class="row" style="margin-top:6px"><button id="reseed">Korn / Staub neu würfeln</button></div>
-    </details>
-    <p class="hint">Tipp: Erst Preset wählen, dann Korn, Halation und Lichtleck nach Geschmack nachjustieren. Export hat maximal 3200 px auf der langen Kante.</p>
+    <p class="note">Doppeltippen auf einen Regler setzt ihn zurück. Die Vorschau ist verkleinert, mit „100 %“ siehst du das Korn so, wie es im Export aussieht.</p>
   </div>
 </div>
 <input type="file" id="file" accept="image/*" hidden>
+<input type="file" id="refFile" accept="image/*" hidden>
 
 <script>
 'use strict';
-/* ---------- Parameter-Definition (Uniform-Name = key) ---------- */
+/* =====================================================================
+   Parameter. Der Schlüssel ist zugleich der Uniform-Name im Shader.
+   ===================================================================== */
 const PARAMS = [
-  // Licht
-  {g:'Licht',k:'exposure',l:'Belichtung',min:-2,max:2,def:0,step:.01},
-  {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01},
+  {g:'Look-Übertrag',k:'lookTone',l:'Tonwerte',min:0,max:1,def:0,step:.01,open:1},
+  {g:'Look-Übertrag',k:'lookTint',l:'Farbstimmung',min:0,max:1.5,def:0,step:.01,open:1},
+  {g:'Look-Übertrag',k:'lookSat',l:'Sättigung',min:0,max:1,def:0,step:.01,open:1},
+
+  {g:'Licht',k:'exposure',l:'Belichtung',min:-2,max:2,def:0,step:.01,open:1},
+  {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01,open:1},
   {g:'Licht',k:'highlights',l:'Lichter',min:-1,max:1,def:0,step:.01},
   {g:'Licht',k:'shadows',l:'Tiefen',min:-1,max:1,def:0,step:.01},
   {g:'Licht',k:'crush',l:'Schwarz absaufen',min:0,max:1,def:0,step:.01},
   {g:'Licht',k:'fade',l:'Fade (Schwarz anheben)',min:0,max:.4,def:0,step:.005},
-  // Farbe
-  {g:'Farbe',k:'temp',l:'Temperatur',min:-1,max:1,def:0,step:.01},
+
+  {g:'Farbe',k:'temp',l:'Temperatur',min:-1,max:1,def:0,step:.01,open:1},
   {g:'Farbe',k:'tint',l:'Tint (Grün–Magenta)',min:-1,max:1,def:0,step:.01},
-  {g:'Farbe',k:'saturation',l:'Sättigung',min:-1,max:1,def:0,step:.01},
+  {g:'Farbe',k:'saturation',l:'Sättigung',min:-1,max:1,def:0,step:.01,open:1},
+  {g:'Farbe',k:'vibrance',l:'Dynamik',min:-1,max:1,def:0,step:.01},
   {g:'Farbe',k:'bw',l:'Schwarzweiß',min:0,max:1,def:0,step:.01},
-  // Split Toning
-  {g:'Split-Toning',k:'shHue',l:'Tiefen Farbton',min:0,max:360,def:200,step:1},
-  {g:'Split-Toning',k:'shAmt',l:'Tiefen Stärke',min:0,max:1,def:0,step:.01},
-  {g:'Split-Toning',k:'hiHue',l:'Lichter Farbton',min:0,max:360,def:40,step:1},
-  {g:'Split-Toning',k:'hiAmt',l:'Lichter Stärke',min:0,max:1,def:0,step:.01},
-  // Glow
+
+  {g:'Farbräder',k:'shHue',l:'Tiefen Farbton',min:0,max:360,def:200,step:1},
+  {g:'Farbräder',k:'shAmt',l:'Tiefen Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Farbräder',k:'mdHue',l:'Mitten Farbton',min:0,max:360,def:40,step:1},
+  {g:'Farbräder',k:'mdAmt',l:'Mitten Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Farbräder',k:'hiHue',l:'Lichter Farbton',min:0,max:360,def:40,step:1},
+  {g:'Farbräder',k:'hiAmt',l:'Lichter Stärke',min:0,max:1,def:0,step:.01},
+
+  {g:'Licht',k:'clarity',l:'Klarheit (lokaler Kontrast)',min:-1,max:1,def:0,step:.01,open:1},
   {g:'Glow',k:'halation',l:'Halation (roter Hof)',min:0,max:1,def:0,step:.01},
   {g:'Glow',k:'bloom',l:'Bloom',min:0,max:1,def:0,step:.01},
+  {g:'Glow',k:'mist',l:'Diffusion (Pro-Mist)',min:0,max:1,def:0,step:.01},
   {g:'Glow',k:'glowRadius',l:'Radius',min:.5,max:5,def:2,step:.05},
   {g:'Glow',k:'glowThr',l:'Schwelle',min:.3,max:.95,def:.7,step:.01},
-  // Linse
-  {g:'Linse',k:'fisheye',l:'Fisheye',min:0,max:1,def:0,step:.01},
-  {g:'Linse',k:'vignette',l:'Vignette',min:0,max:1,def:0,step:.01},
-  {g:'Linse',k:'aberration',l:'Chrom. Aberration',min:0,max:1,def:0,step:.01},
-  // Korn
-  {g:'Korn',k:'grain',l:'Korn Stärke',min:0,max:1,def:0,step:.01},
-  {g:'Korn',k:'grainSize',l:'Korngröße',min:.5,max:4,def:1.4,step:.05},
-  {g:'Korn',k:'grainColor',l:'Farbkorn',min:0,max:1,def:.3,step:.01},
-  // Lichtleck
-  {g:'Lichtleck',k:'leak',l:'Stärke',min:0,max:1,def:0,step:.01},
-  {g:'Lichtleck',k:'leakHue',l:'Farbton',min:0,max:360,def:20,step:1},
-  {g:'Lichtleck',k:'leakAngle',l:'Richtung',min:0,max:360,def:20,step:1},
-  // Staub
-  {g:'Staub & Kratzer',k:'dust',l:'Menge',min:0,max:1,def:0,step:.01},
-];
-const DEFAULTS = Object.fromEntries(PARAMS.map(p=>[p.k,p.def]));
 
-const PRESETS = {
-  'Original':      {},
-  'Warm Fade':     {exposure:.1,contrast:-.05,fade:.12,temp:.35,saturation:-.1,shHue:190,shAmt:.4,hiHue:35,hiAmt:.35,halation:.35,glowRadius:2.2,vignette:.3,grain:.45,grainSize:1.6,dust:.2},
-  'Cinestill 800T':{temp:-.25,contrast:.1,shadows:.1,shHue:200,shAmt:.35,hiHue:20,hiAmt:.2,halation:.9,glowRadius:3,glowThr:.62,bloom:.3,grain:.6,vignette:.25,aberration:.3,saturation:.1},
-  'Wegwerfkamera': {exposure:.2,contrast:.25,temp:.3,saturation:.15,fade:.08,hiHue:50,hiAmt:.3,vignette:.55,grain:.5,bloom:.25,aberration:.4,leak:.3,leakHue:20,leakAngle:20,dust:.35,_date:true},
-  'Pangea Fisheye':{contrast:.2,saturation:.25,crush:.3,temp:.1,shHue:15,shAmt:.3,hiHue:200,hiAmt:.15,halation:.4,glowRadius:2.5,bloom:.2,fisheye:.7,vignette:.3,aberration:.5,grain:.35,grainSize:1.1,grainColor:.3,leak:.35,leakHue:15,leakAngle:40,dust:.1},
-  'Pangea Clean':  {contrast:.2,saturation:.2,crush:.25,temp:.08,shHue:20,shAmt:.25,hiHue:190,hiAmt:.15,halation:.2,bloom:.25,vignette:.12,aberration:.15,grain:.25,grainSize:1.1,leak:.3,leakHue:30,leakAngle:300},
-  'Fuji Grün':     {tint:-.3,contrast:.12,saturation:.1,fade:.06,shHue:150,shAmt:.3,halation:.2,vignette:.2,grain:.4},
-  'Tri-X S/W':     {bw:1,contrast:.35,fade:.06,halation:.15,vignette:.4,grain:.8,grainSize:1.8,grainColor:0,dust:.15},
-  'Golden Leak':   {exposure:.15,temp:.5,saturation:.05,fade:.1,hiHue:40,hiAmt:.5,halation:.5,bloom:.35,leak:.8,leakHue:25,leakAngle:330,grain:.4},
-  'Cross Process': {contrast:.3,saturation:.35,tint:.15,fade:.05,shHue:160,shAmt:.5,hiHue:55,hiAmt:.5,vignette:.3,grain:.35},
+  {g:'Linse',k:'vignette',l:'Vignette',min:0,max:1,def:0,step:.01},
+  {g:'Linse',k:'fisheye',l:'Fisheye',min:0,max:1,def:0,step:.01},
+  {g:'Linse',k:'aberration',l:'Farbsäume',min:0,max:1,def:0,step:.01},
+
+  {g:'Korn',k:'grain',l:'Stärke',min:0,max:1,def:0,step:.01,open:1},
+  {g:'Korn',k:'grainSize',l:'Größe',min:.5,max:4,def:1.3,step:.05,open:1},
+  {g:'Korn',k:'grainColor',l:'Farbkorn',min:0,max:1,def:.3,step:.01},
+
+  {g:'Lichtleck / Flare',k:'leak',l:'Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Lichtleck / Flare',k:'leakHue',l:'Farbton',min:0,max:360,def:25,step:1},
+  {g:'Lichtleck / Flare',k:'leakAngle',l:'Richtung',min:0,max:360,def:160,step:1},
+];
+const HSL_NAMES=['Rot','Orange','Gelb','Grün','Aqua','Blau','Violett','Magenta'];
+const HSL_COLORS=['#e5342b','#f08a24','#e8d23a','#3fb34f','#2fc4c0','#3a6fe0','#8a4fd8','#d84fb0'];
+const HSL_KEYS=['hH','hS','hL'];
+const DEFAULTS = Object.fromEntries(PARAMS.map(p=>[p.k,p.def]));
+for(const k of HSL_KEYS) for(let i=0;i<8;i++) DEFAULTS[k+i]=0;
+
+/* =====================================================================
+   Referenz-Statistiken (aus den Referenzfotos gemessen, keine Bilddaten)
+   q: 65 Quantile der Luma-Verteilung, c: mittlere Chroma (r-Y,g-Y,b-Y) in 24
+   Helligkeits-Bändern, w: Gewicht je Band, sat: mittlere Chroma-Länge.
+   ===================================================================== */
+const LOOKSTATS = /*LOOKSTATS*/{"stadium":{"q":[0,0.058,0.065,0.07,0.075,0.079,0.084,0.089,0.093,0.098,0.104,0.11,0.117,0.125,0.133,0.142,0.151,0.161,0.17,0.18,0.189,0.197,0.207,0.216,0.225,0.234,0.244,0.256,0.269,0.285,0.3,0.317,0.334,0.352,0.372,0.389,0.407,0.426,0.446,0.466,0.487,0.508,0.528,0.549,0.567,0.588,0.607,0.627,0.648,0.668,0.689,0.711,0.729,0.747,0.764,0.782,0.796,0.813,0.83,0.847,0.864,0.878,0.894,0.915,0.98],"c":[-0.012,0.002,0.013,-0.055,0.016,0.005,-0.068,0.02,-0.002,-0.046,0.014,-0.008,-0.035,0.012,-0.017,-0.035,0.012,-0.021,-0.036,0.013,-0.026,-0.041,0.015,-0.031,-0.048,0.018,-0.033,-0.052,0.019,-0.033,-0.062,0.022,-0.03,-0.06,0.021,-0.03,-0.069,0.023,-0.03,-0.062,0.021,-0.031,-0.056,0.019,-0.028,-0.046,0.016,-0.027,-0.039,0.014,-0.024,-0.029,0.011,-0.021,-0.021,0.008,-0.015,-0.012,0.004,-0.008,-0.003,0.001,0.001,0.006,-0.001,-0.005,0.013,-0.003,-0.012,0.01,-0.002,-0.006],"w":[0.047,0.916,0.507,0.24,0.194,0.149,0.109,0.084,0.067,0.073,0.064,0.073,0.089,0.125,0.179,0.238,0.294,0.429,0.593,0.609,0.596,0.457,0.192,0.102],"sm":[0.038,0.071,0.104,0.153,0.209,0.271,0.21,0.169,0.162,0.157,0.161,0.175,0.166,0.138,0.114,0.098,0.088,0.075,0.064,0.061,0.07,0.067,0.027,0.013],"n":[0.065,2.278,2.622,1.731,1.684,1.618,1.102,0.921,0.846,0.866,0.774,0.755,0.787,0.79,0.788,0.759,0.733,0.853,0.975,0.908,0.987,0.821,0.234,0.106],"sat":0.15},"blitz":{"q":[0,0.026,0.033,0.039,0.045,0.052,0.058,0.066,0.073,0.081,0.091,0.102,0.114,0.127,0.143,0.16,0.18,0.2,0.222,0.242,0.263,0.283,0.303,0.325,0.347,0.369,0.39,0.411,0.43,0.449,0.465,0.48,0.492,0.504,0.513,0.524,0.533,0.542,0.549,0.558,0.566,0.574,0.582,0.591,0.6,0.608,0.617,0.626,0.635,0.645,0.654,0.663,0.673,0.682,0.692,0.701,0.71,0.72,0.73,0.742,0.752,0.764,0.776,0.792,0.933],"c":[0.001,0.001,-0.018,-0.002,0.003,-0.023,-0.005,0.004,-0.024,-0.01,0.005,-0.021,-0.011,0.005,-0.023,-0.014,0.006,-0.019,-0.018,0.007,-0.014,-0.015,0.006,-0.015,-0.019,0.007,-0.011,-0.018,0.006,-0.007,-0.021,0.007,-0.003,-0.02,0.006,0,-0.026,0.007,0.008,-0.029,0.007,0.014,-0.039,0.009,0.023,-0.039,0.009,0.022,-0.038,0.009,0.019,-0.037,0.009,0.017,-0.036,0.009,0.014,-0.028,0.008,0.006,-0.013,0.005,-0.011,-0.004,0.003,-0.023,-0.008,0.005,-0.025,0,0,0],"w":[1.296,1.651,0.875,0.51,0.353,0.296,0.259,0.217,0.193,0.185,0.146,0.139,0.124,0.168,0.242,0.49,0.802,0.853,0.737,0.191,0.033,0.017,0.002,0],"sm":[0.021,0.033,0.047,0.059,0.076,0.098,0.133,0.153,0.187,0.193,0.21,0.211,0.201,0.172,0.139,0.099,0.068,0.056,0.051,0.048,0.045,0.042,0.043,0],"n":[1.43,2.103,1.335,0.911,0.76,0.756,0.784,0.722,0.711,0.763,0.861,1.172,1.667,1.923,1.771,1.656,1.672,1.49,1.161,0.28,0.046,0.023,0.003,0],"sat":0.128},"highkey":{"q":[0,0.086,0.123,0.158,0.194,0.228,0.264,0.297,0.326,0.355,0.384,0.411,0.441,0.467,0.493,0.517,0.541,0.558,0.576,0.592,0.608,0.623,0.636,0.649,0.663,0.676,0.688,0.7,0.71,0.72,0.729,0.738,0.746,0.754,0.761,0.769,0.777,0.784,0.791,0.799,0.805,0.811,0.817,0.822,0.826,0.831,0.834,0.838,0.842,0.846,0.85,0.855,0.859,0.863,0.867,0.872,0.878,0.883,0.888,0.894,0.899,0.906,0.916,0.929,0.988],"c":[-0.008,0.003,-0.008,-0.021,0.006,-0.001,-0.024,0.007,-0.003,-0.009,0.004,-0.014,-0.015,0.005,-0.006,-0.029,0.007,0.011,-0.027,0.007,0.011,-0.041,0.01,0.024,-0.024,0.005,0.023,-0.028,0.006,0.024,-0.032,0.006,0.031,-0.025,0.005,0.023,-0.017,0.002,0.032,-0.015,0.001,0.034,-0.028,0.004,0.046,-0.016,0.001,0.04,-0.007,-0.002,0.041,-0.013,-0.001,0.044,-0.012,-0.001,0.044,-0.014,-0.001,0.052,-0.017,-0.001,0.061,-0.015,-0.001,0.05,-0.011,0,0.028,-0.003,0.001,-0.005],"w":[0.003,0.295,0.241,0.14,0.079,0.061,0.049,0.038,0.027,0.028,0.022,0.03,0.032,0.045,0.057,0.082,0.115,0.174,0.294,0.612,1.009,0.857,0.18,0.233],"sm":[0.013,0.031,0.054,0.083,0.115,0.13,0.147,0.178,0.204,0.231,0.242,0.266,0.282,0.301,0.303,0.294,0.289,0.309,0.273,0.185,0.134,0.27,0.274,0.019],"n":[0.003,0.367,0.425,0.429,0.465,0.441,0.45,0.535,0.536,0.573,0.555,0.602,0.686,0.899,1.026,1.186,1.341,1.761,2.093,2.977,3.581,2.416,0.398,0.256],"sat":0.222},"gold":{"q":[0,0.039,0.042,0.045,0.047,0.05,0.053,0.058,0.069,0.09,0.109,0.158,0.223,0.286,0.377,0.396,0.407,0.417,0.426,0.435,0.444,0.453,0.462,0.472,0.482,0.491,0.501,0.51,0.52,0.53,0.54,0.551,0.559,0.569,0.579,0.589,0.599,0.61,0.62,0.632,0.644,0.655,0.667,0.679,0.689,0.699,0.709,0.718,0.728,0.736,0.744,0.752,0.759,0.766,0.772,0.778,0.784,0.791,0.797,0.803,0.81,0.817,0.825,0.836,0.937],"c":[-0.005,-0.001,0.02,-0.004,-0.001,0.022,0.033,-0.01,0.006,0.034,-0.01,-0.005,0.043,-0.011,-0.013,0.029,-0.008,-0.007,0.033,-0.008,-0.015,0.022,-0.006,-0.007,0.031,-0.006,-0.029,0.029,-0.008,-0.008,0.011,-0.003,-0.006,0.01,-0.002,-0.009,0.018,-0.003,-0.027,0.017,-0.004,-0.007,0.028,-0.008,0,0,-0.001,0.013,0,-0.005,0.046,-0.039,0.005,0.063,-0.068,0.011,0.086,-0.047,0.007,0.067,-0.031,0.004,0.049,0.04,-0.006,-0.058,0.018,-0.001,-0.049,0,0,0],"w":[0.817,2.038,0.316,0.074,0.036,0.016,0.014,0.007,0.005,0.003,0.006,0.008,0.011,0.009,0.007,0.005,0.005,0.006,0.073,0.354,0.145,0.001,0.001,0],"sm":[0.021,0.027,0.062,0.098,0.142,0.193,0.22,0.237,0.341,0.501,0.507,0.493,0.459,0.433,0.389,0.336,0.271,0.208,0.149,0.109,0.092,0.19,0.112,0],"n":[0.901,2.399,0.637,0.24,0.236,0.264,0.235,0.172,0.166,1.183,1.732,1.631,1.579,1.618,1.474,1.337,1.517,1.823,2.393,2.066,0.382,0.011,0.005,0],"sat":0.318},"flare":{"q":[0,0.042,0.065,0.078,0.088,0.101,0.115,0.128,0.146,0.161,0.176,0.193,0.209,0.226,0.242,0.256,0.27,0.284,0.298,0.31,0.321,0.333,0.345,0.356,0.368,0.378,0.389,0.399,0.409,0.421,0.432,0.443,0.453,0.464,0.474,0.485,0.496,0.509,0.522,0.536,0.552,0.567,0.582,0.597,0.612,0.63,0.648,0.669,0.69,0.71,0.727,0.741,0.755,0.771,0.789,0.807,0.828,0.851,0.87,0.887,0.902,0.915,0.931,0.949,0.988],"c":[0.022,-0.004,-0.019,0.011,0.001,-0.045,0.011,0.002,-0.05,-0.014,0.008,-0.044,-0.031,0.014,-0.046,-0.048,0.019,-0.047,-0.056,0.021,-0.046,-0.052,0.021,-0.051,-0.034,0.017,-0.067,-0.038,0.019,-0.074,-0.048,0.022,-0.073,-0.038,0.019,-0.073,-0.051,0.023,-0.074,-0.045,0.019,-0.055,-0.047,0.02,-0.056,-0.028,0.013,-0.047,-0.027,0.011,-0.034,-0.027,0.01,-0.019,-0.006,0.004,-0.018,0.012,-0.002,-0.018,0.014,-0.003,-0.011,0.001,-0.001,0.003,-0.001,0,0.007,-0.002,0,0.007],"w":[0.308,0.552,0.319,0.107,0.049,0.02,0.011,0.006,0.005,0.004,0.005,0.005,0.003,0.006,0.008,0.021,0.047,0.123,0.22,0.339,0.505,0.941,0.816,0.164],"sm":[0.033,0.056,0.096,0.148,0.204,0.235,0.269,0.303,0.305,0.326,0.342,0.355,0.336,0.335,0.298,0.232,0.201,0.203,0.169,0.077,0.047,0.023,0.015,0.008],"n":[0.39,1.017,1.192,0.977,0.947,0.977,1.131,1.309,1.405,1.446,1.462,1.43,1.115,1.019,0.99,0.801,0.778,1.044,0.939,0.766,0.744,1.087,0.868,0.166],"sat":0.257}}/*END*/;
+
+const LOOKS = {
+  'Stadion Nacht':{ref:'stadium',lookTone:.8,lookTint:1,lookSat:1, contrast:.15,clarity:.35,saturation:-.05,shHue:175,shAmt:.25,hiHue:38,hiAmt:.2,
+                   hS0:.25,hH3:-.2,hL3:-.25, halation:.5,bloom:.3,mist:.25,glowRadius:2.6,glowThr:.62,vignette:.3,grain:.35,grainSize:1.2,grainColor:.3},
+  'Blitz & Blau': {ref:'blitz',  lookTone:.8,lookTint:1,lookSat:1, contrast:.2,clarity:.4,crush:.2,hS1:.3,hS5:.15,
+                   halation:.15,mist:.1,vignette:.15,grain:.6,grainSize:1.4,grainColor:.4},
+  'High-Key Glow':{ref:'highkey',lookTone:.8,lookTint:1,lookSat:1, exposure:.05,contrast:.1,clarity:.15,vibrance:.3,hS2:.3,
+                   halation:.2,bloom:.45,mist:.5,glowRadius:3,glowThr:.55,aberration:.25,grain:.3,grainSize:1.2},
+  'Gold 200':     {ref:'gold',   lookTone:.8,lookTint:.8,lookSat:1, temp:.12,contrast:.18,clarity:.2,hiHue:42,hiAmt:.25,hS5:.35,hL5:-.2,hS1:.15,
+                   halation:.1,mist:.08,vignette:.12,grain:.5,grainSize:1.2,grainColor:.35},
+  'Warmer Flare': {ref:'flare',  lookTone:.8,lookTint:1,lookSat:1, contrast:.15,clarity:.25,shHue:25,shAmt:.3,hS1:.2,hS4:.2,
+                   halation:.4,bloom:.25,mist:.2,leak:.7,leakHue:25,leakAngle:165,grain:.6,grainSize:1.6,grainColor:.35},
 };
 
-/* ---------- Shader ---------- */
+/* =====================================================================
+   Shader
+   ===================================================================== */
 const VS = `#version 300 es
 out vec2 v;
 void main(){
@@ -145,27 +169,96 @@ precision highp float;
 in vec2 v; out vec4 o;
 const vec3 LW = vec3(.2126,.7152,.0722);
 vec3 hue(float h){ return clamp(abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.); }
+vec3 toLin(vec3 c){ c=max(c,0.); return mix(c/12.92, pow((c+.055)/1.055, vec3(2.4)), step(.04045,c)); }
+vec3 toSrgb(vec3 c){ c=max(c,0.); return mix(c*12.92, 1.055*pow(c,vec3(1./2.4))-.055, step(.0031308,c)); }
 `;
+const HSL_DECL = HSL_KEYS.map(p=>'uniform float '+[...Array(8).keys()].map(i=>p+i).join(',')+';').join('\n');
+const HSL_ARR = HSL_KEYS.map(p=>`float ${p}[8]=float[8](${[...Array(8).keys()].map(i=>p+i).join(',')});`).join('\n  ');
 
 const FS_GRADE = HEAD + `
-uniform sampler2D uImg;
-uniform float crush,exposure,contrast,highlights,shadows,fade,temp,tint,saturation,bw,shHue,shAmt,hiHue,hiAmt;
+uniform sampler2D uImg,uLook;
+uniform float lookOn,lookTone,lookTint,lookSat;
+uniform float exposure,contrast,highlights,shadows,crush,fade,temp,tint,saturation,vibrance,bw,shHue,shAmt,mdHue,mdAmt,hiHue,hiAmt;
+${HSL_DECL}
+const float HC[8]=float[8](0.,30.,60.,120.,180.,240.,270.,315.);
+const float HW[8]=float[8](45.,35.,45.,65.,65.,60.,50.,50.);
+vec3 rgb2hsv(vec3 c){
+  vec4 K=vec4(0.,-1./3.,2./3.,-1.);
+  vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g));
+  vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r));
+  float d=q.x-min(q.w,q.y); float e=1e-10;
+  return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)),d/(q.x+e),q.x);
+}
+vec3 hsv2rgb(vec3 c){
+  vec4 K=vec4(1.,2./3.,1./3.,3.);
+  vec3 p=abs(fract(c.xxx+K.xyz)*6.-K.www);
+  return c.z*mix(K.xxx,clamp(p-K.xxx,0.,1.),c.y);
+}
+vec3 roll(vec3 x){ vec3 ov=max(x-.8,0.); return min(x,vec3(.8))+.2*(1.-exp(-ov/.2)); }
 void main(){
+  ${HSL_ARR}
   vec3 x = texture(uImg,v).rgb;
-  x *= exp2(exposure);
-  x += vec3(temp*.08, temp*.01, -temp*.08);
-  x += vec3(tint*.03, -tint*.05, tint*.03);
+
+  // 1) Look-Übertrag aus Referenz (Tonkurve + Farbstimmung je Helligkeit)
+  if(lookOn>.5){
+    float Y = dot(x,LW);
+    float u = clamp(Y,0.,1.)*(255./256.)+.5/256.;
+    vec4 L = texture(uLook, vec2(u,.25));
+    float Sr = texture(uLook, vec2(u,.75)).r*2.;
+    float Yn = mix(Y, L.r, lookTone);
+    float k = clamp(Yn/max(Y,.05), .75, 1.35);
+    vec3 ch = (x-Y)*mix(1.,k,lookTone)*mix(1.,Sr,lookSat);
+    ch += (L.gba-.5)*.6*lookTint;
+    x = vec3(Yn)+ch;
+    float mn = min(x.r,min(x.g,x.b)), mx = max(x.r,max(x.g,x.b));
+    if(mn<0.)  x = vec3(Yn)+(x-vec3(Yn))*(Yn/max(Yn-mn,1e-4));
+    if(mx>1.)  x = vec3(Yn)+(x-vec3(Yn))*((1.-Yn)/max(mx-Yn,1e-4));
+    x = clamp(x,0.,1.);
+  }
+
+  // 2) Belichtung und Weißabgleich in Linearlicht
+  vec3 c = toLin(x)*exp2(exposure);
+  c.r *= 1.+temp*.25+tint*.04;
+  c.g *= 1.-tint*.12;
+  c.b *= 1.-temp*.25+tint*.04;
+  x = roll(toSrgb(c));
+
+  // 3) Tonwerte
   float l = dot(x,LW);
-  float sm = 1.-smoothstep(0.,.6,l), hm = smoothstep(.4,1.,l);
+  float sm = 1.-smoothstep(0.,.55,l), hm = smoothstep(.45,1.,l);
   x += shadows*.3*sm + highlights*.3*hm;
-  x = (x-.5)*(1.+contrast)+.5;
   x = clamp(x,0.,1.);
+  if(contrast>=0.) x = mix(x, x*x*(3.-2.*x), contrast);
+  else x = mix(x, vec3(.5)+(x-.5)*.55, -contrast);
+
+  // 4) Farbmixer (8 Bänder)
+  vec3 hsv = rgb2hsv(x);
+  float h = hsv.x*360.;
+  float dh=0., ds=0., dl=0.;
+  for(int i=0;i<8;i++){
+    float d = abs(mod(h-HC[i]+180.,360.)-180.);
+    float w = max(0.,1.-d/HW[i]); w = w*w*(3.-2.*w);
+    w *= smoothstep(0.,.2,hsv.y);
+    dh += w*hH[i]; ds += w*hS[i]; dl += w*hL[i];
+  }
+  hsv.x = fract(hsv.x + dh*30./360.);
+  hsv.y = clamp(hsv.y*(1.+ds), 0., 1.);
+  hsv.z = clamp(hsv.z*(1.+dl*.6), 0., 1.);
+  x = hsv2rgb(hsv);
+
+  // 5) Sättigung und Dynamik
   l = dot(x,LW);
-  x = mix(vec3(l),x,1.+saturation);
-  sm = 1.-smoothstep(0.,.6,l); hm = smoothstep(.4,1.,l);
-  x += (hue(shHue/360.)-.5)*shAmt*.35*sm;
-  x += (hue(hiHue/360.)-.5)*hiAmt*.35*hm;
+  float cs = max(x.r,max(x.g,x.b))-min(x.r,min(x.g,x.b));
+  x = mix(vec3(l), x, 1.+saturation+vibrance*(1.-cs));
+
+  // 6) Farbräder (Tiefen / Mitten / Lichter)
+  l = dot(x,LW);
+  float sw = 1.-smoothstep(0.,.5,l), hw = smoothstep(.5,1.,l), mw = exp(-pow((l-.5)/.28,2.));
+  x += (hue(shHue/360.)-.5)*shAmt*.4*sw;
+  x += (hue(mdHue/360.)-.5)*mdAmt*.3*mw;
+  x += (hue(hiHue/360.)-.5)*hiAmt*.4*hw;
   x = clamp(x,0.,1.);
+
   x = mix(x, vec3(dot(x,LW)), bw);
   x = max(x-crush*.12,0.)/(1.-crush*.12);
   x = mix(vec3(fade*.4), vec3(1.-fade*.15), x);
@@ -187,67 +280,70 @@ void main(){
 }`;
 
 const FS_FINAL = HEAD + `
-uniform sampler2D uG,uB,uDate,uOrig;
-uniform vec2 res; uniform float dateOn,compare,seed;
-uniform float fisheye,halation,bloom,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle,dust;
+uniform sampler2D uG,uB,uC,uOrig;
+uniform vec2 res; uniform float compare,seed;
+uniform float fisheye,clarity,halation,bloom,mist,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle;
 float h21(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
+float vn(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(h21(i),h21(i+vec2(1.,0.)),f.x), mix(h21(i+vec2(0.,1.)),h21(i+vec2(1.,1.)),f.x), f.y);
+}
+// Korn: zwei weiche Oktaven plus feiner Anteil, ungefähr gaußverteilt
+float gn(vec2 p, float s){
+  return (vn(p+s)-.5)*1.7 + (vn(p*2.2+11.+s*1.3)-.5)*1.3 + (h21(floor(p*1.25)+s*.7)-.5)*.9;
+}
 void main(){
   if(compare>.5){ o=vec4(texture(uOrig,v).rgb,1.); return; }
-  vec2 c = v-.5; float asp = res.x/res.y;
-  // Fisheye: Quellkoordinaten nach aussen schieben, ausserhalb des Bildes = schwarz
-  vec2 sc2 = vec2(asp,1.);
+  vec2 c = v-.5; float asp = res.x/res.y; vec2 sc2 = vec2(asp,1.);
+
+  // Fisheye: Quellkoordinaten nach außen schieben, außerhalb des Bildes schwarz
   vec2 pp = c*sc2; float r2 = dot(pp,pp);
   vec2 uvd = (pp*(1.+fisheye*.8*r2))/sc2+.5;
-  vec2 ab = (uvd-.5)*aberration*.012;
-  vec2 ed = min(uvd,1.-uvd)*vec2(res.x,res.y)/res.y*18.;
-  float inb = smoothstep(0.,1.,min(ed.x,ed.y));
+  vec2 ab = (uvd-.5)*aberration*.010;
+  vec2 ep = min(uvd,1.-uvd)*res;
+  float inb = fisheye>0. ? clamp(min(ep.x,ep.y)/2.,0.,1.) : 1.;
   vec3 x = vec3(texture(uG,uvd+ab).r, texture(uG,uvd).g, texture(uG,uvd-ab).b);
-  vec3 b = texture(uB,uvd).rgb;
-  x += b*vec3(1.,.28,.1)*halation*1.0;
-  x += b*bloom*.5;
-  x *= inb;
 
-  // Lichtleck
+  // Klarheit: lokaler Kontrast gegen weich gezeichnete Version
+  x = clamp(x + (x - texture(uC,uvd).rgb)*clarity*.9, 0., 1.);
+
+  // Glow in Linearlicht: Licht addiert sich physikalisch
+  vec3 lin = toLin(x);
+  vec3 bl = toLin(texture(uB,uvd).rgb);
+  vec3 mi = toLin(texture(uC,uvd).rgb);
+  lin += bl*vec3(1.,.30,.09)*halation*1.3;     // Halation: Licht streut an der Filmrückseite, rot-orange
+  lin += bl*bloom*.7;
+  lin = mix(lin, mi, mist*.38) + max(mi-lin,0.)*mist*.2;   // Diffusionsfilter
+
+  // Lichtleck / Flare: heißer Kern, farbiger Rand
   float a = radians(leakAngle);
   vec2 cc = .5+vec2(cos(a),sin(a))*.62;
-  vec2 d = (v-cc)*vec2(asp,1.);
-  float lk = exp(-dot(d,d)*5.5)*(.8+.2*sin(v.y*7.+v.x*3.));
-  vec3 lc = mix(hue(leakHue/360.),vec3(1.,.45,.1),.3);
-  x = 1.-(1.-x)*(1.-lc*lk*leak);
+  vec2 d = (v-cc)*sc2;
+  float lk = exp(-dot(d,d)*5.0);
+  vec3 base = hue(leakHue/360.);
+  vec3 lc = mix(base*1.1, mix(base,vec3(1.),.7), smoothstep(.25,1.,lk));
+  lin += lc*lk*leak*1.1;
+  x = toSrgb(lin)*inb;
 
   // Vignette
-  float vg = smoothstep(.2,.75,length(c*vec2(asp>1.?1.:asp, asp>1.?1./asp:1.))*1.5);
+  vec2 vc = c*vec2(asp>1.?1.:asp, asp>1.?1./asp:1.);
+  float vg = smoothstep(.2,.75,length(vc)*1.5);
   x *= 1.-vignette*vg;
 
-  // Staub & Kratzer
-  vec2 p = v*res; float cell = res.y/14.; vec2 ci = floor(p/cell); float sp = 0.;
-  for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++){
-    vec2 id = ci+vec2(float(i),float(j));
-    if(h21(id+seed*.37) < dust*.35){
-      vec2 ctr = (id+vec2(h21(id+3.1),h21(id+7.7)))*cell;
-      float rad = (.6+h21(id+9.9)*2.2)*res.y/1100.;
-      sp += smoothstep(rad,rad*.4,length(p-ctr))*(.5+.5*h21(id+1.3));
-    }
-  }
-  x = mix(x, vec3(.93,.91,.86), clamp(sp,0.,1.)*.75);
-  float sc = h21(vec2(floor(p.x/(res.y/500.)), floor(seed)));
-  x += step(sc, dust*.004)*(.5+.5*sin(p.y*.02+sc*100.))*.18;
-
   // Korn
-  vec2 gp = floor(gl_FragCoord.xy/max(.5,grainSize*res.y/1000.));
-  float n = (h21(gp+seed)+h21(gp*1.7+seed+11.)+h21(gp+seed*2.+31.)-1.5)*2.;
-  vec3 nc = vec3(h21(gp+seed+5.),h21(gp+seed+17.),h21(gp+seed+29.))-.5;
+  vec2 gp = gl_FragCoord.xy/max(.5,grainSize*res.y/1100.);
+  float n  = gn(gp,seed);
+  vec3 nc  = vec3(gn(gp+3.7,seed+5.),gn(gp+8.1,seed+9.),gn(gp+1.9,seed+13.));
   float l = dot(x,LW);
-  float mask = .35+.65*(1.-pow(abs(l*2.-1.),2.));
-  x += mix(vec3(n), nc*3.4, grainColor)*grain*.17*mask;
+  float mask = .3+.7*(1.-pow(abs(l*2.-1.),1.6));
+  x += mix(vec3(n), nc, grainColor)*grain*.2*mask;
 
-  // Datum
-  vec4 dt = texture(uDate,v);
-  x = mix(x, dt.rgb, dt.a*dateOn);
   o = vec4(clamp(x,0.,1.),1.);
 }`;
 
-/* ---------- GL Setup ---------- */
+/* =====================================================================
+   GL-Setup
+   ===================================================================== */
 const cv = document.getElementById('gl');
 const gl = cv.getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
 if(!gl){ document.getElementById('drop').innerHTML='<b>WebGL2 nicht verfügbar</b>Bitte einen aktuellen Browser nutzen.'; }
@@ -284,12 +380,106 @@ function makeFbo(w,h){
   return {tex,fb,w,h};
 }
 
-/* ---------- State ---------- */
+/* =====================================================================
+   Look-Übertrag: Statistik messen und daraus eine 1D-Tabelle bauen.
+   Übertragen werden Tonkurve und Farbstimmung je Helligkeit, nicht die
+   Bildinhalte. Ein blauer Himmel im Referenzbild färbt dein Foto also nicht blau.
+   ===================================================================== */
+const NB=24;
+function lookStats(px){
+  const n=px.length/4;
+  const hist=new Float64Array(256);
+  const cw=new Float64Array(NB), cr=new Float64Array(NB), cg=new Float64Array(NB), cb=new Float64Array(NB), cm=new Float64Array(NB), cn=new Float64Array(NB);
+  let satSum=0, satN=0;
+  for(let i=0;i<n;i++){
+    const r=px[i*4]/255, g=px[i*4+1]/255, b=px[i*4+2]/255;
+    const y=.2126*r+.7152*g+.0722*b;
+    hist[Math.round(y*255)]++;
+    const dr=r-y, dg=g-y, db=b-y, m=Math.hypot(dr,dg,db);
+    const wgt=Math.exp(-(m/.07)*(m/.07));        // nur fast neutrale Pixel bestimmen die Tönung, bunte Bildinhalte (Himmel, Haut) nicht
+    const bin=Math.min(NB-1,Math.floor(y*NB));
+    cw[bin]+=wgt; cr[bin]+=wgt*dr; cg[bin]+=wgt*dg; cb[bin]+=wgt*db; cm[bin]+=m; cn[bin]++;
+    if(y>.12&&y<.88){ satSum+=m; satN++; }
+  }
+  const q=[]; let acc=0, k=0;
+  for(let i=0;i<256&&k<=64;i++){
+    const next=acc+hist[i];
+    while(k<=64 && k/64*n<=next){
+      const f=hist[i]>0?(k/64*n-acc)/hist[i]:0;
+      q.push((i+f)/255); k++;
+    }
+    acc=next;
+  }
+  while(q.length<65) q.push(1);
+  const c=[], w=[], sm=[], nn=[];
+  for(let b=0;b<NB;b++){
+    const s=cw[b]||1e-9;
+    c.push(cr[b]/s, cg[b]/s, cb[b]/s);
+    w.push(cw[b]/n*NB);
+    sm.push(cn[b]?cm[b]/cn[b]:0); nn.push(cn[b]/n*NB);
+  }
+  const r3=a=>a.map(v=>Math.round(v*1000)/1000);
+  return {q:r3(q), c:r3(c), w:r3(w), sm:r3(sm), n:r3(nn), sat:Math.round((satSum/Math.max(1,satN))*1000)/1000};
+}
+function qAt(q,u){ const f=Math.min(Math.max(u,0),1)*64, i=Math.min(63,Math.floor(f)); return q[i]+(q[i+1]-q[i])*(f-i); }
+function cdfAt(q,y){
+  if(y<=q[0]) return 0; if(y>=q[64]) return 1;
+  let lo=0, hi=64;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(q[m]<=y) lo=m; else hi=m; }
+  const d=q[hi]-q[lo]; return (lo+(d>1e-6?(y-q[lo])/d:.5))/64;
+}
+function chromaAt(st,y){
+  const sig=.07; let sw=0, a=0,b=0,c=0;
+  for(let i=0;i<NB;i++){
+    const yc=(i+.5)/NB, k=Math.exp(-((y-yc)*(y-yc))/(2*sig*sig))*st.w[i];
+    sw+=k; a+=k*st.c[i*3]; b+=k*st.c[i*3+1]; c+=k*st.c[i*3+2];
+  }
+  return sw<1e-3?null:{v:[a/sw,b/sw,c/sw],conf:Math.min(1,sw/.1)};
+}
+function satAt(st,y){
+  const sig=.07; let sw=0, a=0;
+  for(let i=0;i<NB;i++){
+    const yc=(i+.5)/NB, k=Math.exp(-((y-yc)*(y-yc))/(2*sig*sig))*st.n[i];
+    sw+=k; a+=k*st.sm[i];
+  }
+  return sw<1e-3?null:{v:a/sw,conf:Math.min(1,sw/.35)};
+}
+function buildLook(src,ref){
+  const T=new Float32Array(256);
+  // Die Helligkeit des Fotos bleibt zu 70 % erhalten: Kontrastform, Schwarz- und Weißpunkt kommen aus der Referenz
+  const ms=Math.min(.95,Math.max(.03,src.q[32])), mr=Math.min(.95,Math.max(.03,ref.q[32]));
+  const g=Math.min(2.5,Math.max(.4,Math.log(ms)/Math.log(mr))), ge=Math.exp(.7*Math.log(g));
+  for(let i=0;i<256;i++) T[i]=Math.pow(qAt(ref.q,cdfAt(src.q,i/255)),ge);
+  const T2=new Float32Array(256);
+  for(let i=0;i<256;i++){ let s=0,n=0; for(let j=-3;j<=3;j++){ s+=T[Math.min(255,Math.max(0,i+j))]; n++; } T2[i]=s/n; }
+  const out=new Uint8Array(256*4*2);
+  for(let i=0;i<256;i++){
+    const y=i/255, cs=chromaAt(src,y), cr=chromaAt(ref,T2[i]);
+    let d=[0,0,0];
+    if(cs&&cr){ const f=cs.conf*cr.conf; d=[(cr.v[0]-cs.v[0])*f,(cr.v[1]-cs.v[1])*f,(cr.v[2]-cs.v[2])*f]; }
+    out[i*4]=Math.round(Math.min(1,Math.max(0,T2[i]))*255);
+    for(let k=0;k<3;k++) out[i*4+1+k]=Math.round(Math.min(1,Math.max(0,d[k]/.6+.5))*255);
+    const ss=satAt(src,y), sr=satAt(ref,T2[i]);
+    let ratio=1; if(ss&&sr&&ss.v>.01){ ratio=1+(Math.min(1.7,Math.max(.6,sr.v/ss.v))-1)*ss.conf*sr.conf; }
+    out[1024+i*4]=Math.round(Math.min(1,ratio/2)*255); out[1024+i*4+3]=255;
+  }
+  return out;
+}
+const statsOf=(src)=>{
+  const w0=src.width,h0=src.height,s=192/Math.max(w0,h0);
+  const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w0*s)); c.height=Math.max(1,Math.round(h0*s));
+  const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(src,0,0,c.width,c.height);
+  return lookStats(g.getImageData(0,0,c.width,c.height).data);
+};
+
+/* =====================================================================
+   Zustand
+   ===================================================================== */
 const state = {...DEFAULTS};
-let dateOn=false, dateText=(()=>{const d=new Date();return `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getDate()).padStart(2,'0')}`;})();
-let seed = 17.3, comparing=false;
-let img=null; // {tex,w,h}
-let gradeF,blurA,blurB,dateTex;
+let seed=17.3, comparing=false;
+let img=null, srcStats=null;
+let gradeF,blurA,blurB,blurC,blurD;
+let lookTex=null, activeRef=null;
 
 function setU(p,name,val){
   const loc=gl.getUniformLocation(p,name); if(loc===null) return;
@@ -301,7 +491,22 @@ function bindTex(unit,tex,p,name){
   gl.uniform1i(gl.getUniformLocation(p,name),unit);
 }
 
-/* ---------- Render ---------- */
+function rebuildLook(){
+  if(!img||!srcStats||!activeRef) return;
+  const data=buildLook(srcStats,activeRef);
+  if(lookTex) gl.deleteTexture(lookTex);
+  lookTex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,lookTex);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,256,2,0,gl.RGBA,gl.UNSIGNED_BYTE,data);
+}
+
+/* =====================================================================
+   Rendern
+   ===================================================================== */
 let queued=false;
 function schedule(){ if(queued||!img) return; queued=true; requestAnimationFrame(()=>{queued=false;render();}); }
 
@@ -309,12 +514,18 @@ function render(){
   if(!img) return;
   const {w,h}=img;
   gl.disable(gl.BLEND);
+  const useLook = !!(activeRef&&lookTex);
   // 1) Grading
   gl.bindFramebuffer(gl.FRAMEBUFFER,gradeF.fb); gl.viewport(0,0,w,h);
-  gl.useProgram(P.grade); setParams(P.grade); bindTex(0,img.tex,P.grade,'uImg');
+  gl.useProgram(P.grade); setParams(P.grade);
+  setU(P.grade,'lookOn',useLook?1:0);
+  setU(P.grade,'lookTone',state.lookTone); setU(P.grade,'lookTint',state.lookTint);
+  setU(P.grade,'lookSat',state.lookSat);
+  bindTex(0,img.tex,P.grade,'uImg');
+  if(useLook) bindTex(1,lookTex,P.grade,'uLook');
   gl.drawArrays(gl.TRIANGLES,0,3);
-  // 2) Glow: Bright-pass + 2x separable Blur auf 1/4 Auflösung
-  const r=state.glowRadius, bw_=blurA.w, bh_=blurA.h;
+  // 2) Glow (hell, 1/4 Auflösung) und Diffusion (gesamtes Bild, weiter)
+  const r=state.glowRadius;
   gl.useProgram(P.blur);
   setU(P.blur,'uThr',state.glowThr);
   const pass=(src,dst,dir,thr)=>{
@@ -322,113 +533,162 @@ function render(){
     bindTex(0,src.tex,P.blur,'uT'); setU(P.blur,'uDir',dir); setU(P.blur,'uUseThr',thr?1:0);
     gl.drawArrays(gl.TRIANGLES,0,3);
   };
-  pass(gradeF,blurA,[r/bw_,0],true);
-  pass(blurA,blurB,[0,r/bh_],false);
-  pass(blurB,blurA,[r*1.8/bw_,0],false);
-  pass(blurA,blurB,[0,r*1.8/bh_],false);
+  const W=blurA.w, H=blurA.h;
+  if(state.halation>0||state.bloom>0){
+    pass(gradeF,blurA,[r/W,0],true);   pass(blurA,blurB,[0,r/H],false);
+    pass(blurB,blurA,[r*1.8/W,0],false); pass(blurA,blurB,[0,r*1.8/H],false);
+  } else { gl.bindFramebuffer(gl.FRAMEBUFFER,blurB.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  if(state.mist>0||state.clarity!==0){
+    pass(gradeF,blurC,[r*1.6/W,0],false); pass(blurC,blurD,[0,r*1.6/H],false);
+    pass(blurD,blurC,[r*3/W,0],false);    pass(blurC,blurD,[0,r*3/H],false);
+  } else { gl.bindFramebuffer(gl.FRAMEBUFFER,blurD.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
   // 3) Final
   gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,w,h);
   gl.useProgram(P.final); setParams(P.final);
-  setU(P.final,'res',[w,h]); setU(P.final,'seed',seed);
-  setU(P.final,'dateOn',dateOn?1:0); setU(P.final,'compare',comparing?1:0);
+  setU(P.final,'res',[w,h]); setU(P.final,'seed',seed); setU(P.final,'compare',comparing?1:0);
   bindTex(0,gradeF.tex,P.final,'uG'); bindTex(1,blurB.tex,P.final,'uB');
-  bindTex(2,dateTex,P.final,'uDate'); bindTex(3,img.tex,P.final,'uOrig');
+  bindTex(2,blurD.tex,P.final,'uC');  bindTex(3,img.tex,P.final,'uOrig');
   gl.drawArrays(gl.TRIANGLES,0,3);
 }
 
-/* ---------- Bild laden ---------- */
-const MAXDIM=3200;
+/* =====================================================================
+   Bild laden
+   ===================================================================== */
+const MAXDIM=2400;
+async function toBitmap(file){
+  try{ return await createImageBitmap(file,{imageOrientation:'from-image'}); }
+  catch(e){ return await createImageBitmap(file); }
+}
 async function loadFile(file){
   if(!file||!file.type.startsWith('image/')) return;
-  let bmp;
-  try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
-  catch(e){ bmp=await createImageBitmap(file); }
+  const bmp=await toBitmap(file);
   const sc=Math.min(1,MAXDIM/Math.max(bmp.width,bmp.height));
   const w=Math.round(bmp.width*sc), h=Math.round(bmp.height*sc);
   const c=document.createElement('canvas'); c.width=w; c.height=h;
   c.getContext('2d').drawImage(bmp,0,0,w,h);
   cv.width=w; cv.height=h;
   img={tex:makeTex(w,h,c),w,h};
+  srcStats=statsOf(c);
   gradeF=makeFbo(w,h);
   const qw=Math.max(2,Math.round(w/4)), qh=Math.max(2,Math.round(h/4));
-  blurA=makeFbo(qw,qh); blurB=makeFbo(qw,qh);
-  drawDate();
+  blurA=makeFbo(qw,qh); blurB=makeFbo(qw,qh); blurC=makeFbo(qw,qh); blurD=makeFbo(qw,qh);
+  rebuildLook();
   document.getElementById('drop').style.display='none';
   cv.style.display='block';
+  applyZoom();
   schedule();
 }
 
-function drawDate(){
-  if(!img) return;
-  const {w,h}=img;
-  const c=document.createElement('canvas'); c.width=w; c.height=h;
-  const g=c.getContext('2d');
-  const fs=Math.round(Math.min(w,h)*.045);
-  g.font=`bold ${fs}px "Courier New", monospace`;
-  g.textAlign='right'; g.textBaseline='alphabetic';
-  g.shadowColor='rgba(255,90,0,.9)'; g.shadowBlur=fs*.35;
-  g.fillStyle='#ff9a2e';
-  g.fillText(dateText, w-fs*1.1, h-fs*1.0);
-  if(dateTex) gl.deleteTexture(dateTex);
-  dateTex=makeTex(w,h,c);
-}
-
-/* ---------- UI ---------- */
+/* =====================================================================
+   UI
+   ===================================================================== */
 const ctlRoot=document.getElementById('controls');
 const inputs={};
+const fmt=(p,v)=> (+v).toFixed(p.step<1&&p.max<=1.5?2:(p.step<1?1:0));
+let hslSel=0;
+
+function makeSlider(parent,label,min,max,step,val,onInput,onReset,fmtFn){
+  const row=document.createElement('div'); row.className='ctl';
+  row.innerHTML=`<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${val}"><output></output>`;
+  const inp=row.querySelector('input'), out=row.querySelector('output');
+  const upd=()=>{ out.textContent=fmtFn(inp.value); };
+  inp.addEventListener('input',()=>{ onInput(+inp.value); upd(); schedule(); });
+  inp.addEventListener('dblclick',()=>{ const d=onReset(); inp.value=d; upd(); schedule(); });
+  upd(); parent.appendChild(row);
+  return {inp,upd};
+}
+
 (function buildUI(){
   const groups={};
   for(const p of PARAMS){
     if(!groups[p.g]){
-      const d=document.createElement('details'); d.open=['Licht','Farbe','Korn'].includes(p.g);
+      const d=document.createElement('details'); d.open=false;
       d.innerHTML=`<summary>${p.g}</summary>`; ctlRoot.appendChild(d); groups[p.g]=d;
     }
-    const row=document.createElement('div'); row.className='ctl';
-    row.innerHTML=`<span>${p.l}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.def}"><output></output>`;
-    const inp=row.querySelector('input'), out=row.querySelector('output');
-    const upd=()=>{ out.textContent=(+inp.value).toFixed(p.step<1&&p.max<=1?2:(p.step<1?1:0)); };
-    inp.addEventListener('input',()=>{ state[p.k]=+inp.value; upd(); schedule(); });
-    inp.addEventListener('dblclick',()=>{ inp.value=p.def; state[p.k]=p.def; upd(); schedule(); });
-    inputs[p.k]={inp,upd}; upd();
-    groups[p.g].appendChild(row);
+    if(p.open) groups[p.g].open=true;
+    inputs[p.k]=makeSlider(groups[p.g],p.l,p.min,p.max,p.step,p.def,
+      v=>{ state[p.k]=v; }, ()=>{ state[p.k]=p.def; return p.def; }, v=>fmt(p,v));
   }
-  const pr=document.getElementById('presets');
-  for(const name in PRESETS){
-    const b=document.createElement('button'); b.textContent=name;
-    b.onclick=()=>applyPreset(name); pr.appendChild(b);
-  }
+  // Farbmixer
+  const d=document.createElement('details'); d.innerHTML='<summary>Farbmixer</summary>';
+  const bands=document.createElement('div'); bands.className='bands';
+  const sliders=[];
+  const refresh=()=>{
+    [...bands.children].forEach((b,i)=>b.classList.toggle('sel',i===hslSel));
+    sliders.forEach((s,j)=>{ s.inp.value=state[HSL_KEYS[j]+hslSel]; s.upd(); });
+  };
+  HSL_NAMES.forEach((n,i)=>{
+    const b=document.createElement('button'); b.title=n; b.style.background=HSL_COLORS[i];
+    b.onclick=()=>{ hslSel=i; refresh(); }; bands.appendChild(b);
+  });
+  d.appendChild(bands);
+  ['Farbton','Sättigung','Helligkeit'].forEach((lab,j)=>{
+    sliders.push(makeSlider(d,lab,-1,1,.01,0,
+      v=>{ state[HSL_KEYS[j]+hslSel]=v; },
+      ()=>{ state[HSL_KEYS[j]+hslSel]=0; return 0; }, v=>(+v).toFixed(2)));
+  });
+  ctlRoot.insertBefore(d,groups['Farbräder']);
+  inputs.__hsl={refresh};
+  refresh();
+
+  const lk=document.getElementById('looks');
+  const mk=(name)=>{ const b=document.createElement('button'); b.textContent=name; b.onclick=()=>applyPreset(name); lk.appendChild(b); };
+  mk('Original');
+  for(const name in LOOKS) mk(name);
 })();
 
-function applyPreset(name){
-  const pre=PRESETS[name];
-  Object.assign(state,DEFAULTS);
-  for(const k in pre){ if(k[0]!=='_') state[k]=pre[k]; }
-  setDate(!!pre._date);
-  for(const k in inputs){ inputs[k].inp.value=state[k]; inputs[k].upd(); }
-  schedule();
+function syncInputs(){
+  for(const k in inputs){ if(k==='__hsl') continue; inputs[k].inp.value=state[k]; inputs[k].upd(); }
+  inputs.__hsl.refresh();
 }
-function setDate(on){ dateOn=on; document.getElementById('dateOn').checked=on; }
+function setActiveRef(st,label){
+  activeRef=st; document.getElementById('refName').textContent=label?('Aktiv: '+label+'.'):'';
+  rebuildLook();
+}
+function applyPreset(name){
+  Object.assign(state,DEFAULTS);
+  const pre=LOOKS[name]||{};
+  for(const k in pre){ if(k!=='ref') state[k]=pre[k]; }
+  if(pre.ref&&LOOKSTATS[pre.ref]) setActiveRef(LOOKSTATS[pre.ref],name); else setActiveRef(null,'');
+  syncInputs(); schedule();
+}
 
-document.getElementById('dateOn').onchange=e=>{ dateOn=e.target.checked; schedule(); };
-const dt=document.getElementById('dateText'); dt.value=dateText;
-dt.oninput=()=>{ dateText=dt.value; drawDate(); schedule(); };
-document.getElementById('reseed').onclick=()=>{ seed=Math.random()*100; schedule(); };
 document.getElementById('reset').onclick=()=>applyPreset('Original');
-
 const fileIn=document.getElementById('file');
 document.getElementById('open').onclick=()=>fileIn.click();
 document.getElementById('drop').onclick=()=>fileIn.click();
 fileIn.onchange=()=>loadFile(fileIn.files[0]);
+const refIn=document.getElementById('refFile');
+document.getElementById('refBtn').onclick=()=>refIn.click();
+refIn.onchange=async()=>{
+  const f=refIn.files[0]; if(!f) return;
+  const bmp=await toBitmap(f);
+  Object.assign(state,{lookTone:.7,lookTint:1,lookSat:1});
+  setActiveRef(statsOf(bmp),'eigene Referenz');
+  syncInputs(); schedule();
+};
 const stage=document.getElementById('stage'), drop=document.getElementById('drop');
 ['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
 ['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
 stage.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
 
+let zoomed=false;
 const cmp=document.getElementById('cmp');
 const cmpOn=v=>{ comparing=v; cmp.classList.toggle('on',v); schedule(); };
-['pointerdown'].forEach(ev=>{cmp.addEventListener(ev,()=>cmpOn(true)); cv.addEventListener(ev,()=>cmpOn(true));});
-['pointerup','pointerleave','pointercancel'].forEach(ev=>{cmp.addEventListener(ev,()=>cmpOn(false)); cv.addEventListener(ev,()=>cmpOn(false));});
+cmp.addEventListener('pointerdown',()=>cmpOn(true));
+['pointerup','pointerleave','pointercancel'].forEach(ev=>cmp.addEventListener(ev,()=>cmpOn(false)));
+cv.addEventListener('pointerdown',()=>{ if(!zoomed) cmpOn(true); });
+['pointerup','pointerleave','pointercancel'].forEach(ev=>cv.addEventListener(ev,()=>{ if(!zoomed) cmpOn(false); }));
 
+function applyZoom(){
+  stage.classList.toggle('zoom',zoomed); cv.classList.toggle('zoom',zoomed);
+  cv.style.width=zoomed&&img?(img.w/devicePixelRatio)+'px':'';
+  cv.style.height=zoomed&&img?(img.h/devicePixelRatio)+'px':'';
+  document.getElementById('zoom').classList.toggle('on',zoomed);
+}
+document.getElementById('zoom').onclick=()=>{ zoomed=!zoomed; applyZoom(); };
+
+/* ---------- Export ---------- */
 async function saveBlob(blob,name){
   try{
     const dl=window.claude&&await window.claude.use('downloads');
@@ -449,7 +709,10 @@ function exportImg(type,ext){
 document.getElementById('png').onclick=()=>exportImg('image/png','png');
 document.getElementById('jpg').onclick=()=>exportImg('image/jpeg','jpg');
 
-window.__loadFile=loadFile; // für Tests
+/* Test- und Mess-Hooks */
+window.__loadFile=loadFile;
+window.__statsFromURL=async(url)=>{ const b=await createImageBitmap(await (await fetch(url)).blob()); return statsOf(b); };
+window.__preset=applyPreset;
 </script>
 </body>
 </html>
