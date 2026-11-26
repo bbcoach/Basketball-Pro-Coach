@@ -70,6 +70,8 @@
     <div class="sec">Looks</div>
     <div class="looks" id="looks"></div>
     <div class="row"><button id="refBtn">+ Eigenes Referenzbild</button></div>
+    <div class="sec">Bildformat (Zuschnitt)</div>
+    <div class="looks" id="fmtRow"></div>
     <div class="note" id="refInfo">Look wählen oder ein Referenzbild laden. Das Tool überträgt Tonwerte und Farbverlauf des Referenzbilds auf dein Foto. <span id="refName"></span></div>
     <div class="note" id="analysis"></div>
 
@@ -92,6 +94,8 @@ const PARAMS = [
   {g:'Look-Übertrag',k:'lookHue',l:'Farbtöne',min:0,max:1.5,def:0,step:.01,open:1},
   {g:'Look-Übertrag',k:'adaptAmt',l:'Anpassung ans Bild',min:0,max:1,def:1,step:.01,open:1},
   {g:'Look-Übertrag',k:'skinProtect',l:'Hautton-Schutz',min:0,max:1,def:.7,step:.01,open:1},
+
+  {g:'Rettung',k:'denoise',l:'Rauschen entfernen',min:0,max:1,def:0,step:.01,open:1},
 
   {g:'Licht',k:'exposure',l:'Belichtung',min:-2,max:2,def:0,step:.01,open:1},
   {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01,open:1},
@@ -117,6 +121,8 @@ const PARAMS = [
   {g:'Glow',k:'halation',l:'Halation (roter Hof)',min:0,max:1,def:0,step:.01},
   {g:'Glow',k:'bloom',l:'Bloom',min:0,max:1,def:0,step:.01},
   {g:'Glow',k:'mist',l:'Diffusion (Pro-Mist)',min:0,max:1,def:0,step:.01},
+  {g:'Glow',k:'streak',l:'Anamorphe Streifen',min:0,max:1,def:0,step:.01},
+  {g:'Glow',k:'streakHue',l:'Streifen Farbton',min:0,max:360,def:205,step:1},
   {g:'Glow',k:'glowRadius',l:'Radius',min:.5,max:5,def:2,step:.05},
   {g:'Glow',k:'glowThr',l:'Schwelle',min:.3,max:.95,def:.7,step:.01},
 
@@ -160,6 +166,40 @@ const LOOKS = {
                    halation:.05,mist:.04,vignette:.08,grain:.15,grainSize:1.2,grainColor:.3},
   'Warm Flare':   {group:'ref',ref:'flare',  lookTone:.85,lookTint:1,lookSat:1,lookHue:.45, clarity:.2,
                    halation:.25,bloom:.1,mist:.1,leak:.55,leakHue:25,leakAngle:165,grain:.15,grainSize:1.3,grainColor:.3},
+
+  // ---- Cinematic: kräftige, aber robuste Looks. Sie entfernen zuerst Rauschen und Farbstich, strecken den Tonumfang
+  //      und legen dann ihre Palette darüber. Dadurch funktionieren sie auch bei schlechten Handyfotos.
+  'Teal & Orange':{group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.25,bloom:.06,mist:.08,glowThr:.8,vignette:.25,grain:.12,grainSize:1.2,grainColor:.3,clarity:.3,
+    spec:{black:.025,white:.98,range:.75,key:.42,push:.65,contrast:.45,sat:1.12,awb:.95,
+      tint:{sh:[-.05,.02,.04],mid:[-.01,0,.012],hi:[.035,.01,-.04]},
+      hue:{S:[.1,.2,0,-.1,.1,0,-.1,-.1],H:[0,0,.05,-.2,-.1,0,0,0],V:[0,.04,.04,-.1,-.05,-.05,0,0]}}},
+  'Neon Noir':    {group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, crush:.3,halation:.5,bloom:.3,mist:.12,glowThr:.74,streak:.5,vignette:.3,grain:.15,grainSize:1.2,grainColor:.4,clarity:.25,
+    spec:{black:.02,white:.96,range:.65,key:.3,push:.7,contrast:.55,sat:1.3,awb:.95,
+      tint:{sh:[-.03,-.01,.05],mid:[.02,-.02,.02],hi:[.05,-.03,.01]},
+      hue:{S:[.15,.15,-.1,-.2,.1,.2,.2,.3],H:[0,0,0,0,.1,0,.1,-.1],V:[0,0,-.1,-.2,0,-.05,0,0]}}},
+  'Thriller Grün':{group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, crush:.25,halation:.1,mist:.06,vignette:.35,grain:.18,grainSize:1.2,grainColor:.25,clarity:.3,
+    spec:{black:.03,white:.93,range:.75,key:.36,push:.65,contrast:.5,sat:.65,awb:.95,
+      tint:{sh:[-.02,.025,-.01],mid:[0,.022,-.012],hi:[.01,.015,-.02]},
+      hue:{S:[-.1,-.1,-.05,-.1,-.1,-.2,-.2,-.2],H:[0,0,-.05,-.1,0,0,0,0],V:Z8}}},
+  'Wüstenlicht':  {group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.2,bloom:.1,mist:.22,glowThr:.78,vignette:.2,grain:.14,grainSize:1.2,grainColor:.2,clarity:.2,
+    spec:{black:.05,white:.96,range:.65,key:.5,push:.65,contrast:.4,sat:.5,awb:1,
+      tint:{sh:[.01,.003,-.02],mid:[.035,.015,-.045],hi:[.05,.025,-.06]},
+      hue:{S:[0,0,0,-.4,-.4,-.4,-.3,0],H:[0,.05,.05,-.3,-.3,0,0,0],V:Z8}}},
+  'Bleach Bypass':{group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.05,vignette:.2,grain:.28,grainSize:1.3,grainColor:.15,clarity:.5,
+    spec:{black:.02,white:.97,range:.85,key:.45,push:.55,contrast:.65,sat:.42,awb:.85,
+      tint:{sh:[-.005,0,.006],mid:[0,0,0],hi:[.004,.001,-.004]},hue:{S:Z8,H:Z8,V:Z8}}},
+  'Anamorphic Night':{group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.55,bloom:.15,mist:.1,glowThr:.74,streak:.8,vignette:.25,grain:.18,grainSize:1.3,grainColor:.3,clarity:.2,aberration:.15,
+    spec:{black:.025,white:.985,range:.55,key:.33,push:.6,contrast:.4,sat:1.15,awb:.8,
+      tint:{sh:[-.04,.015,.03],mid:[-.01,.003,.01],hi:[.03,0,-.03]},
+      hue:{S:[.1,.15,.05,-.1,.15,.15,0,0],H:[0,0,0,0,-.1,0,0,0],V:[0,0,0,-.1,0,-.1,0,0]}}},
+  'Nordic Blau':  {group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.05,mist:.16,vignette:.12,grain:.1,grainSize:1.2,grainColor:.2,clarity:.1,
+    spec:{black:.06,white:.95,range:.6,key:.5,push:.6,contrast:.3,sat:.62,awb:.95,
+      tint:{sh:[-.02,0,.03],mid:[-.012,.002,.02],hi:[-.004,.002,.01]},
+      hue:{S:[-.1,-.2,-.2,-.3,-.1,0,-.1,-.1],H:Z8,V:Z8}}},
+  'Golden Drama': {group:'cine',lookTone:.95,lookTint:1,lookSat:1,lookHue:1, halation:.3,bloom:.1,mist:.12,glowThr:.78,vignette:.25,grain:.13,grainSize:1.2,grainColor:.3,clarity:.25,
+    spec:{black:.035,white:.975,range:.65,key:.44,push:.6,contrast:.42,sat:1.05,awb:.85,
+      tint:{sh:[-.02,.008,.015],mid:[.02,.008,-.022],hi:[.045,.02,-.05]},
+      hue:{S:[.05,.12,.1,-.15,-.1,-.05,0,0],H:[0,0,.06,-.2,0,0,0,0],V:[0,.04,.05,-.08,0,-.05,0,0]}}},
 
   // ---- Film-Looks: nur eine Beschreibung des Ziels. Wie stark was wirkt, bestimmt das jeweilige Foto.
   // Kontrast und Korn der Kodak-Filme sind aus den Kodak-Datenblättern gemessen (siehe film-data/README.md):
@@ -321,6 +361,35 @@ void main(){
   o = vec4(clamp(x,0.,1.),1.);
 }`;
 
+const FS_DN = HEAD + `
+uniform sampler2D uImg; uniform vec2 px; uniform float dn, sc;
+float hh(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
+void main(){
+  vec3 c0 = texture(uImg,v).rgb; float y0 = dot(c0,LW);
+  float ang = hh(gl_FragCoord.xy)*6.2831;
+  // Farbrauschen: weiträumig glätten, aber nicht über Helligkeitskanten hinweg
+  float Rc = (1.5+9.*dn)*sc, sr = .04+.10*dn;
+  vec2 ch = vec2(c0.r-y0, c0.b-y0); float ws = 1.;
+  for(int i=0;i<24;i++){
+    float fi = float(i)+.5, rr = sqrt(fi/24.), th = fi*2.39996+ang;
+    vec3 s = texture(uImg, v+vec2(cos(th),sin(th))*rr*Rc*px).rgb; float ys = dot(s,LW);
+    float d = (ys-y0)/sr, w = exp(-d*d)*(1.-.5*rr);
+    ch += vec2(s.r-ys, s.b-ys)*w; ws += w;
+  }
+  ch /= ws;
+  // Helligkeitsrauschen: kleiner Radius, engerer Kantenschutz
+  float Rl = (.7+1.8*dn)*sc, sl = .03+.09*dn, ysum = y0, wl = 1.;
+  for(int i=0;i<10;i++){
+    float fi = float(i)+.5, rr = sqrt(fi/10.), th = fi*2.39996+ang+1.7;
+    float ys = dot(texture(uImg, v+vec2(cos(th),sin(th))*rr*Rl*px).rgb, LW);
+    float d = (ys-y0)/sl, w = exp(-d*d);
+    ysum += ys*w; wl += w;
+  }
+  float yo = mix(y0, ysum/wl, min(1.,dn*1.4+.2));
+  float cg = -(LW.r*ch.x + LW.b*ch.y)/LW.g;
+  o = vec4(clamp(vec3(yo+ch.x, yo+cg, yo+ch.y),0.,1.),1.);
+}`;
+
 const FS_BLUR = HEAD + `
 uniform sampler2D uT; uniform vec2 uDir; uniform float uThr, uUseThr;
 vec3 s(vec2 p){
@@ -336,8 +405,8 @@ void main(){
 }`;
 
 const FS_FINAL = HEAD + `
-uniform sampler2D uG,uB,uC,uOrig;
-uniform vec2 res; uniform float compare,seed;
+uniform sampler2D uG,uB,uC,uOrig,uS;
+uniform vec2 res; uniform float compare,seed,cropX,cropY,streak,streakHue;
 uniform float fisheye,clarity,halation,bloom,mist,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle;
 float h21(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
 float vn(vec2 p){
@@ -349,26 +418,29 @@ float gn(vec2 p, float s){
   return (vn(p+s)-.5)*1.7 + (vn(p*2.2+11.+s*1.3)-.5)*1.3 + (h21(floor(p*1.25)+s*.7)-.5)*.9;
 }
 void main(){
-  if(compare>.5){ o=vec4(texture(uOrig,v).rgb,1.); return; }
+  vec2 vs = (v-.5)*vec2(cropX,cropY)+.5;
+  if(compare>.5){ o=vec4(texture(uOrig,vs).rgb,1.); return; }
   vec2 c = v-.5; float asp = res.x/res.y; vec2 sc2 = vec2(asp,1.);
 
   // Fisheye: Quellkoordinaten nach außen schieben, außerhalb des Bildes schwarz
   vec2 pp = c*sc2; float r2 = dot(pp,pp);
   vec2 uvd = (pp*(1.+fisheye*.8*r2))/sc2+.5;
+  vec2 uvs = (uvd-.5)*vec2(cropX,cropY)+.5;
   vec2 ab = (uvd-.5)*aberration*.010;
   vec2 ep = min(uvd,1.-uvd)*res;
   float inb = fisheye>0. ? clamp(min(ep.x,ep.y)/2.,0.,1.) : 1.;
-  vec3 x = vec3(texture(uG,uvd+ab).r, texture(uG,uvd).g, texture(uG,uvd-ab).b);
+  vec3 x = vec3(texture(uG,uvs+ab).r, texture(uG,uvs).g, texture(uG,uvs-ab).b);
 
   // Klarheit: lokaler Kontrast gegen weich gezeichnete Version
-  x = clamp(x + (x - texture(uC,uvd).rgb)*clarity*.9, 0., 1.);
+  x = clamp(x + (x - texture(uC,uvs).rgb)*clarity*.9, 0., 1.);
 
   // Glow in Linearlicht: Licht addiert sich physikalisch
   vec3 lin = toLin(x);
-  vec3 bl = toLin(texture(uB,uvd).rgb);
-  vec3 mi = toLin(texture(uC,uvd).rgb);
+  vec3 bl = 1.-exp(-2.2*toLin(texture(uB,uvs).rgb));      // kleine Lichter bekommen mehr Halo, große Flächen nicht
+  vec3 mi = toLin(texture(uC,uvs).rgb);
   lin += bl*vec3(1.,.30,.09)*halation*1.3;     // Halation: Licht streut an der Filmrückseite, rot-orange
   lin += bl*bloom*.7;
+  lin += (1.-exp(-6.*toLin(texture(uS,uvs).rgb)))*(hue(streakHue/360.)*.8+.2)*streak*.9;   // anamorphe Streifen
   lin = mix(lin, mi, mist*.38) + max(mi-lin,0.)*mist*.2;   // Diffusionsfilter
 
   // Lichtleck / Flare: heißer Kern, farbiger Rand
@@ -418,7 +490,7 @@ function program(fs){
   return p;
 }
 let P={};
-if(gl){ P={grade:program(FS_GRADE),blur:program(FS_BLUR),final:program(FS_FINAL)}; }
+if(gl){ P={grade:program(FS_GRADE),blur:program(FS_BLUR),final:program(FS_FINAL),dn:program(FS_DN)}; }
 
 function makeTex(w,h,data){
   const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
@@ -443,7 +515,7 @@ function makeFbo(w,h){
    Bildinhalte. Ein blauer Himmel im Referenzbild färbt dein Foto also nicht blau.
    ===================================================================== */
 const NB=24;
-function lookStats(px){
+function lookStats(px,robust){
   const n=px.length/4;
   const hist=new Float64Array(256);
   const cw=new Float64Array(NB), cr=new Float64Array(NB), cg=new Float64Array(NB), cb=new Float64Array(NB), cm=new Float64Array(NB), cn=new Float64Array(NB);
@@ -451,12 +523,24 @@ function lookStats(px){
   const HCs=[0,30,60,120,180,240,270,315];
   const hf=new Float64Array(8), hs=new Float64Array(8), hv=new Float64Array(8), hdx=new Float64Array(8), hdy=new Float64Array(8);
   let gs=0, gv=0, gn=0;
+  let c0=[0,0,0];
+  if(robust){                                              // Foto mit starkem Farbstich: Tönung relativ zum Stich messen
+    let sw=0,a=0,b2=0,c2=0;
+    for(let i=0;i<n;i+=2){
+      const r=px[i*4]/255, g=px[i*4+1]/255, b=px[i*4+2]/255, y=.2126*r+.7152*g+.0722*b;
+      if(y<.15||y>.85) continue;
+      const dr=r-y, dg=g-y, db=b-y, m=Math.hypot(dr,dg,db), w=Math.exp(-(m/.2)*(m/.2));
+      sw+=w; a+=w*dr; b2+=w*dg; c2+=w*db;
+    }
+    if(sw>0) c0=[a/sw,b2/sw,c2/sw];
+  }
   for(let i=0;i<n;i++){
     const r=px[i*4]/255, g=px[i*4+1]/255, b=px[i*4+2]/255;
     const y=.2126*r+.7152*g+.0722*b;
     hist[Math.round(y*255)]++;
     const dr=r-y, dg=g-y, db=b-y, m=Math.hypot(dr,dg,db);
-    const wgt=Math.exp(-(m/.07)*(m/.07));        // nur fast neutrale Pixel bestimmen die Tönung, bunte Bildinhalte (Himmel, Haut) nicht
+    const mm=Math.hypot(dr-c0[0],dg-c0[1],db-c0[2]);
+    const wgt=Math.exp(-(mm/.07)*(mm/.07));        // nur fast neutrale Pixel bestimmen die Tönung, bunte Bildinhalte (Himmel, Haut) nicht
     const bin=Math.min(NB-1,Math.floor(y*NB));
     cw[bin]+=wgt; cr[bin]+=wgt*dr; cg[bin]+=wgt*dg; cb[bin]+=wgt*db; cm[bin]+=m; cn[bin]++;
     if(y>.12&&y<.88){ satSum+=m; satN++; }
@@ -619,7 +703,7 @@ const statsOf=(src,wantLayout)=>{
   const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w0*s)); c.height=Math.max(1,Math.round(h0*s));
   const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(src,0,0,c.width,c.height);
   const data=g.getImageData(0,0,c.width,c.height).data;
-  const st=lookStats(data);
+  const st=lookStats(data,!!wantLayout);
   if(wantLayout){                                           // Helligkeit von Mitte, Ecken und Rändern
     const W=c.width,H=c.height, Y=(x,y)=>{const i=(y*W+x)*4; return (.2126*data[i]+.7152*data[i+1]+.0722*data[i+2])/255;};
     const avg=(x0,y0,x1,y1)=>{let a=0,n=0; for(let y=Math.floor(y0*H);y<Math.ceil(y1*H);y++) for(let x=Math.floor(x0*W);x<Math.ceil(x1*W);x++){a+=Y(x,y);n++;} return n?a/n:0;};
@@ -629,6 +713,23 @@ const statsOf=(src,wantLayout)=>{
   }
   return st;
 };
+function estimateNoise(c){
+  // Rauschmessung nach Immerkaer (Laplace-Filter), nur in glatten Blöcken: Bildtextur (Laub, Fell) darf nicht als Rauschen zählen
+  const w=c.width, h=c.height, d=c.getContext('2d',{willReadFrequently:true}).getImageData(0,0,w,h).data, B=48, bl=[], st=w*4;
+  for(let by=2;by+B+2<h;by+=B) for(let bx=2;bx+B+2<w;bx+=B){
+    let s=0,n=0,m=0,m2=0;
+    for(let y=by;y<by+B;y+=2) for(let x=bx;x<bx+B;x+=2){
+      const i=(y*w+x)*4+1, g=d[i];
+      s+=Math.abs(4*g-2*(d[i-4]+d[i+4]+d[i-st]+d[i+st])+(d[i-4-st]+d[i+4-st]+d[i-4+st]+d[i+4+st])); m+=g; m2+=g*g; n++;
+    }
+    m/=n; if(m<10||m>245) continue;                        // tiefes Schwarz und ausgebrannte Flächen zeigen kein Rauschen
+    bl.push({sd:Math.sqrt(Math.max(0,m2/n-m*m)), sig:Math.sqrt(Math.PI/2)*s/(6*n)});
+  }
+  if(!bl.length) return 0;
+  bl.sort((a,b)=>a.sd-b.sd);
+  const flat=bl.slice(0,Math.max(6,Math.floor(bl.length*.15))).map(b=>b.sig).sort((a,b)=>a-b);
+  return flat[Math.floor(flat.length/2)];
+}
 function analyze(st){
   const q=st.q, cdf=y=>cdfAt(q,y), f=st.hb.f;
   const A={med:q[32],lo:q[2],hi:q[62],q95:q[61],spread:q[62]-q[2],bright:1-cdf(.82),clip:1-cdf(.97),shadow:cdf(.12),sat:st.sat,
@@ -641,13 +742,14 @@ function describe(A){
   const con=A.spread<.5?'niedrig':A.spread>.8?'hoch':'mittel';
   const dom=A.green>.15&&A.green>A.blue?'Grün':A.blue>.15?'Blau':A.warm>.12?'Warmtöne':'wenig Farbe';
   const lights=A.bright>.2?'viel helle Fläche':A.bright>.015&&A.med<.4?'einzelne Lichtquellen':'kaum Lichter';
-  return `Analyse: Belichtung ${exp}, Kontrast ${con}, ${dom}, ${lights}`;
+  const nz=A.noise==null?'':`, Rauschen ${A.noise<2?'gering':A.noise<3.8?'mittel':'stark'}`;
+  return `Analyse: Belichtung ${exp}, Kontrast ${con}, ${dom}, ${lights}${nz}`;
 }
 // Effekte je Foto anpassen: Glow nur wo Lichter sind, Vignette nur wo die Ecken nicht schon dunkel sind usw.
 function adaptEffects(base){
   const A=analysis, ad=state.adaptAmt; if(!A) return {};
   const cl=(v,a,b)=>Math.min(b,Math.max(a,v)), mv=(a,b)=>a+(b-a)*ad, o={};
-  const presence=cl(Math.sqrt(A.bright/.012),.12,1);                    // gibt es überhaupt helle Stellen?
+  const presence=cl(Math.sqrt(A.bright/.0025),.12,1);                    // gibt es überhaupt helle Stellen?
   const light=presence*cl(1.2-A.bright*4,.3,1)*cl(1.3-A.med*1.3,.35,1);
   if(base.halation!=null) o.halation=base.halation*mv(1,light);
   if(base.bloom!=null) o.bloom=base.bloom*mv(1,light);
@@ -656,6 +758,13 @@ function adaptEffects(base){
   if(base.vignette!=null) o.vignette=base.vignette*mv(1,cl(1.2-(1-A.lay.cornerRatio)*2.2,.2,1.2));
   if(base.grain!=null) o.grain=base.grain*mv(1,cl(1.35-A.med,.8,1.3));
   if(base.leak) o.leakAngle=ad>=.5?A.edgeAngle:(base.leakAngle!=null?base.leakAngle:160);
+  // Rettung: Rauschen entfernen, ausgebrannte Lichter zurücknehmen, Klarheit nicht ins Rauschen treiben
+  // Grundentrauschung + gemessenes Rauschen + Dunkelheit (bei wenig Licht rauscht jede Handykamera stärker)
+  const dnA=A.noise==null?0:cl(.2+cl((A.noise-.5)/1.5,0,1)*.8+cl((.3-A.med)/.2,0,1)*.5,0,1)*ad;
+  o.denoise=dnA;
+  o.highlights=(base.highlights||0)-cl(A.clip*4,0,.45)*ad;
+  if(base.clarity!=null) o.clarity=base.clarity*(1-.7*dnA);
+  if(base.streak!=null) o.streak=base.streak*mv(1,light);
   if(base.bwAdapt){                                              // S/W: Farbfilter nach dominanter Farbe wählen
     let w=[.30,.59,.11];
     if(A.blue>.22) w=[.55,.40,.05]; else if(A.green>.25) w=[.32,.56,.12]; else if(A.warm>.2) w=[.24,.50,.26];
@@ -671,7 +780,7 @@ function adaptEffects(base){
 const state = {...DEFAULTS};
 let seed=17.3, comparing=false;
 let img=null, srcStats=null;
-let gradeF,blurA,blurB,blurC,blurD;
+let gradeF,blurA,blurB,blurC,blurD,dnF,dnG,strA,strB,fmtRatio=0;
 let lookTex=null, activeRef=null, activeSpec=null, lookBands=null, locA=null, locB=null, analysis=null, curLook=null, curBase={};
 
 function setU(p,name,val){
@@ -720,7 +829,17 @@ function render(){
     gl.uniform1fv(gl.getUniformLocation(P.grade,'lkH'),lookBands.H);
     gl.uniform1fv(gl.getUniformLocation(P.grade,'lkV'),lookBands.V);
   }
-  bindTex(0,img.tex,P.grade,'uImg'); bindTex(2,locB.tex,P.grade,'uLoc');
+  let srcTex=img.tex;
+  if(state.denoise>.005){                                  // 0) Rauschen entfernen
+    gl.bindFramebuffer(gl.FRAMEBUFFER,dnF.fb); gl.viewport(0,0,w,h); gl.useProgram(P.dn);
+    bindTex(0,img.tex,P.dn,'uImg'); setU(P.dn,'px',[1/w,1/h]); setU(P.dn,'dn',state.denoise); setU(P.dn,'sc',h/1500);
+    gl.drawArrays(gl.TRIANGLES,0,3); srcTex=dnF.tex;
+    if(state.denoise>.6){                                  // sehr verrauschte Fotos: zweiter Durchgang
+      gl.bindFramebuffer(gl.FRAMEBUFFER,dnG.fb); bindTex(0,dnF.tex,P.dn,'uImg'); gl.drawArrays(gl.TRIANGLES,0,3); srcTex=dnG.tex;
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER,gradeF.fb); gl.viewport(0,0,w,h); gl.useProgram(P.grade);
+  }
+  bindTex(0,srcTex,P.grade,'uImg'); bindTex(2,locB.tex,P.grade,'uLoc');
   if(useLook) bindTex(1,lookTex,P.grade,'uLook');
   gl.drawArrays(gl.TRIANGLES,0,3);
   // 2) Glow (hell, 1/4 Auflösung) und Diffusion (gesamtes Bild, weiter)
@@ -741,12 +860,17 @@ function render(){
     pass(gradeF,blurC,[r*1.6/W,0],false); pass(blurC,blurD,[0,r*1.6/H],false);
     pass(blurD,blurC,[r*3/W,0],false);    pass(blurC,blurD,[0,r*3/H],false);
   } else { gl.bindFramebuffer(gl.FRAMEBUFFER,blurD.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
-  // 3) Final
-  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,w,h);
+  if(state.streak>0){                                      // anamorphe Streifen: nur waagerecht, mehrere Stufen
+    pass(gradeF,strA,[1/W,0],true); pass(strA,strB,[3/W,0],false); pass(strB,strA,[9/W,0],false); pass(strA,strB,[27/W,0],false);
+  } else { gl.bindFramebuffer(gl.FRAMEBUFFER,strB.fb); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  // 3) Final (Zuschnitt aufs gewählte Format)
+  const ow=cv.width, oh=cv.height;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,ow,oh);
   gl.useProgram(P.final); setParams(P.final);
-  setU(P.final,'res',[w,h]); setU(P.final,'seed',seed); setU(P.final,'compare',comparing?1:0);
+  setU(P.final,'cropX',ow/w); setU(P.final,'cropY',oh/h);
+  setU(P.final,'res',[ow,oh]); setU(P.final,'seed',seed); setU(P.final,'compare',comparing?1:0);
   bindTex(0,gradeF.tex,P.final,'uG'); bindTex(1,blurB.tex,P.final,'uB');
-  bindTex(2,blurD.tex,P.final,'uC');  bindTex(3,img.tex,P.final,'uOrig');
+  bindTex(2,blurD.tex,P.final,'uC');  bindTex(3,img.tex,P.final,'uOrig'); bindTex(4,strB.tex,P.final,'uS');
   gl.drawArrays(gl.TRIANGLES,0,3);
 }
 
@@ -776,17 +900,17 @@ async function loadFile(file){
   c.getContext('2d').drawImage(bmp,0,0,w,h);
   cv.width=w; cv.height=h;
   img={tex:makeTex(w,h,c),w,h};
-  srcStats=statsOf(c,true); analysis=analyze(srcStats);
-  document.getElementById('analysis').textContent=describe(analysis);
+  srcStats=statsOf(c,true); analysis=analyze(srcStats); analysis.noise=estimateNoise(c);
   gradeF=makeFbo(w,h);
   const qw=Math.max(2,Math.round(w/4)), qh=Math.max(2,Math.round(h/4));
   blurA=makeFbo(qw,qh); blurB=makeFbo(qw,qh); blurC=makeFbo(qw,qh); blurD=makeFbo(qw,qh);
+  strA=makeFbo(qw,qh); strB=makeFbo(qw,qh); dnF=makeFbo(w,h); dnG=makeFbo(w,h);
+  document.getElementById('analysis').textContent=describe(analysis);
   computeLoc();
   if(curLook) applyPreset(curLook); else reapplyAdaptive();
   document.getElementById('drop').style.display='none';
   cv.style.display='block';
-  applyZoom();
-  schedule();
+  applyFormat();
 }
 
 /* =====================================================================
@@ -841,10 +965,14 @@ function makeSlider(parent,label,min,max,step,val,onInput,onReset,fmtFn){
   inputs.__hsl={refresh};
   refresh();
 
+  const fr=document.getElementById('fmtRow');
+  for(const [n,r] of [['Original',0],['2,39:1 Kino',2.39],['1,85:1',1.85],['16:9',16/9],['4:5',.8],['1:1',1],['9:16 Story',9/16]]){
+    const b=document.createElement('button'); b.textContent=n; b.dataset.r=r; b.onclick=()=>{ fmtRatio=r; applyFormat(); }; fr.appendChild(b);
+  }
   const lk=document.getElementById('looks');
   const mk=(name,parent)=>{ const b=document.createElement('button'); b.textContent=name; b.onclick=()=>applyPreset(name); parent.appendChild(b); };
   mk('Original',lk);
-  for(const [grp,label] of [['film','Film-Looks (passen sich dem Foto an)'],['ref','Referenz-Looks']]){
+  for(const [grp,label] of [['cine','Cinematic: rettet auch schlechte Handyfotos'],['film','Film-Looks (passen sich dem Foto an)'],['ref','Referenz-Looks']]){
     const h=document.createElement('div'); h.className='sec'; h.textContent=label; lk.appendChild(h);
     const row=document.createElement('div'); row.className='looks'; lk.appendChild(row);
     for(const name in LOOKS) if(LOOKS[name].group===grp) mk(name,row);
@@ -906,9 +1034,17 @@ cv.addEventListener('pointerdown',()=>{ if(!zoomed) cmpOn(true); });
 
 function applyZoom(){
   stage.classList.toggle('zoom',zoomed); cv.classList.toggle('zoom',zoomed);
-  cv.style.width=zoomed&&img?(img.w/devicePixelRatio)+'px':'';
-  cv.style.height=zoomed&&img?(img.h/devicePixelRatio)+'px':'';
+  cv.style.width=zoomed&&img?(cv.width/devicePixelRatio)+'px':'';
+  cv.style.height=zoomed&&img?(cv.height/devicePixelRatio)+'px':'';
   document.getElementById('zoom').classList.toggle('on',zoomed);
+}
+function applyFormat(){
+  if(!img) return;
+  let ow=img.w, oh=img.h;
+  if(fmtRatio>0){ const a=img.w/img.h; if(fmtRatio>a) oh=Math.round(img.w/fmtRatio); else ow=Math.round(img.h*fmtRatio); }
+  cv.width=ow; cv.height=oh;
+  [...document.querySelectorAll('#fmtRow button')].forEach(b=>b.classList.toggle('on',+b.dataset.r===fmtRatio));
+  applyZoom(); schedule();
 }
 document.getElementById('zoom').onclick=()=>{ zoomed=!zoomed; applyZoom(); };
 
