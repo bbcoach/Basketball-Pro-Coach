@@ -84,6 +84,7 @@ const PARAMS = [
   {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01},
   {g:'Licht',k:'highlights',l:'Lichter',min:-1,max:1,def:0,step:.01},
   {g:'Licht',k:'shadows',l:'Tiefen',min:-1,max:1,def:0,step:.01},
+  {g:'Licht',k:'crush',l:'Schwarz absaufen',min:0,max:1,def:0,step:.01},
   {g:'Licht',k:'fade',l:'Fade (Schwarz anheben)',min:0,max:.4,def:0,step:.005},
   // Farbe
   {g:'Farbe',k:'temp',l:'Temperatur',min:-1,max:1,def:0,step:.01},
@@ -101,6 +102,7 @@ const PARAMS = [
   {g:'Glow',k:'glowRadius',l:'Radius',min:.5,max:5,def:2,step:.05},
   {g:'Glow',k:'glowThr',l:'Schwelle',min:.3,max:.95,def:.7,step:.01},
   // Linse
+  {g:'Linse',k:'fisheye',l:'Fisheye',min:0,max:1,def:0,step:.01},
   {g:'Linse',k:'vignette',l:'Vignette',min:0,max:1,def:0,step:.01},
   {g:'Linse',k:'aberration',l:'Chrom. Aberration',min:0,max:1,def:0,step:.01},
   // Korn
@@ -121,6 +123,8 @@ const PRESETS = {
   'Warm Fade':     {exposure:.1,contrast:-.05,fade:.12,temp:.35,saturation:-.1,shHue:190,shAmt:.4,hiHue:35,hiAmt:.35,halation:.35,glowRadius:2.2,vignette:.3,grain:.45,grainSize:1.6,dust:.2},
   'Cinestill 800T':{temp:-.25,contrast:.1,shadows:.1,shHue:200,shAmt:.35,hiHue:20,hiAmt:.2,halation:.9,glowRadius:3,glowThr:.62,bloom:.3,grain:.6,vignette:.25,aberration:.3,saturation:.1},
   'Wegwerfkamera': {exposure:.2,contrast:.25,temp:.3,saturation:.15,fade:.08,hiHue:50,hiAmt:.3,vignette:.55,grain:.5,bloom:.25,aberration:.4,leak:.3,leakHue:20,leakAngle:20,dust:.35,_date:true},
+  'Pangea Fisheye':{contrast:.2,saturation:.25,crush:.3,temp:.1,shHue:15,shAmt:.3,hiHue:200,hiAmt:.15,halation:.4,glowRadius:2.5,bloom:.2,fisheye:.7,vignette:.3,aberration:.5,grain:.35,grainSize:1.1,grainColor:.3,leak:.35,leakHue:15,leakAngle:40,dust:.1},
+  'Pangea Clean':  {contrast:.2,saturation:.2,crush:.25,temp:.08,shHue:20,shAmt:.25,hiHue:190,hiAmt:.15,halation:.2,bloom:.25,vignette:.12,aberration:.15,grain:.25,grainSize:1.1,leak:.3,leakHue:30,leakAngle:300},
   'Fuji Grün':     {tint:-.3,contrast:.12,saturation:.1,fade:.06,shHue:150,shAmt:.3,halation:.2,vignette:.2,grain:.4},
   'Tri-X S/W':     {bw:1,contrast:.35,fade:.06,halation:.15,vignette:.4,grain:.8,grainSize:1.8,grainColor:0,dust:.15},
   'Golden Leak':   {exposure:.15,temp:.5,saturation:.05,fade:.1,hiHue:40,hiAmt:.5,halation:.5,bloom:.35,leak:.8,leakHue:25,leakAngle:330,grain:.4},
@@ -144,7 +148,7 @@ vec3 hue(float h){ return clamp(abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.); }
 
 const FS_GRADE = HEAD + `
 uniform sampler2D uImg;
-uniform float exposure,contrast,highlights,shadows,fade,temp,tint,saturation,bw,shHue,shAmt,hiHue,hiAmt;
+uniform float crush,exposure,contrast,highlights,shadows,fade,temp,tint,saturation,bw,shHue,shAmt,hiHue,hiAmt;
 void main(){
   vec3 x = texture(uImg,v).rgb;
   x *= exp2(exposure);
@@ -162,6 +166,7 @@ void main(){
   x += (hue(hiHue/360.)-.5)*hiAmt*.35*hm;
   x = clamp(x,0.,1.);
   x = mix(x, vec3(dot(x,LW)), bw);
+  x = max(x-crush*.12,0.)/(1.-crush*.12);
   x = mix(vec3(fade*.4), vec3(1.-fade*.15), x);
   o = vec4(clamp(x,0.,1.),1.);
 }`;
@@ -183,16 +188,23 @@ void main(){
 const FS_FINAL = HEAD + `
 uniform sampler2D uG,uB,uDate,uOrig;
 uniform vec2 res; uniform float dateOn,compare,seed;
-uniform float halation,bloom,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle,dust;
+uniform float fisheye,halation,bloom,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle,dust;
 float h21(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
 void main(){
   if(compare>.5){ o=vec4(texture(uOrig,v).rgb,1.); return; }
   vec2 c = v-.5; float asp = res.x/res.y;
-  vec2 ab = c*aberration*.012;
-  vec3 x = vec3(texture(uG,v+ab).r, texture(uG,v).g, texture(uG,v-ab).b);
-  vec3 b = texture(uB,v).rgb;
+  // Fisheye: Quellkoordinaten nach aussen schieben, ausserhalb des Bildes = schwarz
+  vec2 sc2 = vec2(asp,1.);
+  vec2 pp = c*sc2; float r2 = dot(pp,pp);
+  vec2 uvd = (pp*(1.+fisheye*.8*r2))/sc2+.5;
+  vec2 ab = (uvd-.5)*aberration*.012;
+  vec2 ed = min(uvd,1.-uvd)*vec2(res.x,res.y)/res.y*18.;
+  float inb = smoothstep(0.,1.,min(ed.x,ed.y));
+  vec3 x = vec3(texture(uG,uvd+ab).r, texture(uG,uvd).g, texture(uG,uvd-ab).b);
+  vec3 b = texture(uB,uvd).rgb;
   x += b*vec3(1.,.28,.1)*halation*1.0;
   x += b*bloom*.5;
+  x *= inb;
 
   // Lichtleck
   float a = radians(leakAngle);
