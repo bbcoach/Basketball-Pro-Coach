@@ -82,8 +82,9 @@
   h3{margin:18px 0 10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:600}
   h3:first-child{margin-top:0}
 
-  .seg{display:flex;background:var(--raise);border-radius:12px;padding:3px;margin-bottom:12px}
-  .seg button{flex:1;height:34px;border-radius:9px;color:var(--dim);font-weight:550;font-size:12.5px;transition:.15s}
+  .seg{display:flex;background:var(--raise);border-radius:12px;padding:3px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{flex:1 0 auto;padding:0 12px;height:34px;white-space:nowrap;border-radius:9px;color:var(--dim);font-weight:550;font-size:12.5px;transition:.15s}
   .seg button[aria-pressed=true]{background:var(--raise2);color:var(--text);box-shadow:0 1px 0 #ffffff12 inset,0 2px 8px #0006}
 
   .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
@@ -384,9 +385,52 @@ const LOOKS = {
     spec:{black:.04,white:.97,range:.45,key:.46,push:.4,contrast:.28,sat:1.1,awb:.6,
       tint:{sh:[-.02,.014,.008],mid:[-.008,.01,0],hi:[0,.004,-.006]},
       hue:{S:[0,-.03,0,.1,.1,.05,0,-.1],H:[0,0,-.1,.25,.15,0,0,0],V:[0,0,0,-.1,-.05,-.05,0,0]}}},
-  'Tri-X Street': {group:'film',meas:'Kodak F-4017: Korn rms 17 (anderer Maßstab als bei Farbfilmen, nicht vergleichbar), Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.2,grain:.3,grainSize:1.5,grainColor:0,clarity:.3,
+  'Tri-X Street': {group:'bw',meas:'Kodak F-4017: Korn rms 17 (anderer Maßstab als bei Farbfilmen, nicht vergleichbar), Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.2,grain:.3,grainSize:1.5,grainColor:0,clarity:.3,
     spec:{black:.025,white:.985,range:.8,key:.45,push:.3,contrast:.5,sat:1,awb:1,
       tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
+
+  // ---- Weitere Film-Looks. Gemessen ist nur, was in der Meta-Zeile steht (Datenblätter: Korn rms, Kontrast-Steigung).
+  //      Korn S/W und Dia: Regler = 0,30 × rms / 17 (Tri-X 400 mit rms 17 als Anker, gleiche Messmethode: Dichte, 48 µm, D = 1).
+  'T-Max 400':    {group:'bw',meas:'Kodak F-4043: Korn rms 10 (Tri-X 400: 17, also 0,59-mal so grob)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.03,mist:.04,vignette:.12,grain:.176,grainSize:1.2,grainColor:0,clarity:.3,
+    spec:{black:.025,white:.985,range:.8,key:.47,push:.3,contrast:.42,sat:1,awb:1,tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
+  'T-Max 100':    {group:'bw',meas:'Kodak F-4016: Korn rms 8 (Tri-X 400: 17, also 0,47-mal so grob, feinstes S/W hier)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.03,mist:.04,vignette:.1,grain:.141,grainSize:1.0,grainColor:0,clarity:.35,
+    spec:{black:.02,white:.985,range:.85,key:.47,push:.3,contrast:.4,sat:1,awb:1,tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
+  'HP5 Plus':     {group:'bw',meas:'nicht gemessen: Ilford-Datenblatt war nicht abrufbar, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.15,grain:.26,grainSize:1.4,grainColor:0,clarity:.25,
+    spec:{black:.03,white:.98,range:.75,key:.45,push:.3,contrast:.5,sat:1,awb:1,tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
+  'Delta 3200':   {group:'bw',meas:'nicht gemessen: Ilford-Datenblatt war nicht abrufbar, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,crush:.2,halation:.12,bloom:.05,mist:.06,vignette:.22,grain:.55,grainSize:1.8,grainColor:0,clarity:.2,
+    spec:{black:.025,white:.97,range:.7,key:.36,push:.5,contrast:.55,sat:1,awb:1,tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
+
+  'Pro 400H':     {group:'film',meas:'nicht gemessen: kein Datenblatt ausgewertet, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.08,bloom:.04,mist:.15,vignette:.05,grain:.12,grainSize:1.1,grainColor:.3,clarity:-.1,
+    spec:{black:.05,white:.97,range:.4,key:.54,push:.45,contrast:.18,sat:.85,awb:.9,tint:{sh:[-.006,.012,.01],mid:[.003,.008,0],hi:[.01,.01,-.002]},
+      hue:{S:[-.05,-.05,-.1,.05,.1,0,-.1,-.1],H:[0,0,-.05,.15,.1,0,0,0],V:[0,.05,.05,.05,0,0,0,0]}}},
+  'Superia 400':  {group:'film',meas:'nicht gemessen: kein Datenblatt ausgewertet, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.1,bloom:.04,mist:.05,vignette:.12,grain:.2,grainSize:1.2,grainColor:.4,clarity:.1,
+    spec:{black:.035,white:.97,range:.5,key:.46,push:.4,contrast:.32,sat:1.15,awb:.6,tint:{sh:[-.015,.016,.008],mid:[-.004,.012,-.002],hi:[.012,.006,-.014]},
+      hue:{S:[.1,.05,.05,.15,.1,.1,0,.05],H:[0,0,-.05,.2,.1,0,0,0],V:[0,0,0,-.1,0,-.05,0,0]}}},
+  'ColorPlus 200':{group:'film',meas:'nicht gemessen: kein Datenblatt ausgewertet, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.1,bloom:.03,mist:.06,vignette:.15,grain:.2,grainSize:1.3,grainColor:.35,clarity:0,
+    spec:{black:.05,white:.95,range:.35,key:.52,push:.4,contrast:.22,sat:.95,awb:.5,tint:{sh:[.008,.002,-.012],mid:[.02,.008,-.02],hi:[.03,.012,-.028]},
+      hue:{S:[0,.05,.05,-.1,-.15,-.05,-.1,0],H:[0,0,.06,-.15,0,0,0,0],V:Z8}}},
+  'Vision3 250D': {group:'film',meas:'nicht gemessen: Look nach Beschreibung des Kodak-Kinofilms',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.05,mist:.08,glowThr:.8,vignette:.1,grain:.13,grainSize:1.2,grainColor:.3,clarity:.1,
+    spec:{black:.03,white:.975,range:.55,key:.46,push:.5,contrast:.32,sat:.95,awb:.8,tint:{sh:[-.01,.004,.012],mid:[.006,.003,-.006],hi:[.012,.006,-.014]},
+      hue:{S:[.03,.05,0,-.05,.05,.05,0,0],H:Z8,V:Z8}}},
+
+  'Ektachrome E100':{group:'slide',meas:'Kodak E-4000: Korn rms 8 (extrem fein), Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.02,vignette:.05,grain:.141,grainSize:1.0,grainColor:.2,clarity:.25,
+    spec:{black:.015,white:.985,range:.7,key:.48,push:.45,contrast:.42,sat:1.15,awb:.9,tint:{sh:[-.008,0,.012],mid:[-.003,0,.006],hi:[0,0,.004]},
+      hue:{S:[.05,.05,0,.05,.08,.15,.05,0],H:Z8,V:[0,0,0,-.05,0,-.1,0,0]}}},
+  'Velvia 100F':  {group:'slide',meas:'Fujifilm-Datenblatt: Korn RMS 8, Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.02,vignette:.08,grain:.141,grainSize:1.0,grainColor:.2,clarity:.3,
+    spec:{black:.012,white:.985,range:.75,key:.46,push:.4,contrast:.5,sat:1.5,awb:.6,tint:{sh:[.004,-.004,.01],mid:[.004,-.005,0],hi:[.01,-.002,-.01]},
+      hue:{S:[.2,.15,.1,.25,.1,.25,.15,.2],H:[0,0,0,.05,0,-.05,0,0],V:[0,0,0,-.15,-.05,-.18,0,0]}}},
+  'Provia 100F':  {group:'slide',meas:'Fujifilm-Angabe: Korn RMS 8, Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.02,vignette:.05,grain:.141,grainSize:1.0,grainColor:.2,clarity:.2,
+    spec:{black:.015,white:.985,range:.65,key:.48,push:.4,contrast:.38,sat:1.12,awb:.9,tint:{sh:[-.004,0,.006],mid:[0,0,0],hi:[.004,.002,-.004]},
+      hue:{S:[.05,.05,.03,.05,.05,.1,0,0],H:Z8,V:Z8}}},
+  'Aerochrome':   {group:'slide',meas:'nicht gemessen: Infrarot-Falschfarben, Look nach Beschreibung (Grün wird Rot/Pink)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.08,bloom:.04,mist:.12,vignette:.1,grain:.18,grainSize:1.2,grainColor:.3,clarity:.1,
+    spec:{black:.03,white:.97,range:.6,key:.5,push:.4,contrast:.35,sat:1.2,awb:.7,tint:{sh:[0,0,.01],mid:[.005,0,0],hi:[.01,.004,-.006]},
+      hue:{S:[.3,.3,.2,.5,0,.1,.1,.2],H:[0,0,0,-3.6,0,.2,0,0],V:[0,0,0,.2,-.2,-.25,0,0]}}},
+  'Cross Process':{group:'slide',meas:'nicht gemessen: Look nach Beschreibung (Dia-Film im Negativ-Prozess)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.05,vignette:.2,grain:.2,grainSize:1.2,grainColor:.4,clarity:.15,
+    spec:{black:.02,white:.98,range:.6,key:.48,push:.4,contrast:.55,sat:1.3,awb:.5,tint:{sh:[-.035,.05,-.02],mid:[.008,.02,-.04],hi:[.065,.05,-.075]},
+      hue:{S:[.15,.15,.25,.15,.15,.15,.15,.15],H:[0,0,.12,-.12,0,0,0,0],V:Z8}}},
+  'Polaroid 600': {group:'slide',meas:'nicht gemessen: Sofortbild, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.1,mist:.3,vignette:.3,grain:.14,grainSize:1.4,grainColor:.3,clarity:-.2,aberration:.1,
+    spec:{black:.09,white:.94,range:.3,key:.55,push:.45,contrast:.2,sat:.8,awb:.4,tint:{sh:[-.01,.015,.015],mid:[.01,.012,-.008],hi:[.025,.02,-.025]},
+      hue:{S:[0,0,.05,-.05,-.05,-.1,-.05,0],H:[0,0,.05,0,0,0,0,0],V:Z8}}},
 };
 
 /* =====================================================================
@@ -1153,13 +1197,27 @@ const LOOK_DESC={
   'Fuji Verde':'Kühle Grün-Türkis-Schatten, frische Pflanzenfarben.',
   'Cinestill Night':'Kühle Schatten, warme Lichter, roter Halo um helle Stellen.',
   'Tri-X Street':'Schwarzweiß mit Straßenkorn. Der Farbfilter passt sich dem Foto an.',
+  'T-Max 400':'Sauberes Schwarzweiß, feines Korn, weiche Tonwerte.',
+  'T-Max 100':'Feinstes Schwarzweiß-Korn, sehr detailreich und klar.',
+  'HP5 Plus':'Klassisches Schwarzweiß mit kräftigem Korn und Kontrast.',
+  'Delta 3200':'Dunkles, grobes Nacht-Schwarzweiß mit starkem Korn.',
+  'Pro 400H':'Pastellig und luftig, kühle Grün-Töne, helle Haut.',
+  'Superia 400':'Frisch und knackig mit grünlichen Schatten und satten Farben.',
+  'ColorPlus 200':'Warm, leicht flau, wie ein Urlaubsfoto aus den Neunzigern.',
+  'Vision3 250D':'Natürlicher Kinofilm-Look für Tageslicht, weich und plastisch.',
+  'Ektachrome E100':'Sauberes Dia: neutral-kühl, klare Farben, feines Korn.',
+  'Velvia 100F':'Extrem satte Farben und tiefe Schatten, Landschafts-Klassiker.',
+  'Provia 100F':'Neutrales Dia mit Biss, natürlich und scharf.',
+  'Aerochrome':'Infrarot-Falschfarben: Grün wird Rot und Pink.',
+  'Cross Process':'Dia im Negativ-Prozess: grüne Schatten, gelbe Lichter, harter Kontrast.',
+  'Polaroid 600':'Sofortbild: ausgeblichen, weich, cremige Lichter und Vignette.',
   'Urban Moody':'Dunkles, grün-türkises Stadionlicht mit warmen Lichtern.',
   'Cool Flash':'Kühles Blitzlicht-Blau, warme Haut, körniger Kontrast.',
   'High-Key Glow':'Hell und weich leuchtend, Neon-Gelb und Weiß.',
   'Golden Clear':'Sattes Blau und warmes Goldlicht, klar und fein gekörnt.',
   'Warm Flare':'Warmes Orange mit Lichtleck und kräftigem Korn.'
 };
-const GROUPS=[['cine','Cinematic'],['film','Film'],['ref','Referenz']];
+const GROUPS=[['cine','Cinematic'],['film','Farbfilm'],['slide','Dia & Spezial'],['bw','S/W'],['ref','Referenz']];
 let seg='cine', tab='looks';
 const inputs={}, cards={};
 const PBY=Object.fromEntries(PARAMS.map(p=>[p.k,p]));
@@ -1300,7 +1358,7 @@ function mkCard(name,group,sub){
 }
 (function buildCards(){
   mkCard('Original','all','ohne Look');
-  const sub={cine:'Cinematic',film:'Film',ref:'Referenz'};
+  const sub={cine:'Cinematic',film:'Farbfilm',slide:'Dia/Spezial',bw:'S/W',ref:'Referenz'};
   for(const name in LOOKS) mkCard(name,LOOKS[name].group,sub[LOOKS[name].group]);
   const plus=el('button','card plus','<div><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Eigenes Referenzbild</span></div>');
   plus.dataset.group='ref'; plus.onclick=()=>$('refFile').click(); $('cards').appendChild(plus); cards.__plus={el:plus};

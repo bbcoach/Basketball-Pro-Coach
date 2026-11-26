@@ -17,7 +17,19 @@ Kennlinie = Dichte über log. Belichtung je Farbschicht (R, G, B). Steigung (γ)
 | Gold 200 | E-7022 | 0,545 | 0,565 | 0,593 | 1,010 | 66 (aus 44 bei 4×6 hochgerechnet, +22) |
 | Ultra Max 400 | E-7023 | 0,511 | 0,530 | 0,596 | 0,947 | 68 (aus 46 bei 4×6 hochgerechnet, +22) |
 
-Tri-X 400 (F-4017): diffuse rms-Granularität 17. Das ist ein anderer Maßstab und nicht mit dem Korn-Index vergleichbar.
+Korn über die diffuse rms-Granularität (Dichte, 48 µm Blende, D = 1,0; Kodak-Datenblätter, Fujifilm-Angabe):
+
+| Film | rms | Quelle | Korn-Regler (0,30 × rms / 17) |
+|---|---|---|---|
+| Tri-X 400 | 17 | Kodak F-4017 | 0,30 |
+| T-Max 400 | 10 | Kodak F-4043 | 0,176 |
+| T-Max 100 | 8 | Kodak F-4016 | 0,141 |
+| Ektachrome E100 | 8 | Kodak E-4000 | 0,141 |
+| Velvia 100F | 8 | Fujifilm-Datenblatt | 0,141 |
+| Provia 100F | 8 | Fujifilm-Angabe | 0,141 |
+
+Der rms-Wert ist ein anderer Maßstab als der Korn-Index der Farbnegativfilme. Beide Gruppen sind deshalb nicht direkt
+miteinander vergleichbar. Dass Tri-X mit 0,30 als Anker dient, ist eine Annahme (so grob wirkt es bei 100 % Ansicht).
 
 ## Wie das in die Looks eingeht
 
@@ -38,4 +50,5 @@ Tri-X 400 (F-4017): diffuse rms-Granularität 17. Das ist ein anderer Maßstab u
   neutral bleiben. Ein roher Übertrag würde einen falschen Farbstich erzeugen.
 * **Papier und Scan** bestimmen den größten Teil des Kontrastverlaufs. Der Kontrast-Anker (0,30) ist eine Annahme.
 * Cinestill 800T (Kodak-Kinofilm 5219 ohne Remjet): Die Kurven aus dem Datenblatt waren nicht verlässlich auswertbar.
-  Fuji-Filme wurden nicht ausgewertet.
+* Ilford (HP5 Plus, Delta 3200): Die Datenblätter waren nicht abrufbar (Zugriff verweigert), die Looks sind Beschreibungen.
+* Fuji Pro 400H, Superia 400, ColorPlus 200, Vision3 250D, Aerochrome, Cross Process, Polaroid: nicht gemessen.
