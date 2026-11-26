@@ -162,27 +162,42 @@ const LOOKS = {
                    halation:.25,bloom:.1,mist:.1,leak:.55,leakHue:25,leakAngle:165,grain:.15,grainSize:1.3,grainColor:.3},
 
   // ---- Film-Looks: nur eine Beschreibung des Ziels. Wie stark was wirkt, bestimmt das jeweilige Foto.
-  'Portra 400':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.1,bloom:.04,mist:.1,glowThr:.8,vignette:.08,grain:.16,grainSize:1.1,grainColor:.3,clarity:-.05,
-    spec:{black:.04,white:.965,range:.5,key:.5,push:.45,contrast:.3,sat:.92,awb:.8,
+  // Kontrast und Korn der Kodak-Filme sind aus den Kodak-Datenblättern gemessen (siehe film-data/README.md):
+  //   contrast: Steigung der Kennlinie (Grünschicht) relativ zu Portra 400 → 1+0,66·c entspricht der Mittensteigung der S-Kurve
+  //   grain:    Print-Grain-Index (35 mm, 8×10), Verhältnis 1,0328^ΔPGI, Portra 400 = 0,14 (Standardabweichung ≈ 0,010)
+  'Portra 400':   {group:'film',meas:'Kodak E-4050: Kennlinien-Steigung 0,560, Korn-Index 59',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.1,bloom:.04,mist:.1,glowThr:.8,vignette:.08,grain:.14,grainSize:1.1,grainColor:.3,clarity:-.05,
+    spec:{black:.04,white:.965,range:.5,key:.5,push:.45,contrast:.30,sat:.92,awb:.8,
       tint:{sh:[-.012,.004,.008],mid:[.012,.004,-.012],hi:[.018,.007,-.018]},
       hue:{S:[.05,.08,0,-.12,-.08,-.12,-.1,0],H:[0,0,0,-.25,0,0,0,0],V:[0,.05,0,-.05,0,.05,0,0]}}},
-  'Cinestill Night':{group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.6,bloom:.15,mist:.12,glowThr:.78,glowRadius:2.8,vignette:.15,grain:.22,grainSize:1.3,grainColor:.35,clarity:.15,aberration:.15,
+  'Portra 160':   {group:'film',meas:'Kodak E-4051: Kennlinien-Steigung 0,544 (−3 % gegenüber Portra 400), Korn-Index 50',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.08,bloom:.03,mist:.1,glowThr:.8,vignette:.08,grain:.105,grainSize:1.0,grainColor:.3,clarity:-.05,
+    spec:{black:.04,white:.965,range:.5,key:.52,push:.45,contrast:.247,sat:.9,awb:.8,
+      tint:{sh:[-.012,.004,.008],mid:[.01,.004,-.01],hi:[.015,.006,-.015]},
+      hue:{S:[.05,.08,0,-.12,-.08,-.12,-.1,0],H:[0,0,0,-.25,0,0,0,0],V:[0,.05,0,-.05,0,.05,0,0]}}},
+  'Portra 800':   {group:'film',meas:'Kodak E-4040: Kennlinien-Steigung 0,559, Korn-Index 70 (deutlich körniger als Portra 400)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.05,mist:.1,glowThr:.8,vignette:.1,grain:.2,grainSize:1.2,grainColor:.35,clarity:-.03,
+    spec:{black:.04,white:.965,range:.5,key:.46,push:.4,contrast:.30,sat:.95,awb:.7,
+      tint:{sh:[-.01,.004,.008],mid:[.014,.005,-.014],hi:[.02,.008,-.02]},
+      hue:{S:[.05,.08,0,-.1,-.06,-.1,-.08,0],H:[0,0,0,-.2,0,0,0,0],V:[0,.05,0,-.05,0,.05,0,0]}}},
+  'Cinestill Night':{group:'film',meas:'nicht gemessen: Kodak-5219-Datenblatt war nicht verlässlich auswertbar, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.6,bloom:.15,mist:.12,glowThr:.78,glowRadius:2.8,vignette:.15,grain:.22,grainSize:1.3,grainColor:.35,clarity:.15,aberration:.15,
     spec:{black:.03,white:.985,range:.35,key:.34,push:.35,contrast:.35,sat:1.12,awb:.4,
       tint:{sh:[-.03,.012,.024],mid:[-.008,.003,.008],hi:[.016,-.002,-.02]},
       hue:{S:[.1,.1,0,-.05,.1,.1,0,0],H:[0,0,0,0,-.1,0,0,0],V:[0,0,0,-.1,0,-.1,0,0]}}},
-  'Ektar Punch':  {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.03,vignette:.06,grain:.07,grainSize:.9,grainColor:.2,clarity:.25,
-    spec:{black:.02,white:.985,range:.6,key:.5,push:.3,contrast:.4,sat:1.28,awb:.7,
+  'Ektar Punch':  {group:'film',meas:'Kodak E-4046: Kennlinien-Steigung 0,583 (+4 % gegenüber Portra 400), Korn-Index 38 (feinstes Korn)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.03,vignette:.06,grain:.07,grainSize:.9,grainColor:.2,clarity:.25,
+    spec:{black:.02,white:.985,range:.6,key:.5,push:.3,contrast:.372,sat:1.28,awb:.7,
       tint:{sh:[0,0,.004],mid:[.004,.001,-.004],hi:[.008,.003,-.008]},
       hue:{S:[.15,.12,.05,.1,.05,.18,0,0],H:[0,0,0,0,0,-.05,0,0],V:[0,0,0,-.05,-.05,-.12,0,0]}}},
-  'Kodak Gold':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.06,mist:.08,glowThr:.8,vignette:.1,grain:.2,grainSize:1.2,grainColor:.35,clarity:.05,
-    spec:{black:.05,white:.96,range:.4,key:.52,push:.4,contrast:.2,sat:1.08,awb:.6,
+  'Kodak Gold 200':{group:'film',meas:'Kodak E-7022: Kennlinien-Steigung 0,565, Korn-Index 66 (aus 44 bei 4×6 hochgerechnet)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.06,mist:.08,glowThr:.8,vignette:.1,grain:.176,grainSize:1.2,grainColor:.35,clarity:.05,
+    spec:{black:.05,white:.96,range:.4,key:.52,push:.4,contrast:.318,sat:1.08,awb:.6,
       tint:{sh:[.006,0,-.012],mid:[.022,.008,-.026],hi:[.032,.013,-.034]},
       hue:{S:[.05,.1,.1,-.05,-.1,0,-.1,0],H:[0,0,.1,-.2,0,0,0,0],V:[0,.04,.05,0,0,-.05,0,0]}}},
-  'Fuji Verde':   {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.12,bloom:.04,mist:.06,vignette:.1,grain:.18,grainSize:1.2,grainColor:.4,clarity:.12,
+  'Ultra Max 400':{group:'film',meas:'Kodak E-7023: Kennlinien-Steigung 0,530 (−5 % gegenüber Portra 400, flachster Film), Korn-Index 68 (aus 46 bei 4×6 hochgerechnet)',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.15,bloom:.06,mist:.08,glowThr:.8,vignette:.12,grain:.187,grainSize:1.25,grainColor:.4,clarity:.03,
+    spec:{black:.05,white:.96,range:.4,key:.5,push:.4,contrast:.203,sat:1.15,awb:.55,
+      tint:{sh:[.004,.002,-.008],mid:[.02,.007,-.022],hi:[.03,.012,-.03]},
+      hue:{S:[.08,.12,.1,0,-.05,.05,-.05,0],H:[0,0,.08,-.15,0,0,0,0],V:[0,.04,.04,0,0,-.05,0,0]}}},
+  'Fuji Verde':   {group:'film',meas:'nicht gemessen: kein Datenblatt ausgewertet, Look nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, halation:.12,bloom:.04,mist:.06,vignette:.1,grain:.18,grainSize:1.2,grainColor:.4,clarity:.12,
     spec:{black:.04,white:.97,range:.45,key:.46,push:.4,contrast:.28,sat:1.1,awb:.6,
       tint:{sh:[-.02,.014,.008],mid:[-.008,.01,0],hi:[0,.004,-.006]},
       hue:{S:[0,-.03,0,.1,.1,.05,0,-.1],H:[0,0,-.1,.25,.15,0,0,0],V:[0,0,0,-.1,-.05,-.05,0,0]}}},
-  'Tri-X Street': {group:'film',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.2,grain:.3,grainSize:1.5,grainColor:0,clarity:.3,
+  'Tri-X Street': {group:'film',meas:'Kodak F-4017: Korn rms 17 (anderer Maßstab als bei Farbfilmen, nicht vergleichbar), Rest nach Beschreibung',lookTone:.9,lookTint:1,lookSat:1,lookHue:1, bw:1,bwAdapt:1,halation:.05,mist:.05,vignette:.2,grain:.3,grainSize:1.5,grainColor:0,clarity:.3,
     spec:{black:.025,white:.985,range:.8,key:.45,push:.3,contrast:.5,sat:1,awb:1,
       tint:{sh:[0,0,0],mid:[0,0,0],hi:[0,0,0]},hue:{S:Z8,H:Z8,V:Z8}}},
 };
@@ -852,12 +867,12 @@ function applyPreset(name){
   const keep={adaptAmt:state.adaptAmt,skinProtect:state.skinProtect};
   curLook=name==='Original'?null:name;
   const pre=LOOKS[name]||{}, base={};
-  for(const k in pre){ if(k!=='ref'&&k!=='spec'&&k!=='group') base[k]=pre[k]; }
+  for(const k in pre){ if(k!=='ref'&&k!=='spec'&&k!=='group'&&k!=='meas') base[k]=pre[k]; }
   curBase=base;
   Object.assign(state,DEFAULTS,base,keep);
   activeRef=pre.ref&&LOOKSTATS[pre.ref]?LOOKSTATS[pre.ref]:null;
   activeSpec=pre.spec||null;
-  document.getElementById('refName').textContent=curLook?('Aktiv: '+name+'.'):'';
+  document.getElementById('refName').textContent=curLook?('Aktiv: '+name+'.'+(pre.meas?(pre.meas.startsWith('nicht')?' Hinweis: '+pre.meas+'.':' Gemessen ('+pre.meas+').'):'')):'';
   Object.assign(state,adaptEffects(base));
   rebuildLook(); syncInputs(); schedule();
 }
