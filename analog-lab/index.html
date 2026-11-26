@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analog Lab</title>
+<style>
+  :root{
+    --bg:#0e0e0f; --panel:#161617; --line:#2a2a2c; --text:#e9e6e1; --dim:#8d8a85; --accent:#ff9a3c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .app{display:grid;grid-template-columns:1fr 340px;height:100%}
+  .stage{position:relative;display:flex;align-items:center;justify-content:center;padding:16px;min-width:0;min-height:0}
+  canvas#gl{max-width:100%;max-height:100%;box-shadow:0 10px 50px #000a;display:none;touch-action:none}
+  .drop{border:1.5px dashed var(--line);border-radius:14px;padding:48px 36px;text-align:center;color:var(--dim);cursor:pointer;max-width:420px}
+  .drop b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
+  .drop.over{border-color:var(--accent);color:var(--text)}
+  .panel{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:14px 14px 40px}
+  h1{font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin:2px 0 12px;font-weight:600}
+  h1 span{color:var(--accent)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  button,.btn{background:#222224;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
+  button:hover{border-color:#555}
+  button.primary{background:var(--accent);color:#1a1000;border-color:var(--accent);font-weight:600}
+  button.on{border-color:var(--accent);color:var(--accent)}
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .presets button{padding:6px 10px;font-size:12.5px}
+  details{border-top:1px solid var(--line);padding:8px 0}
+  summary{cursor:pointer;font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);padding:4px 0}
+  details[open] summary{color:var(--text)}
+  .ctl{display:grid;grid-template-columns:104px 1fr 38px;align-items:center;gap:8px;margin:6px 0;font-size:12.5px;color:#c9c6c1}
+  .ctl output{color:var(--dim);text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  input[type=text]{background:#111;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;width:100%;font:inherit}
+  label.chk{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+  .hint{color:var(--dim);font-size:12px;margin-top:10px}
+  @media (max-width:820px){
+    .app{grid-template-columns:1fr;grid-template-rows:55% 45%}
+    .panel{border-left:0;border-top:1px solid var(--line)}
+    .stage{padding:8px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="drop" id="drop"><b>Foto hier ablegen</b>oder klicken zum Auswählen<br><small>Alles läuft lokal im Browser, nichts wird hochgeladen.</small></div>
+    <canvas id="gl"></canvas>
+  </div>
+  <div class="panel">
+    <h1>Analog <span>Lab</span></h1>
+    <div class="row">
+      <button id="open">Foto öffnen</button>
+      <button id="cmp" title="Gedrückt halten für Vorher/Nachher">Vorher (halten)</button>
+    </div>
+    <div class="row">
+      <button class="primary" id="png">Export PNG</button>
+      <button id="jpg">Export JPG</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="presets" id="presets"></div>
+    <div id="controls"></div>
+    <details>
+      <summary>Datumsstempel</summary>
+      <label class="chk"><input type="checkbox" id="dateOn"> Aktiv</label>
+      <input type="text" id="dateText">
+    </details>
+    <details open>
+      <summary>Zufall</summary>
+      <div class="row" style="margin-top:6px"><button id="reseed">Korn / Staub neu würfeln</button></div>
+    </details>
+    <p class="hint">Tipp: Erst Preset wählen, dann Korn, Halation und Lichtleck nach Geschmack nachjustieren. Export hat maximal 3200 px auf der langen Kante.</p>
+  </div>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+
+<script>
+'use strict';
+/* ---------- Parameter-Definition (Uniform-Name = key) ---------- */
+const PARAMS = [
+  // Licht
+  {g:'Licht',k:'exposure',l:'Belichtung',min:-2,max:2,def:0,step:.01},
+  {g:'Licht',k:'contrast',l:'Kontrast',min:-1,max:1,def:0,step:.01},
+  {g:'Licht',k:'highlights',l:'Lichter',min:-1,max:1,def:0,step:.01},
+  {g:'Licht',k:'shadows',l:'Tiefen',min:-1,max:1,def:0,step:.01},
+  {g:'Licht',k:'fade',l:'Fade (Schwarz anheben)',min:0,max:.4,def:0,step:.005},
+  // Farbe
+  {g:'Farbe',k:'temp',l:'Temperatur',min:-1,max:1,def:0,step:.01},
+  {g:'Farbe',k:'tint',l:'Tint (Grün–Magenta)',min:-1,max:1,def:0,step:.01},
+  {g:'Farbe',k:'saturation',l:'Sättigung',min:-1,max:1,def:0,step:.01},
+  {g:'Farbe',k:'bw',l:'Schwarzweiß',min:0,max:1,def:0,step:.01},
+  // Split Toning
+  {g:'Split-Toning',k:'shHue',l:'Tiefen Farbton',min:0,max:360,def:200,step:1},
+  {g:'Split-Toning',k:'shAmt',l:'Tiefen Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Split-Toning',k:'hiHue',l:'Lichter Farbton',min:0,max:360,def:40,step:1},
+  {g:'Split-Toning',k:'hiAmt',l:'Lichter Stärke',min:0,max:1,def:0,step:.01},
+  // Glow
+  {g:'Glow',k:'halation',l:'Halation (roter Hof)',min:0,max:1,def:0,step:.01},
+  {g:'Glow',k:'bloom',l:'Bloom',min:0,max:1,def:0,step:.01},
+  {g:'Glow',k:'glowRadius',l:'Radius',min:.5,max:5,def:2,step:.05},
+  {g:'Glow',k:'glowThr',l:'Schwelle',min:.3,max:.95,def:.7,step:.01},
+  // Linse
+  {g:'Linse',k:'vignette',l:'Vignette',min:0,max:1,def:0,step:.01},
+  {g:'Linse',k:'aberration',l:'Chrom. Aberration',min:0,max:1,def:0,step:.01},
+  // Korn
+  {g:'Korn',k:'grain',l:'Korn Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Korn',k:'grainSize',l:'Korngröße',min:.5,max:4,def:1.4,step:.05},
+  {g:'Korn',k:'grainColor',l:'Farbkorn',min:0,max:1,def:.3,step:.01},
+  // Lichtleck
+  {g:'Lichtleck',k:'leak',l:'Stärke',min:0,max:1,def:0,step:.01},
+  {g:'Lichtleck',k:'leakHue',l:'Farbton',min:0,max:360,def:20,step:1},
+  {g:'Lichtleck',k:'leakAngle',l:'Richtung',min:0,max:360,def:20,step:1},
+  // Staub
+  {g:'Staub & Kratzer',k:'dust',l:'Menge',min:0,max:1,def:0,step:.01},
+];
+const DEFAULTS = Object.fromEntries(PARAMS.map(p=>[p.k,p.def]));
+
+const PRESETS = {
+  'Original':      {},
+  'Warm Fade':     {exposure:.1,contrast:-.05,fade:.12,temp:.35,saturation:-.1,shHue:190,shAmt:.4,hiHue:35,hiAmt:.35,halation:.35,glowRadius:2.2,vignette:.3,grain:.45,grainSize:1.6,dust:.2},
+  'Cinestill 800T':{temp:-.25,contrast:.1,shadows:.1,shHue:200,shAmt:.35,hiHue:20,hiAmt:.2,halation:.9,glowRadius:3,glowThr:.62,bloom:.3,grain:.6,vignette:.25,aberration:.3,saturation:.1},
+  'Wegwerfkamera': {exposure:.2,contrast:.25,temp:.3,saturation:.15,fade:.08,hiHue:50,hiAmt:.3,vignette:.55,grain:.5,bloom:.25,aberration:.4,leak:.3,leakHue:20,leakAngle:20,dust:.35,_date:true},
+  'Fuji Grün':     {tint:-.3,contrast:.12,saturation:.1,fade:.06,shHue:150,shAmt:.3,halation:.2,vignette:.2,grain:.4},
+  'Tri-X S/W':     {bw:1,contrast:.35,fade:.06,halation:.15,vignette:.4,grain:.8,grainSize:1.8,grainColor:0,dust:.15},
+  'Golden Leak':   {exposure:.15,temp:.5,saturation:.05,fade:.1,hiHue:40,hiAmt:.5,halation:.5,bloom:.35,leak:.8,leakHue:25,leakAngle:330,grain:.4},
+  'Cross Process': {contrast:.3,saturation:.35,tint:.15,fade:.05,shHue:160,shAmt:.5,hiHue:55,hiAmt:.5,vignette:.3,grain:.35},
+};
+
+/* ---------- Shader ---------- */
+const VS = `#version 300 es
+out vec2 v;
+void main(){
+  vec2 p = vec2(float((gl_VertexID<<1)&2), float(gl_VertexID&2));
+  v = p; gl_Position = vec4(p*2.-1.,0.,1.);
+}`;
+
+const HEAD = `#version 300 es
+precision highp float;
+in vec2 v; out vec4 o;
+const vec3 LW = vec3(.2126,.7152,.0722);
+vec3 hue(float h){ return clamp(abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.,0.,1.); }
+`;
+
+const FS_GRADE = HEAD + `
+uniform sampler2D uImg;
+uniform float exposure,contrast,highlights,shadows,fade,temp,tint,saturation,bw,shHue,shAmt,hiHue,hiAmt;
+void main(){
+  vec3 x = texture(uImg,v).rgb;
+  x *= exp2(exposure);
+  x += vec3(temp*.08, temp*.01, -temp*.08);
+  x += vec3(tint*.03, -tint*.05, tint*.03);
+  float l = dot(x,LW);
+  float sm = 1.-smoothstep(0.,.6,l), hm = smoothstep(.4,1.,l);
+  x += shadows*.3*sm + highlights*.3*hm;
+  x = (x-.5)*(1.+contrast)+.5;
+  x = clamp(x,0.,1.);
+  l = dot(x,LW);
+  x = mix(vec3(l),x,1.+saturation);
+  sm = 1.-smoothstep(0.,.6,l); hm = smoothstep(.4,1.,l);
+  x += (hue(shHue/360.)-.5)*shAmt*.35*sm;
+  x += (hue(hiHue/360.)-.5)*hiAmt*.35*hm;
+  x = clamp(x,0.,1.);
+  x = mix(x, vec3(dot(x,LW)), bw);
+  x = mix(vec3(fade*.4), vec3(1.-fade*.15), x);
+  o = vec4(clamp(x,0.,1.),1.);
+}`;
+
+const FS_BLUR = HEAD + `
+uniform sampler2D uT; uniform vec2 uDir; uniform float uThr, uUseThr;
+vec3 s(vec2 p){
+  vec3 c = texture(uT,p).rgb;
+  if(uUseThr>.5){ c *= smoothstep(uThr,uThr+.25,dot(c,LW)); }
+  return c;
+}
+void main(){
+  vec3 c = s(v)*.2270270270;
+  c += (s(v+uDir*1.3846153846)+s(v-uDir*1.3846153846))*.3162162162;
+  c += (s(v+uDir*3.2307692308)+s(v-uDir*3.2307692308))*.0702702703;
+  o = vec4(c,1.);
+}`;
+
+const FS_FINAL = HEAD + `
+uniform sampler2D uG,uB,uDate,uOrig;
+uniform vec2 res; uniform float dateOn,compare,seed;
+uniform float halation,bloom,vignette,aberration,grain,grainSize,grainColor,leak,leakHue,leakAngle,dust;
+float h21(vec2 p){ vec3 q=fract(vec3(p.xyx)*.1031); q+=dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z); }
+void main(){
+  if(compare>.5){ o=vec4(texture(uOrig,v).rgb,1.); return; }
+  vec2 c = v-.5; float asp = res.x/res.y;
+  vec2 ab = c*aberration*.012;
+  vec3 x = vec3(texture(uG,v+ab).r, texture(uG,v).g, texture(uG,v-ab).b);
+  vec3 b = texture(uB,v).rgb;
+  x += b*vec3(1.,.28,.1)*halation*1.0;
+  x += b*bloom*.5;
+
+  // Lichtleck
+  float a = radians(leakAngle);
+  vec2 cc = .5+vec2(cos(a),sin(a))*.62;
+  vec2 d = (v-cc)*vec2(asp,1.);
+  float lk = exp(-dot(d,d)*5.5)*(.8+.2*sin(v.y*7.+v.x*3.));
+  vec3 lc = mix(hue(leakHue/360.),vec3(1.,.45,.1),.3);
+  x = 1.-(1.-x)*(1.-lc*lk*leak);
+
+  // Vignette
+  float vg = smoothstep(.2,.75,length(c*vec2(asp>1.?1.:asp, asp>1.?1./asp:1.))*1.5);
+  x *= 1.-vignette*vg;
+
+  // Staub & Kratzer
+  vec2 p = v*res; float cell = res.y/14.; vec2 ci = floor(p/cell); float sp = 0.;
+  for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++){
+    vec2 id = ci+vec2(float(i),float(j));
+    if(h21(id+seed*.37) < dust*.35){
+      vec2 ctr = (id+vec2(h21(id+3.1),h21(id+7.7)))*cell;
+      float rad = (.6+h21(id+9.9)*2.2)*res.y/1100.;
+      sp += smoothstep(rad,rad*.4,length(p-ctr))*(.5+.5*h21(id+1.3));
+    }
+  }
+  x = mix(x, vec3(.93,.91,.86), clamp(sp,0.,1.)*.75);
+  float sc = h21(vec2(floor(p.x/(res.y/500.)), floor(seed)));
+  x += step(sc, dust*.004)*(.5+.5*sin(p.y*.02+sc*100.))*.18;
+
+  // Korn
+  vec2 gp = floor(gl_FragCoord.xy/max(.5,grainSize*res.y/1000.));
+  float n = (h21(gp+seed)+h21(gp*1.7+seed+11.)+h21(gp+seed*2.+31.)-1.5)*2.;
+  vec3 nc = vec3(h21(gp+seed+5.),h21(gp+seed+17.),h21(gp+seed+29.))-.5;
+  float l = dot(x,LW);
+  float mask = .35+.65*(1.-pow(abs(l*2.-1.),2.));
+  x += mix(vec3(n), nc*3.4, grainColor)*grain*.17*mask;
+
+  // Datum
+  vec4 dt = texture(uDate,v);
+  x = mix(x, dt.rgb, dt.a*dateOn);
+  o = vec4(clamp(x,0.,1.),1.);
+}`;
+
+/* ---------- GL Setup ---------- */
+const cv = document.getElementById('gl');
+const gl = cv.getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
+if(!gl){ document.getElementById('drop').innerHTML='<b>WebGL2 nicht verfügbar</b>Bitte einen aktuellen Browser nutzen.'; }
+
+function compile(type,src){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function program(fs){
+  const p=gl.createProgram();
+  gl.attachShader(p,compile(gl.VERTEX_SHADER,VS)); gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+let P={};
+if(gl){ P={grade:program(FS_GRADE),blur:program(FS_BLUR),final:program(FS_FINAL)}; }
+
+function makeTex(w,h,data){
+  const t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  if(data){ gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,data); }
+  else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  return t;
+}
+function makeFbo(w,h){
+  const tex=makeTex(w,h); const fb=gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+  return {tex,fb,w,h};
+}
+
+/* ---------- State ---------- */
+const state = {...DEFAULTS};
+let dateOn=false, dateText=(()=>{const d=new Date();return `'${String(d.getFullYear()).slice(2)} ${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getDate()).padStart(2,'0')}`;})();
+let seed = 17.3, comparing=false;
+let img=null; // {tex,w,h}
+let gradeF,blurA,blurB,dateTex;
+
+function setU(p,name,val){
+  const loc=gl.getUniformLocation(p,name); if(loc===null) return;
+  if(Array.isArray(val)) gl.uniform2f(loc,val[0],val[1]); else gl.uniform1f(loc,val);
+}
+function setParams(p){ for(const k in state) setU(p,k,state[k]); }
+function bindTex(unit,tex,p,name){
+  gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.uniform1i(gl.getUniformLocation(p,name),unit);
+}
+
+/* ---------- Render ---------- */
+let queued=false;
+function schedule(){ if(queued||!img) return; queued=true; requestAnimationFrame(()=>{queued=false;render();}); }
+
+function render(){
+  if(!img) return;
+  const {w,h}=img;
+  gl.disable(gl.BLEND);
+  // 1) Grading
+  gl.bindFramebuffer(gl.FRAMEBUFFER,gradeF.fb); gl.viewport(0,0,w,h);
+  gl.useProgram(P.grade); setParams(P.grade); bindTex(0,img.tex,P.grade,'uImg');
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  // 2) Glow: Bright-pass + 2x separable Blur auf 1/4 Auflösung
+  const r=state.glowRadius, bw_=blurA.w, bh_=blurA.h;
+  gl.useProgram(P.blur);
+  setU(P.blur,'uThr',state.glowThr);
+  const pass=(src,dst,dir,thr)=>{
+    gl.bindFramebuffer(gl.FRAMEBUFFER,dst.fb); gl.viewport(0,0,dst.w,dst.h);
+    bindTex(0,src.tex,P.blur,'uT'); setU(P.blur,'uDir',dir); setU(P.blur,'uUseThr',thr?1:0);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  };
+  pass(gradeF,blurA,[r/bw_,0],true);
+  pass(blurA,blurB,[0,r/bh_],false);
+  pass(blurB,blurA,[r*1.8/bw_,0],false);
+  pass(blurA,blurB,[0,r*1.8/bh_],false);
+  // 3) Final
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null); gl.viewport(0,0,w,h);
+  gl.useProgram(P.final); setParams(P.final);
+  setU(P.final,'res',[w,h]); setU(P.final,'seed',seed);
+  setU(P.final,'dateOn',dateOn?1:0); setU(P.final,'compare',comparing?1:0);
+  bindTex(0,gradeF.tex,P.final,'uG'); bindTex(1,blurB.tex,P.final,'uB');
+  bindTex(2,dateTex,P.final,'uDate'); bindTex(3,img.tex,P.final,'uOrig');
+  gl.drawArrays(gl.TRIANGLES,0,3);
+}
+
+/* ---------- Bild laden ---------- */
+const MAXDIM=3200;
+async function loadFile(file){
+  if(!file||!file.type.startsWith('image/')) return;
+  let bmp;
+  try{ bmp=await createImageBitmap(file,{imageOrientation:'from-image'}); }
+  catch(e){ bmp=await createImageBitmap(file); }
+  const sc=Math.min(1,MAXDIM/Math.max(bmp.width,bmp.height));
+  const w=Math.round(bmp.width*sc), h=Math.round(bmp.height*sc);
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  c.getContext('2d').drawImage(bmp,0,0,w,h);
+  cv.width=w; cv.height=h;
+  img={tex:makeTex(w,h,c),w,h};
+  gradeF=makeFbo(w,h);
+  const qw=Math.max(2,Math.round(w/4)), qh=Math.max(2,Math.round(h/4));
+  blurA=makeFbo(qw,qh); blurB=makeFbo(qw,qh);
+  drawDate();
+  document.getElementById('drop').style.display='none';
+  cv.style.display='block';
+  schedule();
+}
+
+function drawDate(){
+  if(!img) return;
+  const {w,h}=img;
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const g=c.getContext('2d');
+  const fs=Math.round(Math.min(w,h)*.045);
+  g.font=`bold ${fs}px "Courier New", monospace`;
+  g.textAlign='right'; g.textBaseline='alphabetic';
+  g.shadowColor='rgba(255,90,0,.9)'; g.shadowBlur=fs*.35;
+  g.fillStyle='#ff9a2e';
+  g.fillText(dateText, w-fs*1.1, h-fs*1.0);
+  if(dateTex) gl.deleteTexture(dateTex);
+  dateTex=makeTex(w,h,c);
+}
+
+/* ---------- UI ---------- */
+const ctlRoot=document.getElementById('controls');
+const inputs={};
+(function buildUI(){
+  const groups={};
+  for(const p of PARAMS){
+    if(!groups[p.g]){
+      const d=document.createElement('details'); d.open=['Licht','Farbe','Korn'].includes(p.g);
+      d.innerHTML=`<summary>${p.g}</summary>`; ctlRoot.appendChild(d); groups[p.g]=d;
+    }
+    const row=document.createElement('div'); row.className='ctl';
+    row.innerHTML=`<span>${p.l}</span><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.def}"><output></output>`;
+    const inp=row.querySelector('input'), out=row.querySelector('output');
+    const upd=()=>{ out.textContent=(+inp.value).toFixed(p.step<1&&p.max<=1?2:(p.step<1?1:0)); };
+    inp.addEventListener('input',()=>{ state[p.k]=+inp.value; upd(); schedule(); });
+    inp.addEventListener('dblclick',()=>{ inp.value=p.def; state[p.k]=p.def; upd(); schedule(); });
+    inputs[p.k]={inp,upd}; upd();
+    groups[p.g].appendChild(row);
+  }
+  const pr=document.getElementById('presets');
+  for(const name in PRESETS){
+    const b=document.createElement('button'); b.textContent=name;
+    b.onclick=()=>applyPreset(name); pr.appendChild(b);
+  }
+})();
+
+function applyPreset(name){
+  const pre=PRESETS[name];
+  Object.assign(state,DEFAULTS);
+  for(const k in pre){ if(k[0]!=='_') state[k]=pre[k]; }
+  setDate(!!pre._date);
+  for(const k in inputs){ inputs[k].inp.value=state[k]; inputs[k].upd(); }
+  schedule();
+}
+function setDate(on){ dateOn=on; document.getElementById('dateOn').checked=on; }
+
+document.getElementById('dateOn').onchange=e=>{ dateOn=e.target.checked; schedule(); };
+const dt=document.getElementById('dateText'); dt.value=dateText;
+dt.oninput=()=>{ dateText=dt.value; drawDate(); schedule(); };
+document.getElementById('reseed').onclick=()=>{ seed=Math.random()*100; schedule(); };
+document.getElementById('reset').onclick=()=>applyPreset('Original');
+
+const fileIn=document.getElementById('file');
+document.getElementById('open').onclick=()=>fileIn.click();
+document.getElementById('drop').onclick=()=>fileIn.click();
+fileIn.onchange=()=>loadFile(fileIn.files[0]);
+const stage=document.getElementById('stage'), drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+stage.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+
+const cmp=document.getElementById('cmp');
+const cmpOn=v=>{ comparing=v; cmp.classList.toggle('on',v); schedule(); };
+['pointerdown'].forEach(ev=>{cmp.addEventListener(ev,()=>cmpOn(true)); cv.addEventListener(ev,()=>cmpOn(true));});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>{cmp.addEventListener(ev,()=>cmpOn(false)); cv.addEventListener(ev,()=>cmpOn(false));});
+
+function exportImg(type,ext){
+  if(!img) return;
+  comparing=false; render();
+  cv.toBlob(b=>{
+    const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+    a.download=`analog-${Date.now()}.${ext}`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  },type,.94);
+}
+document.getElementById('png').onclick=()=>exportImg('image/png','png');
+document.getElementById('jpg').onclick=()=>exportImg('image/jpeg','jpg');
+
+window.__loadFile=loadFile; // für Tests
+</script>
+</body>
+</html>
